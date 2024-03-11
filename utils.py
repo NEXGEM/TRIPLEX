@@ -29,22 +29,6 @@ def match(x: np.array, y: np.array):
             positions[i] = np.nan
     return positions.astype('int16')
 
-# def categorize_exp(exp):
-    
-#     output = np.zeros_like(exp).astype('int')
-    
-#     # Fit a Gaussian mixture model with 2 components
-#     gmm = GaussianMixture(n_components=2).fit(exp.reshape(-1, 1))
-
-#     # Get the means and variances of the two components
-#     means = gmm.means_.flatten()
-#     variances = gmm.covariances_.flatten()
-
-#     # Calculate the separation point
-#     midpoint = (means[0] + means[1]) / 2
-#     output[exp >= midpoint] = 1
-    
-#     return output
 
 def smooth_exp(cnt: pd.DataFrame):
     """Apply smoothing to gene expression data in Pandas DataFrame.
@@ -107,7 +91,7 @@ def collate_fn(batch: tuple):
     
     return patch, exp, pid, sid, wsi, position, neighbors, mask
 
-#--->> Load config
+# Load config
 def load_config(config_name: str):
     """load config file in Dict
 
@@ -124,7 +108,7 @@ def load_config(config_name: str):
     
     return Dict(config)
 
-#--->> Load loggers
+# Load loggers
 def load_loggers(cfg: Dict):
     """Return Logger instance for Trainer in List.
 
