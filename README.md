@@ -7,7 +7,6 @@ Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 
 ## TODO
  - [x] Add implementation code for TRIPLEX
- - [x] Add script files to run code (Slurm & non-Slurm)
  - [x] Complete requirements.txt
  
 ## Installation
