@@ -43,7 +43,7 @@ This will extract the data into four subdirectories within the ./data folder, na
   └── weights/tenpercent_resnet18.ckpt
 ```
 
-### Step 4: Extract histology features
+### Step 4: Extract features of slide images
 - Cross validation
 ```python
 # BC1 dataset
