@@ -16,16 +16,36 @@ Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 pip install -r requirements.txt
 ```
 
-## Usage
-### Data preprocessing
+## Data Preparation and Model Weights
+### Step 1: Download Preprocessed Data
+- Begin by downloading the preprocessed data [here](https://drive.google.com/drive/folders/13oJqeoU5_QPy4_yeZ4eK694AGoBuQjop?usp=drive_link).
+- Save the downloaded TRIPLEX.zip file into the ./data directory within your project workspace.
 
-- Preprocessed data should be downloaded from https://drive.google.com/drive/folders/13oJqeoU5_QPy4_yeZ4eK694AGoBuQjop?usp=drive_link
-- The folder where the data was downloaded must be specified in the DATASET-data_dir of the config file.
-- Pre-trained weights of ResNet18 from [Ciga et al.](https://github.com/ozanciga/self-supervised-histopathology?tab=readme-ov-file) should be located in "./weights" folder
+### Step 2: Unzip the Data
+- After downloading, unzip the TRIPLEX.zip file using the following command:
+```bash
+unzip ./data/TRIPLEX.zip -d ./data
+```
+This will extract the data into four subdirectories within the ./data folder, namely her2ts, skin, stnet, and test.
 
+### Step 3: Pre-trained Weights
+- Ensure that you have the pre-trained weights of ResNet18, as provided by Ciga et al., stored within the ./weights directory of your project workspace. 
+
+### Directory Structure
+- After completing the above steps, your project directory should follow this structure: 
+```bash
+  .
+  ├── data
+  │   ├── her2ts
+  │   ├── skin
+  │   ├── stnet
+  │   └── test
+  └── weights/tenpercent_resnet18.ckpt
+```
+
+### Step 4: Extract features
+- Cross validation
 ```python
-### For cross validation 
-
 # BC1 dataset
 python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode g_target
 python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode neighbor
@@ -35,9 +55,10 @@ python extract_features.py --config stnet/TRIPLEX --test_mode internal --extract
 # SCC dataset
 python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode g_target
 python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode neighbor
+```
 
-### For independent test
-
+- External test
+```python
 # 10x Visium-1
 python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode g_target 
 python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode neighbor
@@ -50,6 +71,7 @@ python extract_features.py --test_name 10x_breast_ff3 --test_mode external --ext
 ```
 
 
+## Usage
 ### Training and Testing
 
 * BC1 dataset
