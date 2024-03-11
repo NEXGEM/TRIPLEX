@@ -36,7 +36,7 @@ This will extract the data into four subdirectories within the ./data folder, na
 ```bash
   .
   ├── data
-  │   ├── her2ts
+  │   ├── her2st
   │   ├── skin
   │   ├── stnet
   │   └── test
