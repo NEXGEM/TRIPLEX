@@ -40,10 +40,9 @@ if __name__=='__main__':
     args = parser.parse_args()
     cfg = load_config(args.config)
     
-    #==> Set variable required for data loading 
+    # Set variable required for data loading 
     data_dir=cfg.DATASET.data_dir
     data=cfg.DATASET.type
-    # num_n=cfg.DATASET.num_neighbors
     num_n=args.num_n
     cfg.DATASET.num_neighbors=num_n
     num_k=cfg.TRAINING.num_k 
@@ -58,13 +57,13 @@ if __name__=='__main__':
     if test_mode not in ["internal", "external"]:
         raise Exception("Invalid test_mode")
     
-    #==> Load pretrained resnet model
+    # Load pretrained resnet model
     model = load_model_weights("weights/tenpercent_resnet18.ckpt")
     model = model.to(torch.device('cuda:0'))
         
     model.eval()
     
-    #==> Name of directory to store the extracted features
+    # Name of directory to store the extracted features
     if extract_mode == 'g_target':
         save_dir = "gt_features"
     elif extract_mode == 'neighbor':
@@ -73,7 +72,7 @@ if __name__=='__main__':
         save_dir = f"gn_features_{num_n}"
     
     if test_mode == 'internal':
-        #==> Extract features for cross-validation
+        # Extract features for cross-validation
         dir_name=f"{data_dir}/{data}/{save_dir}_224"
         os.makedirs(dir_name, exist_ok=True)
         
@@ -105,7 +104,7 @@ if __name__=='__main__':
                         
     elif test_mode == 'external':   
         
-        #==> Extract features for external test
+        # Extract features for external test
         dir_name=f"{data_dir}/test/{test_name}/{save_dir}_224"
         os.makedirs(dir_name, exist_ok=True)
         

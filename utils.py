@@ -130,7 +130,7 @@ def load_loggers(cfg: Dict):
     
     return loggers
 
-#==>load Callback
+# load Callback
 def load_callbacks(cfg: Dict):
     """Return Early stopping and Checkpoint Callbacks. 
 
