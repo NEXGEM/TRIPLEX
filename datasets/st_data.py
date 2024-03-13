@@ -69,13 +69,8 @@ class BaselineDataset(torch.utils.data.Dataset):
         Returns:
             pandas.DataFrame: return gene expression. 
         """
-        if self.data == 'stnet':
-            path = self.data_dir+'/ST-cnts/'+name+'_stdata.parquet'
-            df = pd.read_parquet(path)
-            
-        else:
-            path = self.data_dir+'/ST-cnts_new/'+name+'_sub.parquet'
-            df = pd.read_parquet(path)
+        path = self.data_dir+'/ST-cnts/'+name+'_sub.parquet'
+        df = pd.read_parquet(path)
 
         return df
 
