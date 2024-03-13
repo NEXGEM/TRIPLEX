@@ -4,10 +4,6 @@
 Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 
 <img src="./figures/TRIPLEX_main.jpg" title="TRIPLEX"/>
-
-## TODO
- - [x] Add implementation code for TRIPLEX
- - [x] Complete requirements.txt
  
 ## Installation
 - Python 3.8.16
