@@ -18,7 +18,7 @@ pip install -r requirements.txt
 
 ## Data Preparation and Model Weights
 ### Step 1: Download Preprocessed Data
-Begin by downloading the preprocessed data [here](https://drive.google.com/drive/folders/13oJqeoU5_QPy4_yeZ4eK694AGoBuQjop?usp=drive_link).
+Begin by downloading the preprocessed data [here](https://drive.google.com/drive/folders/13oJqeoU5_QPy4_yeZ4eK694AGoBuQjop?usp=drive_link). \
 Save the downloaded TRIPLEX.zip file into the ./data directory within your project workspace.
 
 ### Step 2: Unzip the Data
