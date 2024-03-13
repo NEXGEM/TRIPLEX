@@ -141,7 +141,7 @@ class STDataset(BaselineDataset):
         self.gt_dir = kwargs['t_global_dir']
         self.num_neighbors = kwargs['num_neighbors']
         self.neighbor_dir = f"{kwargs['neighbor_dir']}_{self.num_neighbors}_224"
-        # self.gn_dir = f"{kwargs['n_global_dir']}_{self.num_neighbors}"
+        
         self.r = kwargs['radius']//2
         
         if external_test:
@@ -183,9 +183,7 @@ class STDataset(BaselineDataset):
         else:
             self.names = names
 
-        print('Loading imgs...')
         self.img_dict = {i:np.array(self.get_img(i)) for i in self.names}
-        print('Loading metadata...')
         self.meta_dict = {i:self.get_meta(i) for i in self.names}
         
         gene_list = list(np.load(self.data_dir + f'/genes_{self.data}.npy', allow_pickle=True))    
