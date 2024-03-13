@@ -31,21 +31,10 @@ This will extract the data into four subdirectories within the ./data folder, na
 ### Step 3: Pre-trained Weights
 - Ensure that you have the pre-trained weights of ResNet18, as provided by Ciga et al., stored within the ./weights directory of your project workspace. 
 
-### Directory Structure
-- After completing the above steps, your project directory should follow this structure: 
-```bash
-  .
-  ├── data
-  │   ├── her2st
-  │   ├── skin
-  │   ├── stnet
-  │   └── test
-  └── weights/tenpercent_resnet18.ckpt
-```
-
 ### Step 4: Extract features of slide images
-- Cross validation
+- TRIPLEX requires pre-extracted features from WSIs. Run following commands to extract features using pre-trained ResNet18.  
 ```python
+### Cross validation
 # BC1 dataset
 python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode g_target
 python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode neighbor
@@ -57,8 +46,8 @@ python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_
 python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode neighbor
 ```
 
-- External test
 ```python
+### External test
 # 10x Visium-1
 python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode g_target 
 python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode neighbor
@@ -68,6 +57,22 @@ python extract_features.py --test_name 10x_breast_ff2 --test_mode external --ext
 # 10x Visium-3
 python extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode g_target 
 python extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode neighbor
+```
+
+### Directory Structure
+- After completing the above steps, your project directory should follow this structure: 
+```bash
+# Directory structure for HER2ST
+  .
+  ├── data
+  │   ├── her2st
+  │   │   ├── ST-cnts
+  │   │   ├── ST-imgs
+  │   │   ├── ST-spotfiles
+  │   │   ├── gt_features_224
+  │   │   └── n_features_5_224
+  └── weights/tenpercent_resnet18.ckpt
+
 ```
 
 

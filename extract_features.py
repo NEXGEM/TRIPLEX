@@ -86,7 +86,7 @@ if __name__=='__main__':
                     file_name = f"{testset.names[i]}.pt"
                     
                     if extract_mode == 'g_neighbor':
-                        patches = torch.load(f"/data/temp/TRIPLEX/data/{data}/n_features_{num_n}/{file_name}").to(torch.device('cuda:0'))
+                        patches = torch.load(f"{data_dir}/{data}/n_features_{num_n}/{file_name}").to(torch.device('cuda:0'))
                     elif extract_mode == 'g_target':
                         patches = patches.to(torch.device('cuda:0')).squeeze()
                     else:
