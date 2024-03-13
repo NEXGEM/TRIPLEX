@@ -18,23 +18,23 @@ pip install -r requirements.txt
 
 ## Data Preparation and Model Weights
 ### Step 1: Download Preprocessed Data
-- Begin by downloading the preprocessed data [here](https://drive.google.com/drive/folders/13oJqeoU5_QPy4_yeZ4eK694AGoBuQjop?usp=drive_link).
-- Save the downloaded TRIPLEX.zip file into the ./data directory within your project workspace.
+Begin by downloading the preprocessed data [here](https://drive.google.com/drive/folders/13oJqeoU5_QPy4_yeZ4eK694AGoBuQjop?usp=drive_link).
+Save the downloaded TRIPLEX.zip file into the ./data directory within your project workspace.
 
 ### Step 2: Unzip the Data
-- After downloading, unzip the TRIPLEX.zip file using the following command:
+After downloading, unzip the TRIPLEX.zip file using the following command:
 ```bash
 unzip ./data/TRIPLEX.zip -d ./data
 ```
 This will extract the data into four subdirectories within the ./data folder, namely her2ts, skin, stnet, and test.
 
 ### Step 3: Pre-trained Weights
-- Ensure that you have the pre-trained weights of ResNet18, as provided by Ciga et al., stored within the ./weights directory of your project workspace. 
+Ensure that you have the pre-trained weights of ResNet18, as provided by Ciga et al., stored within the ./weights directory of your project workspace. 
 
 ### Step 4: Extract features of slide images
-- TRIPLEX requires pre-extracted features from WSIs. Run following commands to extract features using pre-trained ResNet18.  
+TRIPLEX requires pre-extracted features from WSIs. Run following commands to extract features using pre-trained ResNet18.  
+- Cross validation
 ```python
-### Cross validation
 # BC1 dataset
 python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode g_target
 python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode neighbor
@@ -46,8 +46,8 @@ python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_
 python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode neighbor
 ```
 
+- External test
 ```python
-### External test
 # 10x Visium-1
 python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode g_target 
 python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode neighbor
@@ -60,7 +60,7 @@ python extract_features.py --test_name 10x_breast_ff3 --test_mode external --ext
 ```
 
 ### Directory Structure
-- After completing the above steps, your project directory should follow this structure: 
+After completing the above steps, your project directory should follow this structure: 
 ```bash
 # Directory structure for HER2ST
   .
@@ -78,8 +78,7 @@ python extract_features.py --test_name 10x_breast_ff3 --test_mode external --ext
 
 ## Usage
 ### Training and Testing
-
-* BC1 dataset
+- BC1 dataset
 ```python
 # Train
 python main.py --config her2st/TRIPLEX --mode cv
@@ -87,7 +86,7 @@ python main.py --config her2st/TRIPLEX --mode cv
 python main.py --config her2st/TRIPLEX --mode test
 ```
 
-* BC2 dataset
+- BC2 dataset
 ```python
 # Train
 python main.py --config stnet/TRIPLEX --mode cv
@@ -95,7 +94,7 @@ python main.py --config stnet/TRIPLEX --mode cv
 python main.py --config stnet/TRIPLEX --mode test
 ```
 
-* SCC dataset
+- SCC dataset
 ```python
 # Train
 python main.py --config skin/TRIPLEX --mode cv
@@ -103,7 +102,9 @@ python main.py --config skin/TRIPLEX --mode cv
 python main.py --config skin/TRIPLEX --mode test
 ```
 
-* Independent test
+Training results will be saved in *./logs*
+
+- Independent test
 
 ```python
 # 10x Visium-1
