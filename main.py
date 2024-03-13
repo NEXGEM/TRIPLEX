@@ -19,7 +19,7 @@ from utils import collate_fn, load_callbacks, load_config, load_loggers
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config_name', type=str, default='her2st/TRIPLEX', help='logger path.')
-parser.add_argument('--gpu', type=int, default=1, help='number of gpus')
+parser.add_argument('--gpu', type=int, default=[0], help='gpu id')
 parser.add_argument('--mode', type=str, default='cv', help='cv / test / ex_test')
 parser.add_argument('--test_name', type=str, default='10x_breast_ff1', help='dataset name:{"10x_breast_ff1","10x_breast_ff2", "10x_breast_ff3"}.')
 parser.add_argument('--exp_id', type=int, default=0, help='')
