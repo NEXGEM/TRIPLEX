@@ -1,4 +1,4 @@
-# Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features 
+# Accurate Spatial Gene Expression Prediction by Integrating Multi-Resolution Features 
 
 > Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features (accepted in CVPR 2024) \
 Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
