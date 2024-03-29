@@ -6,8 +6,11 @@ Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 <img src="./figures/TRIPLEX_main.jpg" title="TRIPLEX"/>
  
 ## Installation
-- Python 3.8.16
-
+- Python 3.9.19
+- Install pytorch
+```bash
+pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
+```
 ```bash
 pip install -r requirements.txt
 ```

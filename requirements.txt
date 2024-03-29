@@ -1,3 +1,4 @@
+tqdm
 addict
 easydl
 einops
@@ -7,14 +8,12 @@ pandas
 Pillow
 pyarrow
 pyparsing
-pytorch-lightning==1.8.0.post1
 PyYAML
 scanpy
 scikit-learn
 scipy
 scprep
 tifffile==2022.10.10
-torch==1.13.0
 torchmetrics==0.10.2
-torchvision==0.14.0
-tqdm
+pytorch-lightning==1.8.0.post1
+

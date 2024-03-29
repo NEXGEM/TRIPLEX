@@ -1,0 +1,19 @@
+
+# Checkpoint of pre-trained ResNet18
+weights/tenpercent_resnet18.ckpt
+
+# Bash script for running experiment
+gsubmit.sh
+run.sh
+
+# Wandb
+wandb
+run_sweep_*.py
+sweep_cv.yaml
+
+# Logging files
+logs
+slurm
+
+# Others
+test.ipynb
