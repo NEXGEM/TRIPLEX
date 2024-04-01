@@ -17,3 +17,5 @@ slurm
 
 # Others
 test.ipynb
+
+__pycache__
