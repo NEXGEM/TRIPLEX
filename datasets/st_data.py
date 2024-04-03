@@ -129,7 +129,7 @@ class STDataset(BaselineDataset):
             train (bool): In training mode or not.
             fold (int): Number of fold for cross validation.
             external_test (bool, optional): In external test model or not. Defaults to False.
-            extract (bool, optional): Source to extract features. Defaults to None.
+            extract (str, optional): Source to extract features. Defaults to None.
             test_data (str, optional): Test data name. Defaults to None.
         """
         super().__init__()
@@ -188,10 +188,9 @@ class STDataset(BaselineDataset):
         
         gene_list = list(np.load(self.data_dir + f'/genes_{self.data}.npy', allow_pickle=True))    
         
-        self.exp_dict = {i:scp.transform.log(scp.normalize.library_size_normalize(m[gene_list])) for i,m in self.meta_dict.items()}
-        
-        # Smoothing data 
-        self.exp_dict = {i:smooth_exp(m).values for i,m in self.exp_dict.items()}
+        if not self.extract:
+            self.exp_dict = {i:scp.transform.log(scp.normalize.library_size_normalize(m[gene_list])) for i,m in self.meta_dict.items()}
+            self.exp_dict = {i:smooth_exp(m).values for i,m in self.exp_dict.items()} # Smoothing data 
         
         if external_test:
             self.center_dict = {i:np.floor(m[['pixel_y','pixel_x']].values).astype(int) for i,m in self.meta_dict.items()}
@@ -218,8 +217,7 @@ class STDataset(BaselineDataset):
                 neighbors (torch.Tensor): Features extracted from neighbor regions of the target spot.
                 maks_tb (torch.Tensor): Masking table for neighbor features
         """
-        if self.train or (self.external_test and self.extract in ['g_target','neighbor']):
-        # if self.train:
+        if self.train:
             i = 0
             while index>=self.cumlen[i]:
                 i += 1
@@ -235,36 +233,21 @@ class STDataset(BaselineDataset):
             
             mask_tb =  self.make_masking_table(x, y, im.shape)
                 
-            if (self.external_test and self.extract == 'neighbor'):
-                y_start = y-self.r*self.num_neighbors
-                x_start = x-self.r*self.num_neighbors
-                
-                n = 0
-                patches = torch.zeros((3,2*self.r*self.num_neighbors,2*self.r*self.num_neighbors))
-                for k in range(self.num_neighbors):
-                    for m in range(self.num_neighbors):
-                        if mask_tb[n] != 0:
-                            tmp = im[y_start+self.r*2*k:y_start+self.r*2*(k+1), x_start+self.r*2*m:x_start+self.r*2*(m+1),:]    
-                            tmp = self.test_transforms(tmp)
-                            patches[:,self.r*2*k:self.r*2*(k+1), self.r*2*m:self.r*2*(m+1)] = tmp
-                        n+=1
-                return patches
+            patches = im[y-self.r:y+self.r, x-self.r:x+self.r, :] 
+            if (self.external_test and self.extract == 'g_target'):
+                return self.test_transforms(patches)
+            
+            if self.external_test:
+                patches = self.test_transforms(patches)
             else:
-                patches = im[y-self.r:y+self.r, x-self.r:x+self.r, :] 
-                if (self.external_test and self.extract == 'g_target'):
-                    return self.test_transforms(patches)
-                
-                if self.external_test:
-                    patches = self.test_transforms(patches)
-                else:
-                    patches = self.train_transforms(patches)
-                
-                exps = self.exp_dict[name][idx]
-                exps = torch.Tensor(exps)
-                
-                sid = torch.LongTensor([idx])
-                
-                neighbors = torch.load(self.data_dir + f"/{self.neighbor_dir}/{name}.pt")[idx]
+                patches = self.train_transforms(patches)
+            
+            exps = self.exp_dict[name][idx]
+            exps = torch.Tensor(exps)
+            
+            sid = torch.LongTensor([idx])
+            
+            neighbors = torch.load(self.data_dir + f"/{self.neighbor_dir}/{name}.pt")[idx]
         else:
             i = index
             name = self.id2name[i]
@@ -277,7 +260,9 @@ class STDataset(BaselineDataset):
                 patches = torch.zeros((n_patches,3,2*self.r*self.num_neighbors,2*self.r*self.num_neighbors))
             else:
                 patches = torch.zeros((n_patches,3,2*self.r,2*self.r))
+                
             mask_tb = torch.ones((n_patches, self.num_neighbors**2))
+            
             for j in range(n_patches):
                 center = centers[j]
                 x, y = center
@@ -288,28 +273,31 @@ class STDataset(BaselineDataset):
                     y_start = y-self.r*self.num_neighbors
                     x_start = x-self.r*self.num_neighbors
                     
-                    n = 0
-                    patch = torch.zeros((3,2*self.r*self.num_neighbors,2*self.r*self.num_neighbors))
-                    for k in range(self.num_neighbors):
-                        for m in range(self.num_neighbors):
-                            if mask_tb[j,n] != 0:
-                                tmp = im[y_start+self.r*2*k:y_start+self.r*2*(k+1), x_start+self.r*2*m:x_start+self.r*2*(m+1),:]    
-                                tmp = self.test_transforms(tmp)
-                                patch[:,self.r*2*k:self.r*2*(k+1), self.r*2*m:self.r*2*(m+1)] = tmp
-                            n+=1
+                    k_ranges = [(self.r * 2 * k, self.r * 2 * (k + 1)) for k in range(self.num_neighbors)]
+                    m_ranges = [(self.r * 2 * m, self.r * 2 * (m + 1)) for m in range(self.num_neighbors)]
+
+                    patch = torch.zeros((3, 2 * self.r * self.num_neighbors, 2 * self.r * self.num_neighbors))
+
+                    for k, (k_start, k_end) in enumerate(k_ranges):
+                        for m, (m_start, m_end) in enumerate(m_ranges):
+                            n = k * self.num_neighbors + m  # Calculate n based on loop indices
+                            if mask_tb[j, n] != 0:
+                                # Extract and transform patch if mask is non-zero
+                                tmp = im[y_start + k_start:y_start + k_end, x_start + m_start:x_start + m_end, :]
+                                patch[:, k_start:k_end, m_start:m_end] = self.test_transforms(tmp)
                 else:
                     patch = im[y-self.r:y+self.r,x-self.r:x+self.r,:]
                     patch = self.test_transforms(patch)
                 
                 patches[j] = patch
-
+            
+            if self.extract in ['g_neighbor', 'g_target', 'neighbor']:
+                return patches
+            
             exps = self.exp_dict[name]
             exps = torch.Tensor(exps)
             
             sid = torch.arange(n_patches)
-            
-            if self.extract in ['g_neighbor', 'g_target', 'neighbor']:
-                return patches, exps
             
             neighbors = torch.load(self.data_dir +  f"/{self.neighbor_dir}/{name}.pt")
         
@@ -328,10 +316,10 @@ class STDataset(BaselineDataset):
             return patches, exps, sid, wsi, position, name, neighbors, mask_tb
         
     def __len__(self):
-        if self.train or (self.external_test and self.extract in ['g_target','neighbor']):
+        if self.train:
             return self.cumlen[-1]
         else:
-            return len(self.exp_dict)
+            return len(self.img_dict)
         
     def make_masking_table(self, x: int, y: int, img_shape: tuple):
         """Generate masking table for neighbor encoder.
@@ -340,9 +328,6 @@ class STDataset(BaselineDataset):
             x (int): x coordinate of target spot
             y (int): y coordinate of target spot
             img_shape (tuple): Shape of whole slide image
-
-        Raises:
-            Exception: if self.num_neighbors is bigger than 5, raise error.
 
         Returns:
             torch.Tensor: masking table

@@ -81,7 +81,7 @@ if __name__=='__main__':
                 testset = STDataset(train=False, fold=fold, external_test=(test_mode == 'external'), extract=extract_mode, **cfg.DATASET)
                 dataloader = DataLoader(testset, batch_size=1, shuffle=False, num_workers=4)
                 
-                for i, (patches, _) in enumerate(dataloader):
+                for i, patches in enumerate(dataloader):
                     file_name = f"{testset.names[i]}.pt"
                     
                     if extract_mode == 'g_neighbor':
