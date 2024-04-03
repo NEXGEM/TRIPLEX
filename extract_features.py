@@ -109,24 +109,32 @@ if __name__=='__main__':
         os.makedirs(dir_name, exist_ok=True)
         
         testset = STDataset(train=False, external_test=(test_mode == 'external'), extract=extract_mode, test_data = test_name, **cfg.DATASET)
-        dataloader = DataLoader(testset, batch_size=256, shuffle=False, num_workers=4)
+        dataloader = DataLoader(testset, batch_size=1, shuffle=False, num_workers=4)
         
-        extracted_features = []
-        for i, (patches) in enumerate(dataloader):
-                patches = patches.to(torch.device('cuda:0'))
+        for i, patches in tqdm(enumerate(dataloader)):
+            file_name = f"{testset.names[i]}.pt"
                 
+            patches = patches.squeeze().split(512,dim=0)
+            
+            extracted_features = []
+            for patch in patches:
+                if extract_mode == 'g_neighbor':
+                    patch = torch.load(f"{data_dir}/{data}/n_features_{num_n}/{file_name}").to(torch.device('cuda:0'))
+                elif extract_mode == 'g_target':
+                    patch = patch.to(torch.device('cuda:0')).squeeze()
+                else:
+                    patch = patch.squeeze()
+                
+                # Process and save features
                 with torch.no_grad():
-                    if extract_mode == 'g_target':
-                        features = model(patches)
+                    if extract_mode == 'neighbor':
+                        features = get_sub_features(model, patch, num_n)
+                    else:
+                        features = model(patch)
                         features = features.detach().cpu()
                         
-                    elif extract_mode == 'neighbor':
-                        features = get_sub_features(model, patches, num_n)
-                        
-                    extracted_features.append(features)
-                    
-        extracted_features = torch.cat(extracted_features, dim=0)
+                extracted_features.append(features)
             
-        file_name = f"{testset.names[0]}.pt"
-        print(f"Saving {file_name}...")
-        torch.save(extracted_features, os.path.join(dir_name, file_name))    
+            extracted_features = torch.cat(extracted_features, dim=0)
+            print(f"Saving {file_name}...")
+            torch.save(extracted_features, os.path.join(dir_name, file_name))    
