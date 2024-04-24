@@ -33,10 +33,7 @@ unzip ./data/TRIPLEX.zip -d ./data
 ```
 This will extract the data into four subdirectories within the ./data folder, namely her2ts, skin, stnet, and test.
 
-### Step 3: Pre-trained Weights
-Ensure that you have the pre-trained weights of ResNet18, as provided by Ciga et al., stored within the ./weights directory of your project workspace. 
-
-### Step 4: Extract features of slide images
+### Step 3: Extract features of slide images
 TRIPLEX requires pre-extracted features from WSIs. Run following commands to extract features using pre-trained ResNet18.  
 - Cross validation
 ```python
