@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 
 sys.path.append("..")
-from models.TRIPLEX import load_patch_encoder
+from models.TRIPLEX import load_model_weights
 from datasets.st_data import STDataset
 from utils import load_config
 
@@ -34,7 +34,6 @@ if __name__=='__main__':
     parser.add_argument('--extract_mode', type=str, default='target', help='target or neighbor')
     parser.add_argument('--mode', type=str, default='external', help='internal or external')
     parser.add_argument('--num_n', type=int, default=5, help='')
-    parser.add_argument('--model_type', type=str, default="uni", help='')
     parser.add_argument('--node_id', type=int, default=0, help='')
 
     args = parser.parse_args()
@@ -60,8 +59,7 @@ if __name__=='__main__':
         raise Exception("Invalid mode")
     
     # Load pretrained resnet model
-    model_type = args.model_type
-    model = load_patch_encoder("../ckpts/vit_large_patch16_224.dinov2.uni_mass100k/", model_type)
+    model = load_model_weights("weights/tenpercent_resnet18.ckpt")
     model = model.to(torch.device('cuda:0'))
         
     model.eval()
@@ -73,7 +71,7 @@ if __name__=='__main__':
         save_dir = f"n_features_{num_n}"
         
     if mode == 'internal':
-        dir_name=f"{data_dir}/{data}/{save_dir}_224_{model_type}"
+        dir_name=f"{data_dir}/{data}/{save_dir}_224"
         os.makedirs(dir_name, exist_ok=True)
         # Extract features for cross-validation
         
@@ -102,7 +100,7 @@ if __name__=='__main__':
                     
     elif mode == 'external':
         # Extract features for external test
-        dir_name=f"{data_dir}/test/{test_name}/{save_dir}_224_{model_type}"
+        dir_name=f"{data_dir}/test/{test_name}/{save_dir}_224"
         os.makedirs(dir_name, exist_ok=True)
         
         testset = STDataset(mode='extraction', extract_mode=extract_mode, test_data = test_name, **cfg.DATASET)

@@ -4,6 +4,7 @@ from glob import glob
 import warnings
 warnings.filterwarnings('ignore')
 
+import pickle 
 import numpy as np
 import pandas as pd 
 from sklearn.model_selection import KFold
@@ -12,6 +13,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 import scprep as scp
+import pyvips as pv
 
 from utils import smooth_exp
 
@@ -32,10 +34,12 @@ class BaselineDataset(torch.utils.data.Dataset):
             transforms.RandomVerticalFlip(),
             torchvision.transforms.RandomApply([torchvision.transforms.RandomRotation((90, 90))]),
             transforms.ToTensor(),
+            transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         ])
         
         self.test_transforms = transforms.Compose([
             transforms.ToTensor(),
+            transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         ])
 
     def get_img(self, name: str):
@@ -47,6 +51,7 @@ class BaselineDataset(torch.utils.data.Dataset):
         Returns:
             PIL.Image: return whole slide image.
         """
+        
         img_dir = self.data_dir+'/ST-imgs'
         if self.data == 'her2st':
             pre = img_dir+'/'+name[0]+'/'+name
@@ -54,10 +59,16 @@ class BaselineDataset(torch.utils.data.Dataset):
             path = pre+'/'+fig_name
         elif self.data == 'stnet' or '10x_breast' in self.data:
             path = glob(img_dir+'/*'+name+'.tif')[0]
+        elif 'DRP' in self.data:
+            path = glob(img_dir+'/*'+name+'.svs')[0]
         else:
             path = glob(img_dir+'/*'+name+'.jpg')[0]
+    
+        if self.use_pyvips:    
+            im = pv.Image.new_from_file(path, level=0)
+        else:
+            im = Image.open(path)
         
-        im = Image.open(path)
         return im
     
     def get_cnt(self, name: str):
@@ -107,11 +118,16 @@ class BaselineDataset(torch.utils.data.Dataset):
         Returns:
             pandas.DataFrame: return merged table (gene exp + position)
         """
-        cnt = self.get_cnt(name)
-        pos = self.get_pos(name)
-        meta = cnt.join(pos.set_index('id'),how='inner')
         
-        if self.external_test:
+        pos = self.get_pos(name)
+        
+        if 'DRP' not in self.data:
+            cnt = self.get_cnt(name)
+            meta = cnt.join(pos.set_index('id'),how='inner')
+        else:
+            meta = pos
+        
+        if self.external_test and ('10x_breast' in self.data):
             meta = meta.sort_values(['x', 'y'])
         else:
             meta = meta.sort_values(['y', 'x'])
@@ -122,40 +138,59 @@ class BaselineDataset(torch.utils.data.Dataset):
 class STDataset(BaselineDataset):
     """Dataset to load ST data for TRIPLEX
     """
-    def __init__(self, train: bool, fold: int=0, external_test: bool=False, extract: str=None, test_data=None, **kwargs):
+    def __init__(self, 
+                 mode: str, 
+                 fold: int=0, 
+                 extract_mode: str=None, 
+                 test_data=None, 
+                 **kwargs):
         """
-
         Args:
-            train (bool): In training mode or not.
+            mode (str): 'train', 'test', 'external_test', 'extraction', 'inference'.
             fold (int): Number of fold for cross validation.
-            external_test (bool, optional): In external test model or not. Defaults to False.
-            extract (str, optional): Source to extract features. Defaults to None.
             test_data (str, optional): Test data name. Defaults to None.
         """
         super().__init__()
         
-        self.train = train
-        self.extract = extract
-        self.external_test = external_test
-            
+        # Set primary attribute
         self.gt_dir = kwargs['t_global_dir']
         self.num_neighbors = kwargs['num_neighbors']
         self.neighbor_dir = f"{kwargs['neighbor_dir']}_{self.num_neighbors}_224"
         
-        self.r = kwargs['radius']//2
+        self.use_pyvips = kwargs['use_pyvips']
         
-        if external_test:
+        self.r = kwargs['radius']//2
+        self.extract_mode = False
+        
+        self.mode = mode
+        if mode in ["external_test", "inference"]:
             self.data = test_data
+            self.data_dir = f"{kwargs['data_dir']}/test/{self.data}"
+        elif mode == "extraction":
+            self.extract_mode = extract_mode
+            self.data = test_data
+            node_id = kwargs['node_id']        
             self.data_dir = f"{kwargs['data_dir']}/test/{self.data}"
         else:
             self.data = kwargs['type']
             self.data_dir = f"{kwargs['data_dir']}/{self.data}"
-        
+    
         names = os.listdir(self.data_dir+'/ST-spotfiles')
         names.sort()
         names = [i.split('_selection.tsv')[0] for i in names]
         
-        if not external_test:
+        if mode in ["external_test", "inference"]:
+            self.names = names
+            
+        elif mode == "extraction":
+            # self.names = np.array_split(names, 2)[node_id]
+            self.names = names
+            if extract_mode == "neighbor":
+                self.names = [name for name in self.names if not os.path.exists(os.path.join(self.neighbor_dir, f"{name}.pt"))]
+            elif extract_mode == "target":
+                self.names = [name for name in self.names if not os.path.exists(os.path.join(self.gt_dir, f"{name}.pt"))]
+            
+        else:
             if self.data == 'stnet':
                 kf = KFold(8, shuffle=True, random_state=2021)
                 patients = ['BC23209','BC23270','BC23803','BC24105','BC24220','BC23268','BC23269','BC23272','BC23277','BC23287','BC23288','BC23377','BC23450','BC23506','BC23508','BC23567','BC23810','BC23895','BC23901','BC23903','BC23944','BC24044','BC24223']
@@ -176,23 +211,29 @@ class STDataset(BaselineDataset):
                 
             tr_names = list(set(names)-set(te_names))
 
-            if train:
+            if self.mode == 'train':
                 self.names = tr_names
             else:
                 self.names = te_names
+        
+        if self.use_pyvips:
+            self.img_dict = {i:self.get_img(i) for i in self.names}
+            
+            with open(f"{self.data_dir}/slide_shape.pickle", "rb") as f:
+                self.img_shape_dict = pickle.load(f)
         else:
-            self.names = names
-
-        self.img_dict = {i:np.array(self.get_img(i)) for i in self.names}
+            self.img_dict = {i:np.array(self.get_img(i)) for i in self.names}
+            
         self.meta_dict = {i:self.get_meta(i) for i in self.names}
         
-        gene_list = list(np.load(self.data_dir + f'/genes_{self.data}.npy', allow_pickle=True))    
-        
-        if not self.extract:
+        if mode not in  ["extraction", "inference"]:
+            gene_list = list(np.load(self.data_dir + f'/genes_{self.data}.npy', allow_pickle=True))    
             self.exp_dict = {i:scp.transform.log(scp.normalize.library_size_normalize(m[gene_list])) for i,m in self.meta_dict.items()}
-            self.exp_dict = {i:smooth_exp(m).values for i,m in self.exp_dict.items()} # Smoothing data 
         
-        if external_test:
+            # Smoothing data 
+            self.exp_dict = {i:smooth_exp(m).values for i,m in self.exp_dict.items()}
+        
+        if mode == "external_test":
             self.center_dict = {i:np.floor(m[['pixel_y','pixel_x']].values).astype(int) for i,m in self.meta_dict.items()}
             self.loc_dict = {i:m[['x','y']].values for i,m in self.meta_dict.items()}
         else:
@@ -217,7 +258,7 @@ class STDataset(BaselineDataset):
                 neighbors (torch.Tensor): Features extracted from neighbor regions of the target spot.
                 maks_tb (torch.Tensor): Masking table for neighbor features
         """
-        if self.train:
+        if self.mode == 'train':
             i = 0
             while index>=self.cumlen[i]:
                 i += 1
@@ -226,18 +267,24 @@ class STDataset(BaselineDataset):
                 idx = index - self.cumlen[i-1]
                 
             name = self.id2name[i]
-                
+            
             im = self.img_dict[name]
+            if self.use_pyvips:
+                img_shape = self.img_shape_dict[name]
+            else:
+                img_shape = im.shape
+                
             center = self.center_dict[name][idx]
             x, y = center
             
-            mask_tb =  self.make_masking_table(x, y, im.shape)
+            mask_tb =  self.make_masking_table(x, y, img_shape)
                 
-            patches = im[y-self.r:y+self.r, x-self.r:x+self.r, :] 
-            if (self.external_test and self.extract == 'g_target'):
-                return self.test_transforms(patches)
-            
-            if self.external_test:
+            if self.use_pyvips:
+                patches = im.extract_area(x,y,self.r*2,self.r*2).numpy()[:,:,:3]
+            else:
+                patches = im[y-self.r:y+self.r, x-self.r:x+self.r, :] 
+                            
+            if self.mode == "external_test":
                 patches = self.test_transforms(patches)
             else:
                 patches = self.train_transforms(patches)
@@ -253,52 +300,80 @@ class STDataset(BaselineDataset):
             name = self.id2name[i]
             
             im = self.img_dict[name]    
+            if self.use_pyvips:
+                img_shape = self.img_shape_dict[name]
+            else:
+                img_shape = im.shape
+                
             centers = self.center_dict[name]
             
             n_patches = len(centers)    
-            if self.extract == 'neighbor':
+            if self.extract_mode == 'neighbor':
                 patches = torch.zeros((n_patches,3,2*self.r*self.num_neighbors,2*self.r*self.num_neighbors))
             else:
                 patches = torch.zeros((n_patches,3,2*self.r,2*self.r))
-                
             mask_tb = torch.ones((n_patches, self.num_neighbors**2))
-            
             for j in range(n_patches):
                 center = centers[j]
                 x, y = center
                 
-                mask_tb[j] = self.make_masking_table(x, y, im.shape)
+                mask_tb[j] = self.make_masking_table(x, y, img_shape)
                 
-                if self.extract == 'neighbor':
-                    y_start = y-self.r*self.num_neighbors
-                    x_start = x-self.r*self.num_neighbors
-                    
-                    k_ranges = [(self.r * 2 * k, self.r * 2 * (k + 1)) for k in range(self.num_neighbors)]
-                    m_ranges = [(self.r * 2 * m, self.r * 2 * (m + 1)) for m in range(self.num_neighbors)]
+                if self.extract_mode == 'neighbor':
+                    if self.use_pyvips:
+                        patch_unnorm = self.extract_patches_pyvips(im, x, y, img_shape)
+                        
+                        k_ranges = [(self.r * 2 * k, self.r * 2 * (k + 1)) for k in range(self.num_neighbors)]
+                        m_ranges = [(self.r * 2 * m, self.r * 2 * (m + 1)) for m in range(self.num_neighbors)]
 
-                    patch = torch.zeros((3, 2 * self.r * self.num_neighbors, 2 * self.r * self.num_neighbors))
+                        patch = torch.zeros((3, 2 * self.r * self.num_neighbors, 2 * self.r * self.num_neighbors))
 
-                    for k, (k_start, k_end) in enumerate(k_ranges):
-                        for m, (m_start, m_end) in enumerate(m_ranges):
-                            n = k * self.num_neighbors + m  # Calculate n based on loop indices
-                            if mask_tb[j, n] != 0:
-                                # Extract and transform patch if mask is non-zero
-                                tmp = im[y_start + k_start:y_start + k_end, x_start + m_start:x_start + m_end, :]
-                                patch[:, k_start:k_end, m_start:m_end] = self.test_transforms(tmp)
+                        for k, (k_start, k_end) in enumerate(k_ranges):
+                            for m, (m_start, m_end) in enumerate(m_ranges):
+                                n = k * self.num_neighbors + m
+                                if mask_tb[j, n] != 0:
+                                    # Since patch_unnorm is not a tensor, assume it needs iterative access.
+                                    patch_data = patch_unnorm[k_start:k_end, m_start:m_end, :]
+                                    transformed_patch = self.test_transforms(patch_data)
+                                    patch[:, k_start:k_end, m_start:m_end] = transformed_patch
+                        
+                    else:
+                        y_start = y-self.r*self.num_neighbors
+                        x_start = x-self.r*self.num_neighbors
+                        
+                        k_ranges = [(self.r * 2 * k, self.r * 2 * (k + 1)) for k in range(self.num_neighbors)]
+                        m_ranges = [(self.r * 2 * m, self.r * 2 * (m + 1)) for m in range(self.num_neighbors)]
+
+                        # Initialize patch tensor
+                        patch = torch.zeros((3, 2 * self.r * self.num_neighbors, 2 * self.r * self.num_neighbors))
+
+                        # Loop over pre-calculated ranges
+                        for k, (k_start, k_end) in enumerate(k_ranges):
+                            for m, (m_start, m_end) in enumerate(m_ranges):
+                                n = k * self.num_neighbors + m  # Calculate n based on loop indices
+                                if mask_tb[j, n] != 0:
+                                    # Extract and transform patch if mask is non-zero
+                                    tmp = im[y_start + k_start:y_start + k_end, x_start + m_start:x_start + m_end, :]
+                                    patch[:, k_start:k_end, m_start:m_end] = self.test_transforms(tmp)
+                        
                 else:
-                    patch = im[y-self.r:y+self.r,x-self.r:x+self.r,:]
+                    if self.use_pyvips:
+                        patch = im.extract_area(x,y,self.r*2,self.r*2).numpy()[:,:,:3]
+                    else:
+                        patch = im[y-self.r:y+self.r,x-self.r:x+self.r,:]
+                        
                     patch = self.test_transforms(patch)
                 
                 patches[j] = patch
-            
-            if self.extract in ['g_neighbor', 'g_target', 'neighbor']:
+
+            if self.mode == "extraction":
                 return patches
             
-            exps = self.exp_dict[name]
-            exps = torch.Tensor(exps)
+            if self.mode != "inference":
+                exps = self.exp_dict[name]
+                exps = torch.Tensor(exps)
             
-            sid = torch.arange(n_patches)
-            
+            sid = torch.arange(n_patches)            
             neighbors = torch.load(self.data_dir +  f"/{self.neighbor_dir}/{name}.pt")
         
         wsi = torch.load(self.data_dir +  f"/{self.gt_dir}/{name}.pt")
@@ -307,19 +382,21 @@ class STDataset(BaselineDataset):
         pos = self.loc_dict[name]
         position = torch.LongTensor(pos)
         
-        if not self.external_test:
+        if self.mode not in ["external_test", "inference"]:
             name += f"+{self.data}"
         
-        if self.train:
+        if self.mode == 'train':
             return patches, exps, pid, sid, wsi, position, neighbors, mask_tb
+        elif self.mode == 'inference':
+            return patches, sid, wsi, position, neighbors, mask_tb
         else:
             return patches, exps, sid, wsi, position, name, neighbors, mask_tb
         
     def __len__(self):
-        if self.train:
+        if self.mode == 'train':
             return self.cumlen[-1]
         else:
-            return len(self.img_dict)
+            return len(self.meta_dict)
         
     def make_masking_table(self, x: int, y: int, img_shape: tuple):
         """Generate masking table for neighbor encoder.
@@ -328,6 +405,9 @@ class STDataset(BaselineDataset):
             x (int): x coordinate of target spot
             y (int): y coordinate of target spot
             img_shape (tuple): Shape of whole slide image
+
+        Raises:
+            Exception: if self.num_neighbors is bigger than 5, raise error.
 
         Returns:
             torch.Tensor: masking table
@@ -358,3 +438,48 @@ class STDataset(BaselineDataset):
             window -= 2   
          
         return mask_tb
+    
+    def extract_patches_pyvips(self, slide, x: int, y: int, img_shape: tuple):
+        tile_size = self.r*2
+        expansion_size = tile_size * self.num_neighbors
+        padding_color = 255
+
+        x_lt = x - tile_size * 2
+        y_lt = y - tile_size * 2
+        x_rd = x + tile_size * 3
+        y_rd = y + tile_size * 3
+
+        # Determine if padding is needed and calculate padding amounts
+        x_left_pad = max(0, -x_lt)
+        x_right_pad = max(0, x_rd - img_shape[1])
+        y_up_pad = max(0, -y_lt)
+        y_down_pad = max(0, y_rd - img_shape[0])
+
+        # Adjust coordinates and dimensions
+        x_lt = max(x_lt, 0)
+        y_lt = max(y_lt, 0)
+        width = min(x_rd, img_shape[1]) - x_lt
+        height = min(y_rd, img_shape[0]) - y_lt
+
+        # Extract and convert image
+        im = slide.extract_area(x_lt, y_lt, width, height)
+        im = np.array(im)[:, :, :3]
+
+        # Check if any padding is necessary
+        if x_left_pad or x_right_pad or y_up_pad or y_down_pad:
+            # Create a full image with padding where necessary
+            padded_image = np.full((expansion_size, expansion_size, 3), padding_color, dtype='uint8')
+
+            # Calculate the placement indices for the image within the padded array
+            start_x = x_left_pad
+            end_x = x_left_pad + width
+            start_y = y_up_pad
+            end_y = y_up_pad + height
+
+            # Place the image within the padded area
+            padded_image[start_y:end_y, start_x:end_x] = im
+            image = padded_image
+        else:
+            image = im
+
+        return image

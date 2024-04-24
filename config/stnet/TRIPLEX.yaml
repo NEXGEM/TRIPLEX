@@ -43,3 +43,4 @@ DATASET:
   n_global_dir: 'gn_features'
   neighbor_dir: 'n_features'
   radius: 224
+  use_pyvips: False
