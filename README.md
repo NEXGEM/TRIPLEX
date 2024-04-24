@@ -6,9 +6,9 @@ Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 <img src="./figures/TRIPLEX_main.jpg" title="TRIPLEX"/>
 
 ## TODO
-- [x]: Add code to automatically download the ResNet18 weight
-- [x]: Add code for inference
-- [ ]: Add code to preprocess WSIs in svs or tif format
+- [x] Add code to automatically download the ResNet18 weight
+- [x] Add code for inference
+- [ ] Add code to preprocess WSIs in svs or tif format
 
 ## Installation
 - Python 3.9.19
@@ -33,34 +33,31 @@ unzip ./data/TRIPLEX.zip -d ./data
 ```
 This will extract the data into four subdirectories within the ./data folder, namely her2ts, skin, stnet, and test.
 
-### Step 3: Pre-trained Weights
-Ensure that you have the pre-trained weights of ResNet18, as provided by Ciga et al., stored within the ./weights directory of your project workspace. 
-
-### Step 4: Extract features of slide images
+### Step 3: Extract features of slide images
 TRIPLEX requires pre-extracted features from WSIs. Run following commands to extract features using pre-trained ResNet18.  
 - Cross validation
 ```python
 # BC1 dataset
-python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode g_target
+python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode target
 python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode neighbor
 # BC2 dataset
-python extract_features.py --config stnet/TRIPLEX --test_mode internal --extract_mode g_target
+python extract_features.py --config stnet/TRIPLEX --test_mode internal --extract_mode target
 python extract_features.py --config stnet/TRIPLEX --test_mode internal --extract_mode neighbor
 # SCC dataset
-python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode g_target
+python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode target
 python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode neighbor
 ```
 
 - External test
 ```python
 # 10x Visium-1
-python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode g_target 
+python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode target 
 python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode neighbor
 # 10x Visium-2
-python extract_features.py --test_name 10x_breast_ff2 --test_mode external --extract_mode g_target 
+python extract_features.py --test_name 10x_breast_ff2 --test_mode external --extract_mode target 
 python extract_features.py --test_name 10x_breast_ff2 --test_mode external --extract_mode neighbor
 # 10x Visium-3
-python extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode g_target 
+python extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode target 
 python extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode neighbor
 ```
 
@@ -113,11 +110,11 @@ Training results will be saved in *./logs*
 
 ```python
 # 10x Visium-1
-python main.py --config skin/TRIPLEX --mode ex_test --test_name 10x_breast_ff1
+python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff1
 # 10x Visium-2
-python main.py --config skin/TRIPLEX --mode ex_test --test_name 10x_breast_ff2
+python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff2
 # 10x Visium-3
-python main.py --config skin/TRIPLEX --mode ex_test --test_name 10x_breast_ff3
+python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff3
 ```
 
 ## Acknowledgements
