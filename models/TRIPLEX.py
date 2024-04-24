@@ -3,7 +3,6 @@ import os
 import inspect
 import importlib
 
-from pathlib import Path
 import wget
 import numpy as np
 from scipy.stats import pearsonr
@@ -29,13 +28,12 @@ def load_model_weights(path: str):
         
         resnet = torchvision.models.__dict__['resnet18'](weights=None)
         
-        ckpt_dir = Path('./weights')
-        if not ckpt_dir.exists():
-            ckpt_dir.mkdir()
-        ckpt_path = ckpt_dir / 'tenpercent_resnet18.ckpt'
+        ckpt_dir = './weights'
+        os.makedirs(ckpt_dir, exist_ok=True)
+        ckpt_path = f'{ckpt_dir}/tenpercent_resnet18.ckpt'
         
         # prepare the checkpoint
-        if not ckpt_path.exists():
+        if not os.path.exists(ckpt_path):
             ckpt_url='https://github.com/ozanciga/self-supervised-histopathology/releases/download/tenpercent/tenpercent_resnet18.ckpt'
             wget.download(ckpt_url, out=ckpt_dir)
             
