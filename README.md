@@ -6,9 +6,9 @@ Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 <img src="./figures/TRIPLEX_main.jpg" title="TRIPLEX"/>
 
 ## TODO
-- [x]: Add code to automatically download the ResNet18 weight
-- [x]: Add code for inference
-- [ ]: Add code to preprocess WSIs in svs or tif format
+- [x] Add code to automatically download the ResNet18 weight
+- [x] Add code for inference
+- [ ] Add code to preprocess WSIs in svs or tif format
 
 ## Installation
 - Python 3.9.19
