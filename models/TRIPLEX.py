@@ -85,9 +85,9 @@ class TRIPLEX(pl.LightningModule):
             num_heads1 (int): Number of heads for FusionEncoder. Defaults to 8.
             num_heads2 (int): Number of heads for GlobalEncoder. Defaults to 8.
             num_heads3 (int): Number of heads for NeighborEncoder. Defaults to 8.
-            mlp_ratio1 (float): mlp_ratio (MLP dimension/emb_dim) for FusionEncoder. Defaults to 1.0.
-            mlp_ratio2 (float): mlp_ratio (MLP dimension/emb_dim) for GlobalEncoder. Defaults to 512.
-            mlp_ratio3 (float): mlp_ratio (MLP dimension/emb_dim) for NeighborEncoder. Defaults to 512.
+            mlp_ratio1 (float): mlp_ratio (MLP dimension/emb_dim) for FusionEncoder. Defaults to 2.0.
+            mlp_ratio2 (float): mlp_ratio (MLP dimension/emb_dim) for GlobalEncoder. Defaults to 2.0.
+            mlp_ratio3 (float): mlp_ratio (MLP dimension/emb_dim) for NeighborEncoder. Defaults to 2.0.
             dropout1 (float): Dropout rate for FusionEncoder. Defaults to 0.1.
             dropout2 (float): Dropout rate for GlobalEncoder. Defaults to 0.1.
             dropout3 (float): Dropout rate for NeighborEncoder. Defaults to 0.1.
@@ -115,15 +115,15 @@ class TRIPLEX(pl.LightningModule):
         self.fc_target = nn.Linear(emb_dim, num_genes)
 
         # Neighbor Encoder
-        self.neighbor_encoder = NeighborEncoder(emb_dim, depth3, num_heads3, mlp_ratio3, dropout = dropout3, resolution=res_neighbor)
+        self.neighbor_encoder = NeighborEncoder(emb_dim, depth3, num_heads3, int(emb_dim*mlp_ratio3), dropout = dropout3, resolution=res_neighbor)
         self.fc_neighbor = nn.Linear(emb_dim, num_genes)
 
         # Global Encoder        
-        self.global_encoder = GlobalEncoder(emb_dim, depth2, num_heads2, emb_dim*mlp_ratio2, dropout2, kernel_size)
+        self.global_encoder = GlobalEncoder(emb_dim, depth2, num_heads2, int(emb_dim*mlp_ratio2), dropout2, kernel_size)
         self.fc_global = nn.Linear(emb_dim, num_genes)
     
         # Fusion Layer
-        self.fusion_encoder = FusionEncoder(emb_dim, depth1, num_heads1, emb_dim*mlp_ratio1, dropout1)    
+        self.fusion_encoder = FusionEncoder(emb_dim, depth1, num_heads1, int(emb_dim*mlp_ratio1), dropout1)    
         self.fc = nn.Linear(emb_dim, num_genes)
     
     
@@ -153,11 +153,11 @@ class TRIPLEX(pl.LightningModule):
         target_token = rearrange(target_token, 'b d h w -> b (h w) d', d = dim, w=w, h=h)
     
         # Neighbor tokens
-        neighbor_token = self.neighbor_encoder(neighbor, mask) # B x 26 x 384
+        neighbor_token = self.neighbor_encoder(neighbor, mask) # B x 26 x 512
         
         # Global tokens
         if pid == None:
-            global_token = self.global_encoder(x_total, position.squeeze()).squeeze()  # N x 384
+            global_token = self.global_encoder(x_total, position.squeeze()).squeeze()  # N x 512
             if sid != None:
                 global_token = global_token[sid]
         else:
@@ -168,14 +168,14 @@ class TRIPLEX(pl.LightningModule):
             pid_unique = pid.unique()
             for pu in pid_unique:
                 ind = int(torch.argmax((pid == pu).int()))
-                x_g = x_total[ind].unsqueeze(0) # 1 x N x 384
+                x_g = x_total[ind].unsqueeze(0) # 1 x N x 512
                 pos = position[ind]
                 
                 emb = self.global_encoder(x_g, pos).squeeze() 
                 global_token[pid == pu] = emb[sid[pid == pu]].float()
     
         # Fusion tokens
-        fusion_token = self.fusion_encoder(target_token, neighbor_token, global_token, mask=mask) # B x 384
+        fusion_token = self.fusion_encoder(target_token, neighbor_token, global_token, mask=mask) # B x 512
             
         output = self.fc(fusion_token) # B x num_genes
         out_target = self.fc_target(target_token.mean(1)) # B x num_genes
@@ -421,8 +421,7 @@ class TRIPLEX(pl.LightningModule):
                 args1[arg] = getattr(self.hparams.MODEL, arg)
         args1.update(other_args)
         return Model(**args1)
-    
-    
+      
 class CustomWriter(BasePredictionWriter):
     def __init__(self, pred_dir, write_interval, emb_dir=None, names=None):
         super().__init__(write_interval)
@@ -441,4 +440,4 @@ class CustomWriter(BasePredictionWriter):
         # from your prediction data
         # torch.save(batch_indices, os.path.join(self.output_dir, f"batch_indices_{trainer.global_rank}.pt"))
 
-    
+
