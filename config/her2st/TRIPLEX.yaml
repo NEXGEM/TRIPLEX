@@ -21,25 +21,26 @@ MODEL:
   num_genes: 250
   emb_dim: 512
   depth1: 1
-  depth2: 3
-  depth3: 3
+  depth2: 5
+  depth3: 4
   num_heads1: 4
-  num_heads2: 16
-  num_heads3: 16
+  num_heads2: 8
+  num_heads3: 4
   mlp_ratio1: 4
   mlp_ratio2: 4
-  mlp_ratio3: 1
-  dropout1: 0.2
-  dropout2: 0.1
+  mlp_ratio3: 4
+  dropout1: 0.4
+  dropout2: 0.3
   dropout3: 0.3
   kernel_size: 3
   learning_rate: 0.0001
 
 DATASET:
-  data_dir: ./data
+  data_dir: /data/temp/spatial/TRIPLEX/data
   type: her2st
   num_neighbors: 5
   t_global_dir: 'gt_features_224'
   n_global_dir: 'gn_features'
   neighbor_dir: 'n_features'
   radius: 224
+  use_pyvips: False

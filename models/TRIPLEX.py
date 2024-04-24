@@ -3,6 +3,7 @@ import os
 import inspect
 import importlib
 
+import wget
 import numpy as np
 from scipy.stats import pearsonr
 import torch
@@ -27,6 +28,15 @@ def load_model_weights(path: str):
         
         resnet = torchvision.models.__dict__['resnet18'](weights=None)
         
+        ckpt_dir = './weights'
+        os.makedirs(ckpt_dir, exist_ok=True)
+        ckpt_path = f'{ckpt_dir}/tenpercent_resnet18.ckpt'
+        
+        # prepare the checkpoint
+        if not os.path.exists(ckpt_path):
+            ckpt_url='https://github.com/ozanciga/self-supervised-histopathology/releases/download/tenpercent/tenpercent_resnet18.ckpt'
+            wget.download(ckpt_url, out=ckpt_dir)
+            
         state = torch.load(path)
         state_dict = state['state_dict']
         for key in list(state_dict.keys()):
@@ -263,10 +273,24 @@ class TRIPLEX(pl.LightningModule):
             wsi = wsi[0].unsqueeze(0)
             position = position[0]
             
-            outputs = self(patch, wsi, position, neighbor.squeeze(), mask.squeeze(), sid=sid)
-            pred = outputs[0]
+            patches = patch.split(512, dim=0)
+            neighbors = neighbor.split(512, dim=0)
+            masks = mask.split(512, dim=0)
+            sids = sid.split(512, dim=0)
             
-            ind_match = np.load(f'/data/temp/TRIPLEX/data/test/{name[0]}/ind_match.npy', allow_pickle=True)
+            pred  = []
+            for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
+                outputs = self(patch, wsi, position, neighbor, mask, sid=sid, return_emb=True)
+                p = outputs[0]
+                
+                pred.append(p)
+                
+            pred = torch.cat(pred, axis=0)
+            
+            # outputs = self(patch, wsi, position, neighbor.squeeze(), mask.squeeze(), sid=sid)
+            # pred = outputs[0]
+            
+            ind_match = np.load(f'/data/temp/spatial/TRIPLEX/data/test/{name[0]}/ind_match.npy', allow_pickle=True)
             self.num_genes = len(ind_match)
             pred = pred[:,ind_match]
             
@@ -306,6 +330,30 @@ class TRIPLEX(pl.LightningModule):
         torch.save(avg_mse.cpu(), f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}/MSE")
         torch.save(avg_mae.cpu(), f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}/MAE")
         torch.save(avg_corr.cpu(), f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}/cor")
+        
+    def predict_step(self, batch, batch_idx):
+        
+        patches, sids, wsi, position, neighbors, masks = batch
+        patches, sids, neighbors, masks = patches.squeeze(), sids.squeeze(), neighbors.squeeze(), masks.squeeze()
+
+        patches = patches.split(512, dim=0)
+        neighbors = neighbors.split(512, dim=0)
+        masks = masks.split(512, dim=0)
+        sids = sids.split(512, dim=0)
+        
+        preds, embs  = [], []
+        for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
+            outputs = self(patch, wsi, position, neighbor, mask, sid=sid, return_emb=True)
+            pred = outputs[0].cpu()
+            emb = outputs[1].cpu()
+            
+            preds.append(pred)
+            embs.append(emb)
+            
+        preds = torch.cat(preds, axis=0)
+        embs = torch.cat(embs, axis=0)
+        
+        return preds, embs
     
     def configure_optimizers(self):
         # self.hparams available because we called self.save_hyperparameters()
@@ -373,3 +421,23 @@ class TRIPLEX(pl.LightningModule):
                 args1[arg] = getattr(self.hparams.MODEL, arg)
         args1.update(other_args)
         return Model(**args1)
+      
+class CustomWriter(BasePredictionWriter):
+    def __init__(self, pred_dir, write_interval, emb_dir=None, names=None):
+        super().__init__(write_interval)
+        self.pred_dir = pred_dir
+        self.emb_dir = emb_dir
+        self.names = names
+
+    def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
+        # this will create N (num processes) files in `output_dir` each containing
+        # the predictions of it's respective rank
+        for i, batch in enumerate(batch_indices[0]):
+            torch.save(predictions[0][i][0], os.path.join(self.pred_dir, f"{self.names[i]}.pt"))
+            torch.save(predictions[0][i][1], os.path.join(self.emb_dir, f"{self.names[i]}.pt"))
+
+        # optionally, you can also save `batch_indices` to get the information about the data index
+        # from your prediction data
+        # torch.save(batch_indices, os.path.join(self.output_dir, f"batch_indices_{trainer.global_rank}.pt"))
+
+
