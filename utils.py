@@ -2,6 +2,7 @@
 
 import os
 
+from datetime import datetime
 import yaml
 from addict import Dict
 from sklearn.mixture import GaussianMixture
@@ -13,6 +14,7 @@ from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks import Callback
+
 
 
 def match(x: np.array, y: np.array):
@@ -101,7 +103,7 @@ def load_config(config_name: str):
     Returns:
         Dict: Dict instance containing configuration.
     """
-    config_path = os.path.join('config', f'{config_name}.yaml')
+    config_path = os.path.join('/home/chungym/project/TRIPLEX/src/TRIPLEX/config', f'{config_name}.yaml')
 
     with open(config_path, 'r') as f:
         config = yaml.load(f, Loader = yaml.FullLoader)
@@ -118,12 +120,15 @@ def load_loggers(cfg: Dict):
     Returns:
         List: _description_
     """
+    
+    log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.current_day)
+
     tb_logger = TensorBoardLogger(
-        cfg.GENERAL.log_path,
+        log_path,
         name = cfg.GENERAL.log_name)
 
     csv_logger = CSVLogger(
-        cfg.GENERAL.log_path,
+        log_path,
         name = cfg.GENERAL.log_name)
     
     loggers = [tb_logger, csv_logger]
@@ -140,7 +145,8 @@ def load_callbacks(cfg: Dict):
     Returns:
         List: Return List containing the Callbacks.
     """
-
+    log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.current_day)
+    
     Mycallbacks = []
     
     target = cfg.TRAINING.early_stopping.monitor
@@ -158,7 +164,7 @@ def load_callbacks(cfg: Dict):
     Mycallbacks.append(early_stop_callback)
     fname = cfg.GENERAL.log_name + '-{epoch:02d}-{valid_loss:.4f}' if cfg.MODEL.name == "BLEEP" else cfg.GENERAL.log_name + '-{epoch:02d}-{valid_loss:.4f}-{R:.4f}'
     checkpoint_callback = ModelCheckpoint(monitor = target,
-                                    dirpath = str(cfg.GENERAL.log_path) + '/' + cfg.GENERAL.log_name,
+                                    dirpath = str(log_path) + '/' + cfg.GENERAL.log_name,
                                     filename=fname,
                                     verbose = True,
                                     save_last = False,

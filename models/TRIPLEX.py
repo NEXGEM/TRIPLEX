@@ -3,6 +3,8 @@ import os
 import inspect
 import importlib
 
+from pathlib import Path
+import wget
 import numpy as np
 from scipy.stats import pearsonr
 import torch
@@ -27,6 +29,16 @@ def load_model_weights(path: str):
         
         resnet = torchvision.models.__dict__['resnet18'](weights=None)
         
+        ckpt_dir = Path('./weights')
+        if not ckpt_dir.exists():
+            ckpt_dir.mkdir()
+        ckpt_path = ckpt_dir / 'tenpercent_resnet18.ckpt'
+        
+        # prepare the checkpoint
+        if not ckpt_path.exists():
+            ckpt_url='https://github.com/ozanciga/self-supervised-histopathology/releases/download/tenpercent/tenpercent_resnet18.ckpt'
+            wget.download(ckpt_url, out=ckpt_dir)
+            
         state = torch.load(path)
         state_dict = state['state_dict']
         for key in list(state_dict.keys()):
