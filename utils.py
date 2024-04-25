@@ -16,7 +16,6 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks import Callback
 
 
-
 def match(x: np.array, y: np.array):
     """Returns a NumPy array of the positions of first occurrences of values in y in x. 
 
