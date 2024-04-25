@@ -6,8 +6,6 @@ import torch
 from torch import nn
 from einops import rearrange
 
-# from flash_attn import flash_attn_qkvpacked_func
-
 
 class PreNorm(nn.Module):
     def __init__(self, emb_dim, fn):

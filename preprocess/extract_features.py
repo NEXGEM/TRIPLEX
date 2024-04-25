@@ -7,9 +7,14 @@ import sys
 import torch
 from torch.utils.data import DataLoader
 
-sys.path.append("..")
-from models.TRIPLEX import load_model_weights
-from datasets.st_data import STDataset
+sys.path.append(
+    os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    )
+)
+
+from models import load_model_weights
+from datasets import STDataset
 from utils import load_config
 
 
@@ -34,7 +39,6 @@ if __name__=='__main__':
     parser.add_argument('--extract_mode', type=str, default='target', help='target or neighbor')
     parser.add_argument('--mode', type=str, default='external', help='internal or external')
     parser.add_argument('--num_n', type=int, default=5, help='')
-    parser.add_argument('--node_id', type=int, default=0, help='')
 
     args = parser.parse_args()
     cfg = load_config(args.config)
@@ -45,7 +49,6 @@ if __name__=='__main__':
     
     num_n=args.num_n
     cfg.DATASET.num_neighbors=num_n
-    cfg.DATASET.node_id = args.node_id
     num_k=cfg.TRAINING.num_k
     
     extract_mode = args.extract_mode
