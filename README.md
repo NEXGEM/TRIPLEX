@@ -110,11 +110,11 @@ Training results will be saved in *./logs*
 
 ```python
 # 10x Visium-1
-python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff1
+python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff1 --model_path [path/model/weight]
 # 10x Visium-2
-python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff2
+python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff2 --model_path [path/model/weight]
 # 10x Visium-3
-python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff3
+python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff3 --model_path [path/model/weight]
 ```
 
 ## Acknowledgements
