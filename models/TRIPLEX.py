@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 import torchvision
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import BasePredictionWriter
 import torch.nn.functional as F
 from einops import rearrange
 
