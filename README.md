@@ -1,6 +1,6 @@
 # Accurate Spatial Gene Expression Prediction by Integrating Multi-Resolution Features 
 
-> Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features (accepted in CVPR 2024) \
+> Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features (accepted to CVPR 2024) \
 Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 
 <img src="./figures/TRIPLEX_main.jpg" title="TRIPLEX"/>
