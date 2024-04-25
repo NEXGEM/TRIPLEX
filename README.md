@@ -85,7 +85,7 @@ After completing the above steps, your project directory should follow this stru
 # Train
 python main.py --config her2st/TRIPLEX --mode cv
 # Test
-python main.py --config her2st/TRIPLEX --mode test
+python main.py --config her2st/TRIPLEX --mode test --fold [num_fold] --model_path [path/model/weight]
 ```
 
 - BC2 dataset
@@ -93,7 +93,7 @@ python main.py --config her2st/TRIPLEX --mode test
 # Train
 python main.py --config stnet/TRIPLEX --mode cv
 # Test
-python main.py --config stnet/TRIPLEX --mode test
+python main.py --config stnet/TRIPLEX --mode test --fold [num_fold] --model_path [path/model/weight]
 ```
 
 - SCC dataset
@@ -101,7 +101,7 @@ python main.py --config stnet/TRIPLEX --mode test
 # Train
 python main.py --config skin/TRIPLEX --mode cv
 # Test
-python main.py --config skin/TRIPLEX --mode test
+python main.py --config skin/TRIPLEX --mode test --fold [num_fold] --model_path [path/model/weight]
 ```
 
 Training results will be saved in *./logs*
