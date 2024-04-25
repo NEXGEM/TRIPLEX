@@ -103,7 +103,7 @@ def load_config(config_name: str):
     Returns:
         Dict: Dict instance containing configuration.
     """
-    config_path = os.path.join('/home/chungym/project/TRIPLEX/src/TRIPLEX/config', f'{config_name}.yaml')
+    config_path = os.path.join('./config', f'{config_name}.yaml')
 
     with open(config_path, 'r') as f:
         config = yaml.load(f, Loader = yaml.FullLoader)

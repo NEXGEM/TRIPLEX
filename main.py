@@ -75,7 +75,7 @@ def main(cfg, fold=0):
     del model_cfg['name']
     
     # Load model
-    print(model_cfg)
+    # print(model_cfg)
     model = TRIPLEX(**model_cfg)
     
     # Train or test model

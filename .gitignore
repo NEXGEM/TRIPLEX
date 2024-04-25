@@ -14,8 +14,9 @@ sweep_cv.yaml
 # Logging files
 logs
 slurm
+results
 
 # Others
 test.ipynb
-
+.vscode
 __pycache__
