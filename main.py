@@ -150,7 +150,7 @@ if __name__ == '__main__':
     current_day = datetime.now().strftime('%Y-%m-%d')
     cfg.GENERAL.current_day = current_day
     
-    if args.mode in ['cv', 'test']:
+    if args.mode == 'cv':
         num_k = cfg.TRAINING.num_k     
         for fold in range(num_k):
             main(cfg, fold=fold)
