@@ -320,14 +320,13 @@ class STDataset(BaselineDataset):
                 mask_tb[j] = self.make_masking_table(x, y, img_shape)
                 
                 if self.extract_mode == 'neighbor':
+                    k_ranges = [(self.r * 2 * k, self.r * 2 * (k + 1)) for k in range(self.num_neighbors)]
+                    m_ranges = [(self.r * 2 * m, self.r * 2 * (m + 1)) for m in range(self.num_neighbors)]
+                    patch = torch.zeros((3, 2 * self.r * self.num_neighbors, 2 * self.r * self.num_neighbors))
+                    
                     if self.use_pyvips:
                         patch_unnorm = self.extract_patches_pyvips(im, x, y, img_shape)
                         
-                        k_ranges = [(self.r * 2 * k, self.r * 2 * (k + 1)) for k in range(self.num_neighbors)]
-                        m_ranges = [(self.r * 2 * m, self.r * 2 * (m + 1)) for m in range(self.num_neighbors)]
-
-                        patch = torch.zeros((3, 2 * self.r * self.num_neighbors, 2 * self.r * self.num_neighbors))
-
                         for k, (k_start, k_end) in enumerate(k_ranges):
                             for m, (m_start, m_end) in enumerate(m_ranges):
                                 n = k * self.num_neighbors + m
@@ -339,13 +338,7 @@ class STDataset(BaselineDataset):
                         
                     else:
                         y_start = y-self.r*self.num_neighbors
-                        x_start = x-self.r*self.num_neighbors
-                        
-                        k_ranges = [(self.r * 2 * k, self.r * 2 * (k + 1)) for k in range(self.num_neighbors)]
-                        m_ranges = [(self.r * 2 * m, self.r * 2 * (m + 1)) for m in range(self.num_neighbors)]
-
-                        # Initialize patch tensor
-                        patch = torch.zeros((3, 2 * self.r * self.num_neighbors, 2 * self.r * self.num_neighbors))
+                        x_start = x-self.r*self.num_neighbors                        
 
                         # Loop over pre-calculated ranges
                         for k, (k_start, k_end) in enumerate(k_ranges):
