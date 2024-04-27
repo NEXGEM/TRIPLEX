@@ -26,8 +26,6 @@ class BaselineDataset(torch.utils.data.Dataset):
     def __init__(self):
         super(BaselineDataset, self).__init__()
         
-        self.external_test = False
-
         self.train_transforms = transforms.Compose([
             transforms.ToPILImage(),
             transforms.RandomHorizontalFlip(),
@@ -127,7 +125,7 @@ class BaselineDataset(torch.utils.data.Dataset):
         else:
             meta = pos
         
-        if self.external_test and ('10x_breast' in self.data):
+        if mode == "external_test":
             meta = meta.sort_values(['x', 'y'])
         else:
             meta = meta.sort_values(['y', 'x'])
