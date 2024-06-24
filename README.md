@@ -124,12 +124,11 @@ python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast
 - If you found our work useful in your research, please consider citing our works(s) at:
 
 ```
-@misc{chung2024accurate,
-      title={Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features}, 
-      author={Youngmin Chung and Ji Hun Ha and Kyeong Chan Im and Joo Sang Lee},
-      year={2024},
-      eprint={2403.07592},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@inproceedings{chung2024accurate,
+  title={Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features},
+  author={Chung, Youngmin and Ha, Ji Hun and Im, Kyeong Chan and Lee, Joo Sang},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={11591--11600},
+  year={2024}
 }
 ```
