@@ -158,17 +158,12 @@ class STDataset(BaselineDataset):
         self.use_pyvips = kwargs['use_pyvips']
         
         self.r = kwargs['radius']//2
-        self.extract_mode = False
+        self.extract_mode = extract_mode
         
         self.mode = mode
-        if mode in ["external_test", "inference"]:
+        if test_data:
             self.data = test_data
-            self.data_dir = f"{kwargs['data_dir']}/test/{self.data}"
-        elif mode == "extraction":
-            self.extract_mode = extract_mode
-            self.data = test_data
-            # node_id = kwargs['node_id']        
-            self.data_dir = f"{kwargs['data_dir']}/test/{self.data}"
+            self.data_dir = f"{kwargs['data_dir']}/test/{self.data}"    
         else:
             self.data = kwargs['type']
             self.data_dir = f"{kwargs['data_dir']}/{self.data}"
