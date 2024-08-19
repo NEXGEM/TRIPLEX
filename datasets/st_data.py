@@ -13,7 +13,6 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 import scprep as scp
-import pyvips as pv
 
 from utils import smooth_exp
 
@@ -63,6 +62,7 @@ class BaselineDataset(torch.utils.data.Dataset):
             path = glob(img_dir+'/*'+name+'.jpg')[0]
     
         if self.use_pyvips:    
+            import pyvips as pv
             im = pv.Image.new_from_file(path, level=0)
         else:
             im = Image.open(path)
@@ -167,7 +167,7 @@ class STDataset(BaselineDataset):
         elif mode == "extraction":
             self.extract_mode = extract_mode
             self.data = test_data
-            node_id = kwargs['node_id']        
+            # node_id = kwargs['node_id']        
             self.data_dir = f"{kwargs['data_dir']}/test/{self.data}"
         else:
             self.data = kwargs['type']

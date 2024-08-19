@@ -38,27 +38,27 @@ TRIPLEX requires pre-extracted features from WSIs. Run following commands to ext
 - Cross validation
 ```python
 # BC1 dataset
-python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode target
-python extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode neighbor
+python preprocess/extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode target
+python preprocess/extract_features.py --config her2st/TRIPLEX --test_mode internal --extract_mode neighbor
 # BC2 dataset
-python extract_features.py --config stnet/TRIPLEX --test_mode internal --extract_mode target
-python extract_features.py --config stnet/TRIPLEX --test_mode internal --extract_mode neighbor
+python preprocess/extract_features.py --config stnet/TRIPLEX --test_mode internal --extract_mode target
+python preprocess/extract_features.py --config stnet/TRIPLEX --test_mode internal --extract_mode neighbor
 # SCC dataset
-python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode target
-python extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode neighbor
+python preprocess/extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode target
+python preprocess/extract_features.py --config skin/TRIPLEX --test_mode internal --extract_mode neighbor
 ```
 
 - External test
 ```python
 # 10x Visium-1
-python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode target 
-python extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode neighbor
+python preprocess/extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode target 
+python preprocess/extract_features.py --test_name 10x_breast_ff1 --test_mode external --extract_mode neighbor
 # 10x Visium-2
-python extract_features.py --test_name 10x_breast_ff2 --test_mode external --extract_mode target 
-python extract_features.py --test_name 10x_breast_ff2 --test_mode external --extract_mode neighbor
+python preprocess/extract_features.py --test_name 10x_breast_ff2 --test_mode external --extract_mode target 
+python preprocess/extract_features.py --test_name 10x_breast_ff2 --test_mode external --extract_mode neighbor
 # 10x Visium-3
-python extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode target 
-python extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode neighbor
+python preprocess/extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode target 
+python preprocess/extract_features.py --test_name 10x_breast_ff3 --test_mode external --extract_mode neighbor
 ```
 
 ### Directory Structure
