@@ -125,7 +125,7 @@ class BaselineDataset(torch.utils.data.Dataset):
         else:
             meta = pos
         
-        if mode == "external_test":
+        if self.mode == "external_test":
             meta = meta.sort_values(['x', 'y'])
         else:
             meta = meta.sort_values(['y', 'x'])
