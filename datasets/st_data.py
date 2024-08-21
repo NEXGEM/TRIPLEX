@@ -54,7 +54,7 @@ class BaselineDataset(torch.utils.data.Dataset):
             pre = img_dir+'/'+name[0]+'/'+name
             fig_name = os.listdir(pre)[0]
             path = pre+'/'+fig_name
-        elif self.data == 'stnet' or '10x_breast' in self.data:
+        elif self.data in ['stnet','gbm'] or '10x_breast' in self.data:
             path = glob(img_dir+'/*'+name+'.tif')[0]
         elif 'DRP' in self.data:
             path = glob(img_dir+'/*'+name+'.svs')[0]
@@ -184,9 +184,38 @@ class STDataset(BaselineDataset):
                 self.names = [name for name in self.names if not os.path.exists(os.path.join(self.gt_dir, f"{name}.pt"))]
             
         else:
+            self.fold_name = None
             if self.data == 'stnet':
                 kf = KFold(8, shuffle=True, random_state=2021)
-                patients = ['BC23209','BC23270','BC23803','BC24105','BC24220','BC23268','BC23269','BC23272','BC23277','BC23287','BC23288','BC23377','BC23450','BC23506','BC23508','BC23567','BC23810','BC23895','BC23901','BC23903','BC23944','BC24044','BC24223']
+                patients = ['BC23209','BC23270','BC23803','BC24105',
+                            'BC24220','BC23268','BC23269','BC23272',
+                            'BC23277','BC23287','BC23288','BC23377',
+                            'BC23450','BC23506','BC23508','BC23567',
+                            'BC23810','BC23895','BC23901','BC23903',
+                            'BC23944','BC24044','BC24223']
+                patients = np.array(patients)
+                _, ind_val = [i for i in kf.split(patients)][fold]
+                paients_val = patients[ind_val]
+                
+                te_names = []
+                for pp in paients_val:
+                    te_names += [i for i in names if pp in i]
+                    
+                self.fold_name = f"BC{fold+1}"
+                
+            elif self.data == 'her2st':
+                patients = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+                te_names = [i for i in names if patients[fold] in i]
+            elif self.data == 'skin':
+                patients = ['P2', 'P5', 'P9', 'P10']
+                te_names = [i for i in names if patients[fold] in i]
+                
+            elif self.data == 'gbm':
+                kf = KFold(5, shuffle=True, random_state=2021)
+                patients = ['SNU16','SNU17','SNU18','SNU19',
+                            'SNU21','SNU22','SNU23','SNU24',
+                            'SNU25','SNU27','SNU33','SNU34',
+                            'SNU38','SNU40','SNU43','SNU46','SNU51']
                 patients = np.array(patients)
                 _, ind_val = [i for i in kf.split(patients)][fold]
                 paients_val = patients[ind_val]
@@ -195,12 +224,7 @@ class STDataset(BaselineDataset):
                 for pp in paients_val:
                     te_names += [i for i in names if pp in i]
                 
-            elif self.data == 'her2st':
-                patients = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-                te_names = [i for i in names if patients[fold] in i]
-            elif self.data == 'skin':
-                patients = ['P2', 'P5', 'P9', 'P10']
-                te_names = [i for i in names if patients[fold] in i]
+                self.fold_name = f"GBM{fold+1}"
                 
             tr_names = list(set(names)-set(te_names))
 
@@ -370,6 +394,8 @@ class STDataset(BaselineDataset):
         
         if self.mode not in ["external_test", "inference"]:
             name += f"+{self.data}"
+            if not self.fold_name:
+                name += f"+{self.fold_name}"
         
         if self.mode == 'train':
             return patches, exps, pid, sid, wsi, position, neighbors, mask_tb
