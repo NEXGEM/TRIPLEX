@@ -80,7 +80,7 @@ if __name__=='__main__':
         
         for fold in tqdm(range(num_k)):
             testset = STDataset(mode='extraction', extract_mode=extract_mode, fold=fold, **cfg.DATASET)
-            dataloader = DataLoader(testset, batch_size=1, shuffle=False, num_workers=8)
+            dataloader = DataLoader(testset, batch_size=1, shuffle=False, num_workers=0)
             
             for i, patches in enumerate(dataloader):
                 file_name = f"{testset.names[i]}.pt"
@@ -124,7 +124,7 @@ if __name__=='__main__':
         os.makedirs(dir_name, exist_ok=True)
         
         testset = STDataset(mode='extraction', extract_mode=extract_mode, test_data = test_name, **cfg.DATASET)
-        dataloader = DataLoader(testset, batch_size=1, shuffle=False, num_workers=2)
+        dataloader = DataLoader(testset, batch_size=1, shuffle=False, num_workers=0)
         
         for i, patches in tqdm(enumerate(dataloader)):
             file_name = f"{testset.names[i]}.pt"

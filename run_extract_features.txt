@@ -17,4 +17,4 @@ eval "$(conda shell.bash hook)"
 conda activate myenv  # Replace "myenv" with the actual environment name if different
 
 # Run your Python script
-python /home/s2019311900/TRIPLEX/preprocess/extract_features.py --config gbm/TRIPLEX --mode internal --extract_mode target
+python /home/s2019311900/TRIPLEX/preprocess/extract_features.py --config gbm/TRIPLEX --mode internal --extract_mode neighbor
