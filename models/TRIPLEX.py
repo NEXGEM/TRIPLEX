@@ -369,32 +369,34 @@ class TRIPLEX(pl.LightningModule):
             self.data = "test"
         else:
             name = name[0]
-            self.data = name.split("+")[1]
-            self.patient = name.split("+")[0]
+            name_split = name.split("+")
+            self.data = name_split[1]
+            self.patient = name_split[0]
             
             if self.data == 'her2st':
                 self.patient = self.patient[0]
-            elif self.data == 'stnet':
-                self.data = "stnet"
-                patient = self.patient.split('_')[0]
-                if patient in ['BC23277', 'BC23287', 'BC23508']:
-                    self.patient = 'BC1'
-                elif patient in ['BC24105', 'BC24220', 'BC24223']:
-                    self.patient = 'BC2'
-                elif patient in ['BC23803', 'BC23377', 'BC23895']:
-                    self.patient = 'BC3'
-                elif patient in ['BC23272', 'BC23288', 'BC23903']:
-                    self.patient = 'BC4'
-                elif patient in ['BC23270', 'BC23268', 'BC23567']:
-                    self.patient = 'BC5'
-                elif patient in ['BC23269', 'BC23810', 'BC23901']:
-                    self.patient = 'BC6'
-                elif patient in ['BC23209', 'BC23450', 'BC23506']:
-                    self.patient = 'BC7'
-                elif patient in ['BC23944', 'BC24044']:
-                    self.patient = 'BC8'
+            elif self.data in ['stnet', 'gbm']:
+                self.patient = name_split[2]
+                # patient = self.patient.split('_')[0]            
+                # if patient in ['BC23277', 'BC23287', 'BC23508']:
+                #     self.patient = 'BC1'
+                # elif patient in ['BC24105', 'BC24220', 'BC24223']:
+                #     self.patient = 'BC2'
+                # elif patient in ['BC23803', 'BC23377', 'BC23895']:
+                #     self.patient = 'BC3'
+                # elif patient in ['BC23272', 'BC23288', 'BC23903']:
+                #     self.patient = 'BC4'
+                # elif patient in ['BC23270', 'BC23268', 'BC23567']:
+                #     self.patient = 'BC5'
+                # elif patient in ['BC23269', 'BC23810', 'BC23901']:
+                #     self.patient = 'BC6'
+                # elif patient in ['BC23209', 'BC23450', 'BC23506']:
+                #     self.patient = 'BC7'
+                # elif patient in ['BC23944', 'BC24044']:
+                #     self.patient = 'BC8'
             elif self.data == 'skin':
                 self.patient = self.patient.split('_')[0]
+    
     
     def load_model(self):
         name = self.hparams.MODEL.name
