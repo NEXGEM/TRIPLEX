@@ -1,0 +1,20 @@
+#!/bin/bash
+#SBATCH -J extract_features_job    # Job name
+#SBATCH -p batch                   # Partition name
+#SBATCH -N 1                       # Number of nodes
+#SBATCH -n 1                       # Number of processes
+#SBATCH -o %x.o%j                  # Output file name (%x expands to job name, %j to job ID)
+#SBATCH -e %x.e%j                  # Error file name (%x expands to job name, %j to job ID)
+#SBATCH --time 100:00:00           # Maximum runtime (adjust as needed)
+#SBATCH --nodelist=gnode1          # Specific node to run on
+#SBATCH --gres=gpu:1               # Request 1 GPU
+
+# Load your environment setup (adjust if your environment is different)
+source ~/.bashrc
+
+# Activate your Conda environment
+eval "$(conda shell.bash hook)"
+conda activate myenv  # Replace "myenv" with the actual environment name if different
+
+# Run your Python script
+python /home/s2019311900/TRIPLEX/preprocess/extract_features.py --config gbm/TRIPLEX --mode internal --extract_mode target

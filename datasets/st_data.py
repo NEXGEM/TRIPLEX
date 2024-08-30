@@ -54,7 +54,7 @@ class BaselineDataset(torch.utils.data.Dataset):
             pre = img_dir+'/'+name[0]+'/'+name
             fig_name = os.listdir(pre)[0]
             path = pre+'/'+fig_name
-        elif self.data == 'stnet' or '10x_breast' in self.data:
+        elif self.data == 'stnet' or '10x_breast' in self.data or 'GBM_data' in self.data:
             path = glob(img_dir+'/*'+name+'.tif')[0]
         elif 'DRP' in self.data:
             path = glob(img_dir+'/*'+name+'.svs')[0]
