@@ -1,17 +1,0 @@
-  0%|          | 0/8 [00:00<?, ?it/s]  0%|          | 0/8 [06:36<?, ?it/s]
-Traceback (most recent call last):
-  File "/home/s2019311900/TRIPLEX/preprocess/extract_features.py", line 98, in <module>
-    features = model(patches)
-  File "/home/s2019311900/enter/envs/myenv/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1190, in _call_impl
-    return forward_call(*input, **kwargs)
-  File "/home/s2019311900/enter/envs/myenv/lib/python3.9/site-packages/torchvision/models/resnet.py", line 285, in forward
-    return self._forward_impl(x)
-  File "/home/s2019311900/enter/envs/myenv/lib/python3.9/site-packages/torchvision/models/resnet.py", line 269, in _forward_impl
-    x = self.bn1(x)
-  File "/home/s2019311900/enter/envs/myenv/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1190, in _call_impl
-    return forward_call(*input, **kwargs)
-  File "/home/s2019311900/enter/envs/myenv/lib/python3.9/site-packages/torch/nn/modules/batchnorm.py", line 171, in forward
-    return F.batch_norm(
-  File "/home/s2019311900/enter/envs/myenv/lib/python3.9/site-packages/torch/nn/functional.py", line 2450, in batch_norm
-    return torch.batch_norm(
-torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 14.13 GiB (GPU 0; 23.70 GiB total capacity; 16.82 GiB already allocated; 4.78 GiB free; 16.85 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
