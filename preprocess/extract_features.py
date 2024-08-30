@@ -85,21 +85,38 @@ if __name__=='__main__':
             for i, patches in enumerate(dataloader):
                 file_name = f"{testset.names[i]}.pt"
                 
-                if extract_mode == 'target':
-                    patches = patches.to(torch.device('cuda:0')).squeeze()
-                else:
-                    patches = patches.squeeze()
+                # if extract_mode == 'target':
+                #     patches = patches.to(torch.device('cuda:0')).squeeze()
+                # else:
+                #     patches = patches.squeeze()
+                patches = patches.squeeze().split(512,dim=0)
                 
-                # Process and save features
-                with torch.no_grad():
-                    if extract_mode == 'neighbor':
-                        features = get_sub_features(model, patches, num_n)
+                extracted_features = []
+                for patch in patches:
+                    if extract_mode == 'target':
+                        patch = patch.to(torch.device('cuda:0')).squeeze()
                     else:
-                        features = model(patches)
-                        features = features.detach().cpu()
-
-                    print(f"Saving {file_name}...")
-                    torch.save(features, os.path.join(dir_name, file_name))    
+                        patch = patch.squeeze()
+                    
+                    # Process and save features
+                    with torch.no_grad():
+                        if extract_mode == 'neighbor':
+                            features = get_sub_features(model, patch, num_n)
+                        else:
+                            features = model(patch)
+                            features = features.detach().cpu()
+                            
+                    extracted_features.append(features)
+                # # Process and save features
+                # with torch.no_grad():
+                #     if extract_mode == 'neighbor':
+                #         features = get_sub_features(model, patches, num_n)
+                #     else:
+                #         features = model(patches)
+                #         features = features.detach().cpu()
+                extracted_features = torch.cat(extracted_features, dim=0)
+                print(f"Saving {file_name}...")
+                torch.save(extracted_features, os.path.join(dir_name, file_name))
                     
     elif mode == 'external':
         # Extract features for external test
