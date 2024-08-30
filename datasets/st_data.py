@@ -54,11 +54,7 @@ class BaselineDataset(torch.utils.data.Dataset):
             pre = img_dir+'/'+name[0]+'/'+name
             fig_name = os.listdir(pre)[0]
             path = pre+'/'+fig_name
-<<<<<<< HEAD
         elif self.data == 'stnet' or '10x_breast' in self.data or 'GBM_data' in self.data:
-=======
-        elif self.data in ['stnet','gbm'] or '10x_breast' in self.data:
->>>>>>> 03437f9cfdf404092af05d1b9c8bcb4f9c0fed4c
             path = glob(img_dir+'/*'+name+'.tif')[0]
         elif 'DRP' in self.data:
             path = glob(img_dir+'/*'+name+'.svs')[0]
@@ -214,7 +210,7 @@ class STDataset(BaselineDataset):
                 patients = ['P2', 'P5', 'P9', 'P10']
                 te_names = [i for i in names if patients[fold] in i]
                 
-            elif self.data == 'gbm':
+            elif self.data == 'GBM_data':
                 kf = KFold(5, shuffle=True, random_state=2021)
                 patients = ['SNU16','SNU17','SNU18','SNU19',
                             'SNU21','SNU22','SNU23','SNU24',

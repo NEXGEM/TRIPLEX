@@ -375,7 +375,7 @@ class TRIPLEX(pl.LightningModule):
             
             if self.data == 'her2st':
                 self.patient = self.patient[0]
-            elif self.data in ['stnet', 'gbm']:
+            elif self.data in ['stnet', 'GBM_data']:
                 self.patient = name_split[2]
                 # patient = self.patient.split('_')[0]            
                 # if patient in ['BC23277', 'BC23287', 'BC23508']:

@@ -36,13 +36,8 @@ MODEL:
   learning_rate: 0.0001
 
 DATASET:
-<<<<<<< HEAD
   data_dir: /home/s2019311900/multiomic-gbm
   type: GBM_data
-=======
-  data_dir: /path/to/gbm/data
-  type: gbm
->>>>>>> 03437f9cfdf404092af05d1b9c8bcb4f9c0fed4c
   num_neighbors: 5
   t_global_dir: 'gt_features_224'
   n_global_dir: 'gn_features'
