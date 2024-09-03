@@ -394,7 +394,7 @@ class STDataset(BaselineDataset):
         
         if self.mode not in ["external_test", "inference"]:
             name += f"+{self.data}"
-            if not self.fold_name:
+            if self.fold_name:
                 name += f"+{self.fold_name}"
         
         if self.mode == 'train':

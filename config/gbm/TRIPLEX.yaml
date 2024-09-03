@@ -36,7 +36,7 @@ MODEL:
   learning_rate: 0.0001
 
 DATASET:
-  data_dir: /home/s2019311900/multiomic-gbm
+  data_dir: /data/temp/spatial/TRIPLEX/data
   type: GBM_data
   num_neighbors: 5
   t_global_dir: 'gt_features_224'
