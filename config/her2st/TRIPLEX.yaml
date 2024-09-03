@@ -5,7 +5,7 @@ GENERAL:
   log_path: ./logs
   
 TRAINING:
-  num_k: 5
+  num_k: 8
   batch_size: 128
   loss: MSE
   optimizer: adam
