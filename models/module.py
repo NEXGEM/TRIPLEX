@@ -1,6 +1,7 @@
 
 
 import itertools
+import math
 
 import torch
 from torch import nn
@@ -47,8 +48,8 @@ class MultiHeadAttention(nn.Module):
 
         self.heads = heads
         self.drop_p = dropout
-        self.scale = dim_head ** -0.5
-        self.attend = nn.Softmax(dim = -1)
+        # self.scale = dim_head ** -0.5
+        # self.attend = nn.Softmax(dim = -1)
         
         self.to_qkv = nn.Linear(emb_dim, emb_dim * 3, bias = False) 
 
@@ -57,33 +58,33 @@ class MultiHeadAttention(nn.Module):
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
         
-        self.attn_bias = attn_bias
-        if attn_bias:
-            points = list(itertools.product(
-                range(resolution[0]), range(resolution[1])))
-            N = len(points)
-            attention_offsets = {}
-            idxs = []
-            for p1 in points:
-                for p2 in points:
-                    offset = (abs(p1[0] - p2[0]), abs(p1[1] - p2[1]))
-                    if offset not in attention_offsets:
-                        attention_offsets[offset] = len(attention_offsets)
-                    idxs.append(attention_offsets[offset])
-            self.attention_biases = torch.nn.Parameter(
-                torch.zeros(heads, len(attention_offsets)))
-            self.register_buffer('attention_bias_idxs',
-                                torch.LongTensor(idxs).view(N, N),
-                                persistent=False)
+    #     self.attn_bias = attn_bias
+    #     if attn_bias:
+    #         points = list(itertools.product(
+    #             range(resolution[0]), range(resolution[1])))
+    #         N = len(points)
+    #         attention_offsets = {}
+    #         idxs = []
+    #         for p1 in points:
+    #             for p2 in points:
+    #                 offset = (abs(p1[0] - p2[0]), abs(p1[1] - p2[1]))
+    #                 if offset not in attention_offsets:
+    #                     attention_offsets[offset] = len(attention_offsets)
+    #                 idxs.append(attention_offsets[offset])
+    #         self.attention_biases = torch.nn.Parameter(
+    #             torch.zeros(heads, len(attention_offsets)))
+    #         self.register_buffer('attention_bias_idxs',
+    #                             torch.LongTensor(idxs).view(N, N),
+    #                             persistent=False)
 
-    @torch.no_grad()
-    def train(self, mode=True):
-        if self.attn_bias:
-            super().train(mode)
-            if mode and hasattr(self, 'ab'):
-                del self.ab
-            else:
-                self.ab = self.attention_biases[:, self.attention_bias_idxs]
+    # @torch.no_grad()
+    # def train(self, mode=True):
+    #     if self.attn_bias:
+    #         super().train(mode)
+    #         if mode and hasattr(self, 'ab'):
+    #             del self.ab
+    #         else:
+    #             self.ab = self.attention_biases[:, self.attention_bias_idxs]
         
     def forward(self, x, mask = None, return_attn=False):
         qkv = self.to_qkv(x) # b x n x d*3
@@ -131,8 +132,8 @@ class MultiHeadCrossAttention(nn.Module):
 
         self.heads = heads
         self.drop_p = dropout
-        self.scale = dim_head ** -0.5
-        self.attend = nn.Softmax(dim = -1)
+        # self.scale = dim_head ** -0.5
+        # self.attend = nn.Softmax(dim = -1)
         
         self.to_q = nn.Linear(emb_dim, emb_dim, bias = False) 
         self.to_kv = nn.Linear(emb_dim, emb_dim * 2, bias = False) 
@@ -281,24 +282,61 @@ class GlobalEncoder(nn.Module):
         return x
     
     
+# class NeighborEncoder(nn.Module):
+#     def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., resolution=(5,5)):
+#         super().__init__()      
+        
+#         self.layer = TransformerEncoder(emb_dim, depth, heads, mlp_dim, dropout, attn_bias=True, resolution=resolution)
+#         self.norm = nn.LayerNorm(emb_dim)
+
+#     def forward(self, x, mask=None):
+        
+#         if mask != None:
+#             mask = mask.unsqueeze(1).unsqueeze(1)
+            
+#         # Translayer
+#         x = self.layer(x, mask=mask) #[B, N, 512]
+#         x = self.norm(x)
+        
+#         return x
+
+
 class NeighborEncoder(nn.Module):
-    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., resolution=(5,5)):
-        super().__init__()      
+    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout=0., resolution=(5,5)):
+        super().__init__()
+        
+        self.emb_dim = emb_dim
+        self.resolution = resolution
         
         self.layer = TransformerEncoder(emb_dim, depth, heads, mlp_dim, dropout, attn_bias=True, resolution=resolution)
         self.norm = nn.LayerNorm(emb_dim)
+        
+        # Add position encoding
+        self.pos_encoding = self.create_sinusoidal_encoding()
+
+    def create_sinusoidal_encoding(self):
+        total_dims = self.resolution[0] * self.resolution[1]
+        position = torch.arange(total_dims).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, self.emb_dim, 2) * -(math.log(10000.0) / self.emb_dim))
+        pe = torch.zeros(1, total_dims, self.emb_dim)
+        pe[0, :, 0::2] = torch.sin(position * div_term)
+        pe[0, :, 1::2] = torch.cos(position * div_term)
+        return nn.Parameter(pe, requires_grad=False)
 
     def forward(self, x, mask=None):
+        B, N, _ = x.shape
         
-        if mask != None:
+        # Add positional encoding
+        x = x + self.pos_encoding
+        
+        if mask is not None:
             mask = mask.unsqueeze(1).unsqueeze(1)
-            
+        
         # Translayer
-        x = self.layer(x, mask=mask) #[B, N, 512]
+        x = self.layer(x, mask=mask)  # [B, N, 512]
         x = self.norm(x)
         
         return x
-
 
 class FusionEncoder(nn.Module):
     def __init__(self, emb_dim, depth, heads, mlp_dim, dropout):
