@@ -6,6 +6,8 @@ import torch
 from torch import nn
 from einops import rearrange
 
+from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
+
 
 class PreNorm(nn.Module):
     def __init__(self, emb_dim, fn):
@@ -84,38 +86,38 @@ class MultiHeadAttention(nn.Module):
                 self.ab = self.attention_biases[:, self.attention_bias_idxs]
         
     def forward(self, x, mask = None, return_attn=False):
-        # qkv = self.to_qkv(x) # b x n x d*3
+        qkv = self.to_qkv(x) # b x n x d*3
         
-        # qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
-        # out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
-        # out = rearrange(out, 'b n h d -> b n (h d)')
+        qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
+        out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
+        out = rearrange(out, 'b n h d -> b n (h d)')
         
-        # return self.to_out(out)
+        return self.to_out(out)
         
-        qkv = self.to_qkv(x).chunk(3, dim = -1) 
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv) 
+        # qkv = self.to_qkv(x).chunk(3, dim = -1) 
+        # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv) 
 
-        qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
-        if self.attn_bias:
-            qk += (self.attention_biases[:, self.attention_bias_idxs]
-            if self.training else self.ab)
+        # qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
+        # if self.attn_bias:
+        #     qk += (self.attention_biases[:, self.attention_bias_idxs]
+        #     if self.training else self.ab)
         
-        if mask is not None:
-            fill_value = torch.finfo(torch.float16).min
-            ind_mask = mask.shape[-1]
-            qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
+        # if mask is not None:
+        #     fill_value = torch.finfo(torch.float16).min
+        #     ind_mask = mask.shape[-1]
+        #     qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
 
-        attn_weights = self.attend(qk) # b h n n
-        if return_attn:
-            attn_weights_averaged = attn_weights.mean(dim=1)
+        # attn_weights = self.attend(qk) # b h n n
+        # if return_attn:
+        #     attn_weights_averaged = attn_weights.mean(dim=1)
         
-        out = torch.matmul(attn_weights, v) 
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        # out = torch.matmul(attn_weights, v) 
+        # out = rearrange(out, 'b h n d -> b n (h d)')
     
-        if return_attn:
-            return self.to_out(out), attn_weights_averaged[:,0]
-        else:
-            return self.to_out(out)
+        # if return_attn:
+        #     return self.to_out(out), attn_weights_averaged[:,0]
+        # else:
+        #     return self.to_out(out)
         
 
 class MultiHeadCrossAttention(nn.Module):
@@ -141,37 +143,40 @@ class MultiHeadCrossAttention(nn.Module):
         ) if project_out else nn.Identity()
         
     def forward(self, x_q, x_kv, mask = None, return_attn=False):
-        # qkv = self.to_qkv(x) # b x n x d*3
+        q = self.to_q(x_q)
+        k, v = self.to_kv(x_kv).chunk(2, dim=-1)
+        
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b n h d', h=self.heads), (q, k, v))
         
         # qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
-        # out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
-        # out = rearrange(out, 'b n h d -> b n (h d)')
+        out = flash_attn_func(q,k,v, self.drop_p, softmax_scale=None, causal=False)
+        out = rearrange(out, 'b n h d -> b n (h d)')
         
-        # return self.to_out(out)
+        return self.to_out(out)
         
-        q = self.to_q(x_q)
-        q = rearrange(q, 'b n (h d) -> b h n d', h = self.heads)
-        kv = self.to_kv(x_kv).chunk(2, dim = -1) 
-        k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), kv) 
+        # q = self.to_q(x_q)
+        # q = rearrange(q, 'b n (h d) -> b h n d', h = self.heads)
+        # kv = self.to_kv(x_kv).chunk(2, dim = -1) 
+        # k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), kv) 
 
-        qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
+        # qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
         
-        if mask is not None:
-            fill_value = torch.finfo(torch.float16).min
-            ind_mask = mask.shape[-1]
-            qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
+        # if mask is not None:
+        #     fill_value = torch.finfo(torch.float16).min
+        #     ind_mask = mask.shape[-1]
+        #     qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
 
-        attn_weights = self.attend(qk) # b h n n
-        if return_attn:
-            attn_weights_averaged = attn_weights.mean(dim=1)
+        # attn_weights = self.attend(qk) # b h n n
+        # if return_attn:
+        #     attn_weights_averaged = attn_weights.mean(dim=1)
         
-        out = torch.matmul(attn_weights, v) 
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        # out = torch.matmul(attn_weights, v) 
+        # out = rearrange(out, 'b h n d -> b n (h d)')
     
-        if return_attn:
-            return self.to_out(out), attn_weights_averaged[:,0]
-        else:
-            return self.to_out(out)
+        # if return_attn:
+        #     return self.to_out(out), attn_weights_averaged[:,0]
+        # else:
+        #     return self.to_out(out)
 
 
 class TransformerEncoder(nn.Module):
