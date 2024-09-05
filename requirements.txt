@@ -15,5 +15,6 @@ scipy
 scprep
 tifffile==2022.10.10
 torchmetrics==0.10.2
-pytorch-lightning==1.8.0.post1
-
+pytorch-lightning==1.8.0
+wget
+fastparquet
