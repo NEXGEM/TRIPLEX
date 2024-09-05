@@ -125,7 +125,7 @@ class BaselineDataset(torch.utils.data.Dataset):
         else:
             meta = pos
         
-        if self.mode == "external_test":
+        if (self.mode == "external_test") or (self.data == "GBM_data"):
             meta = meta.sort_values(['x', 'y'])
         else:
             meta = meta.sort_values(['y', 'x'])
@@ -250,7 +250,7 @@ class STDataset(BaselineDataset):
             # Smoothing data 
             self.exp_dict = {i:smooth_exp(m).values for i,m in self.exp_dict.items()}
         
-        if mode == "external_test":
+        if (mode == "external_test") or (self.data == 'GBM_data'):
             self.center_dict = {i:np.floor(m[['pixel_y','pixel_x']].values).astype(int) for i,m in self.meta_dict.items()}
             self.loc_dict = {i:m[['x','y']].values for i,m in self.meta_dict.items()}
         else:

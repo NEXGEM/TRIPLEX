@@ -128,7 +128,7 @@ class TRIPLEX(pl.LightningModule):
         self.fc = nn.Linear(emb_dim, num_genes)
     
     
-    def forward(self, x, x_total, position, neighbor, mask, pid=None, sid=None):
+    def forward(self, x, x_total, position, neighbor, mask, pid=None, sid=None, return_emb=False):
         """Forward pass of TRIPLEX
 
         Args:
@@ -182,8 +182,10 @@ class TRIPLEX(pl.LightningModule):
         out_target = self.fc_target(target_token.mean(1)) # B x num_genes
         out_neighbor = self.fc_neighbor(neighbor_token.mean(1)) # B x num_genes
         out_global = self.fc_global(global_token) # B x num_genes
-
-        return output, out_target, out_neighbor, out_global
+        if return_emb:
+            return output, out_target, out_neighbor, out_global, fusion_token
+        else:
+            return output, out_target, out_neighbor, out_global
     
     
     def training_step(self, batch, batch_idx):
@@ -220,12 +222,28 @@ class TRIPLEX(pl.LightningModule):
                 val_loss: MSE loss between pred and label
                 corr: PCC between pred and label (across genes)
         """
-        patch, exp, _, wsi, position, name, neighbor, mask = batch
-        patch, exp, neighbor, mask = patch.squeeze(), exp.squeeze(), neighbor.squeeze(), mask.squeeze()
+        patch, exp, sid, wsi, position, name, neighbor, mask = batch
+        patch, exp, sid, neighbor, mask = patch.squeeze(), exp.squeeze(), sid.squeeze(), neighbor.squeeze(), mask.squeeze()
         
-        outputs = self(patch, wsi, position, neighbor, mask)
+        # outputs = self(patch, wsi, position, neighbor, mask)
+        # wsi = wsi[0].unsqueeze(0)
+        # position = position[0]
         
-        pred = outputs[0]
+        patches = patch.split(512, dim=0)
+        neighbors = neighbor.split(512, dim=0)
+        masks = mask.split(512, dim=0)
+        sids = sid.split(512, dim=0)
+        
+        pred  = []
+        for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
+            outputs = self(patch, wsi, position, neighbor, mask, sid=sid)
+            p = outputs[0]
+            
+            pred.append(p)
+            
+        pred = torch.cat(pred, axis=0)
+        
+        # pred = outputs[0]
         loss = F.mse_loss(pred.view_as(exp), exp)
 
         pred=pred.cpu().numpy().T
@@ -270,23 +288,40 @@ class TRIPLEX(pl.LightningModule):
         patch, exp, sid, wsi, position, name, neighbor, mask = batch
         patch, exp, sid, neighbor, mask = patch.squeeze(), exp.squeeze(), sid.squeeze(), neighbor.squeeze(), mask.squeeze()
         
+        # wsi = wsi[0].unsqueeze(0)
+        # position = position[0]
+        
+        patches = patch.split(512, dim=0)
+        neighbors = neighbor.split(512, dim=0)
+        masks = mask.split(512, dim=0)
+        sids = sid.split(512, dim=0)
+        
+        pred  = []
+        for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
+            outputs = self(patch, wsi, position, neighbor, mask, sid=sid)
+            p = outputs[0]
+            
+            pred.append(p)
+            
+        pred = torch.cat(pred, axis=0)
+        
         if '10x_breast' in name[0]:
-            wsi = wsi[0].unsqueeze(0)
-            position = position[0]
+            # wsi = wsi[0].unsqueeze(0)
+            # position = position[0]
             
-            patches = patch.split(512, dim=0)
-            neighbors = neighbor.split(512, dim=0)
-            masks = mask.split(512, dim=0)
-            sids = sid.split(512, dim=0)
+            # patches = patch.split(512, dim=0)
+            # neighbors = neighbor.split(512, dim=0)
+            # masks = mask.split(512, dim=0)
+            # sids = sid.split(512, dim=0)
             
-            pred  = []
-            for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
-                outputs = self(patch, wsi, position, neighbor, mask, sid=sid, return_emb=True)
-                p = outputs[0]
+            # pred  = []
+            # for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
+            #     outputs = self(patch, wsi, position, neighbor, mask, sid=sid)
+            #     p = outputs[0]
                 
-                pred.append(p)
+            #     pred.append(p)
                 
-            pred = torch.cat(pred, axis=0)
+            # pred = torch.cat(pred, axis=0)
             
             # outputs = self(patch, wsi, position, neighbor.squeeze(), mask.squeeze(), sid=sid)
             # pred = outputs[0]
@@ -295,9 +330,9 @@ class TRIPLEX(pl.LightningModule):
             self.num_genes = len(ind_match)
             pred = pred[:,ind_match]
             
-        else:        
-            outputs = self(patch, wsi, position, neighbor.squeeze(), mask.squeeze())
-            pred = outputs[0]
+        # else:        
+        #     outputs = self(patch, wsi, position, neighbor.squeeze(), mask.squeeze())
+        #     pred = outputs[0]
             
         mse = F.mse_loss(pred.view_as(exp), exp)
         mae = F.l1_loss(pred.view_as(exp), exp)
@@ -343,10 +378,10 @@ class TRIPLEX(pl.LightningModule):
         sids = sids.split(512, dim=0)
         
         preds, embs  = [], []
-        for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
-            outputs = self(patch, wsi, position, neighbor, mask, sid=sid, return_emb=True)
+        for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids, return_emb=True):
+            outputs = self(patch, wsi, position, neighbor, mask, sid=sid)
             pred = outputs[0].cpu()
-            emb = outputs[1].cpu()
+            emb = outputs[-1].cpu()
             
             preds.append(pred)
             embs.append(emb)
