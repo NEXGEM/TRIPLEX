@@ -12,6 +12,7 @@ Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 
 ## Installation
 - Python 3.9.19
+- Specify pip version
 ```bash
 conda install pip=23
 ```
