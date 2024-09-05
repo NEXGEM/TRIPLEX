@@ -120,7 +120,7 @@ def load_loggers(cfg: Dict):
         List: _description_
     """
     
-    log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.current_day)
+    log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.timestamp)
 
     tb_logger = TensorBoardLogger(
         log_path,
@@ -144,7 +144,7 @@ def load_callbacks(cfg: Dict):
     Returns:
         List: Return List containing the Callbacks.
     """
-    log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.current_day)
+    log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.timestamp)
     
     Mycallbacks = []
     

@@ -147,8 +147,9 @@ if __name__ == '__main__':
     cfg.GENERAL.model_path = args.model_path
     cfg.GENERAL.mode = args.mode
     
-    current_day = datetime.now().strftime('%Y-%m-%d')
-    cfg.GENERAL.current_day = current_day
+    # current_day = datetime.now().strftime('%Y-%m-%d')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    cfg.GENERAL.timestamp = timestamp
     
     if args.mode == 'cv':
         num_k = cfg.TRAINING.num_k     
