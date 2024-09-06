@@ -52,15 +52,15 @@ def main(cfg, fold=0):
     # Load dataset
     if mode == 'cv':
         trainset = STDataset(mode='train', fold=fold, **cfg.DATASET)
-        train_loader = DataLoader(trainset, batch_size=batch_size, collate_fn=collate_fn, num_workers=8, pin_memory=True, shuffle=True)
+        train_loader = DataLoader(trainset, batch_size=batch_size, collate_fn=collate_fn, num_workers=4, pin_memory=True, shuffle=True)
     
     if mode in ['external_test', 'inference']:
         testset = STDataset(mode=mode, fold=fold, test_data=cfg.GENERAL.test_name, **cfg.DATASET)
-        test_loader = DataLoader(testset, batch_size=1, num_workers=8, pin_memory=True, shuffle=False)
+        test_loader = DataLoader(testset, batch_size=1, num_workers=4, pin_memory=True, shuffle=False)
         
     else:
         testset = STDataset(mode='test', fold=fold, **cfg.DATASET)
-        test_loader = DataLoader(testset, batch_size=1, num_workers=8, pin_memory=True, shuffle=False)
+        test_loader = DataLoader(testset, batch_size=1, num_workers=4, pin_memory=True, shuffle=False)
     
     # Set log name        
     log_name=f'{fold}-{name}-{data}-{seed}-{exp_id}'

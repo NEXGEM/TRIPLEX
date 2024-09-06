@@ -13,7 +13,7 @@ sweep_cv.yaml
 
 # Logging files
 logs
-slurm
+slurm*
 results
 
 # Others
