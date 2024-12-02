@@ -15,6 +15,7 @@ import torchvision.transforms as transforms
 import scprep as scp
 
 from utils import smooth_exp
+from openslide import OpenSlide
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 Image.MAX_IMAGE_PIXELS = None
@@ -56,7 +57,8 @@ class BaselineDataset(torch.utils.data.Dataset):
             path = pre+'/'+fig_name
         elif self.data == 'stnet' or '10x_breast' in self.data or 'GBM_data' in self.data:
             path = glob(img_dir+'/*'+name+'.tif')[0]
-        elif 'DRP' in self.data:
+        #elif 'DRP' in self.data:
+        elif 'DRP' in self.data or 'TCGA-GBM' in self.data:
             path = glob(img_dir+'/*'+name+'.svs')[0]
         else:
             path = glob(img_dir+'/*'+name+'.jpg')[0]
@@ -65,7 +67,9 @@ class BaselineDataset(torch.utils.data.Dataset):
             import pyvips as pv
             im = pv.Image.new_from_file(path, level=0)
         else:
-            im = Image.open(path)
+            #im = Image.open(path)
+            im = OpenSlide(path)
+    
         
         return im
     
@@ -119,7 +123,8 @@ class BaselineDataset(torch.utils.data.Dataset):
         
         pos = self.get_pos(name)
         
-        if 'DRP' not in self.data:
+        #if 'DRP' not in self.data:
+        if self.mode != 'inference' and 'DRP' not in self.data:
             cnt = self.get_cnt(name)
             meta = cnt.join(pos.set_index('id'),how='inner')
         else:
@@ -311,7 +316,12 @@ class STDataset(BaselineDataset):
             
             sid = torch.LongTensor([idx])
             
-            neighbors = torch.load(self.data_dir + f"/{self.neighbor_dir}/{name}.pt")[idx]
+            #neighbors = torch.load(self.data_dir + f"/{self.neighbor_dir}/{name}.pt")[idx]
+            neighbor_path = os.path.join(self.data_dir, self.neighbor_dir, f"{name}.h5")
+            with h5py.File(neighbor_path, 'r') as f:
+                neighbors = f['embeddings'][idx]
+            neighbors = torch.Tensor(neighbors)
+
         else:
             i = index
             name = self.id2name[i]
@@ -319,6 +329,9 @@ class STDataset(BaselineDataset):
             im = self.img_dict[name]    
             if self.use_pyvips:
                 img_shape = self.img_shape_dict[name]
+            elif isinstance(im, OpenSlide):
+                width, height = im.level_dimensions[0]
+                img_shape = (height, width, 3)
             else:
                 img_shape = im.shape
                 
@@ -363,12 +376,24 @@ class STDataset(BaselineDataset):
                                 n = k * self.num_neighbors + m  # Calculate n based on loop indices
                                 if mask_tb[j, n] != 0:
                                     # Extract and transform patch if mask is non-zero
-                                    tmp = im[y_start + k_start:y_start + k_end, x_start + m_start:x_start + m_end, :]
+                                    if isinstance(im, OpenSlide):
+                                        patch_size = self.r*2
+                                        x0 = int(x_start + m * patch_size)
+                                        y0 = int(y_start + k * patch_size)
+                                        tmp = im.read_region((x0, y0), 0, (patch_size, patch_size)).convert('RGB')
+                                        tmp = np.array(tmp)
+                                    else:
+                                        tmp = im[y_start + k_start:y_start + k_end, x_start + m_start:x_start + m_end, :]
                                     patch[:, k_start:k_end, m_start:m_end] = self.test_transforms(tmp)
                         
                 else:
                     if self.use_pyvips:
                         patch = im.extract_area(x,y,self.r*2,self.r*2).numpy()[:,:,:3]
+                    elif isinstance(im, OpenSlide):
+                        x0 = int(x - self.r)
+                        y0 = int(y - self.r)
+                        patch = im.read_region((x0, y0), 0, (self.r*2, self.r*2)).convert('RGB')
+                        patch = np.array(patch)
                     else:
                         patch = im[y-self.r:y+self.r,x-self.r:x+self.r,:]
                         
@@ -384,7 +409,11 @@ class STDataset(BaselineDataset):
                 exps = torch.Tensor(exps)
             
             sid = torch.arange(n_patches)            
-            neighbors = torch.load(self.data_dir +  f"/{self.neighbor_dir}/{name}.pt")
+            #neighbors = torch.load(self.data_dir +  f"/{self.neighbor_dir}/{name}.pt")
+            neighbor_path = os.path.join(self.data_dir, self.neighbor_dir, f"{name}.h5")
+            with h5py.File(neighbor_path, 'r') as f:
+                neighbors = f['embeddings'][idx]
+            neighbors = torch.Tensor(neighbors)
         
         wsi = torch.load(self.data_dir +  f"/{self.gt_dir}/{name}.pt")
         

@@ -36,8 +36,8 @@ MODEL:
   learning_rate: 0.0001
 
 DATASET:
-  data_dir: /data/temp/spatial/TRIPLEX/data
-  type: GBM_data
+  data_dir: /home/brentoh1030/workspace/gbmdata
+  type: TCGA-GBM
   num_neighbors: 5
   t_global_dir: 'gt_features_224'
   n_global_dir: 'gn_features'

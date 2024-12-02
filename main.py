@@ -18,7 +18,7 @@ from utils import collate_fn, load_callbacks, load_config, load_loggers
 def get_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_name', type=str, default='gbm/TRIPLEX', help='logger path.')
-    parser.add_argument('--gpu', type=int, default=[0], help='gpu id')
+    parser.add_argument('--gpu', type=int, default=2, help='gpu id')
     parser.add_argument('--mode', type=str, default='cv', help='cv / test / external_test / inference')
     parser.add_argument('--test_name', type=str, default='DRP1', help='dataset name:{"10x_breast_ff1","10x_breast_ff2", "10x_breast_ff3"}.')
     parser.add_argument('--exp_id', type=int, default=0, help='')
