@@ -11,6 +11,9 @@ wandb
 run_sweep_*.py
 sweep_cv.yaml
 
+# Data
+preprocess/data
+
 # Logging files
 logs
 slurm*
