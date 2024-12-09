@@ -166,8 +166,9 @@ class H5TileDataset(Dataset):
         # If using OpenSlide, ensure it's loaded once
         if self.use_openslide:
             wsi_level = self.level
-
-        def process_patch(i):
+            
+        for i in range(n_patches):
+            
             y, x = coords[i]
             wsi_shape = wsi.shape if hasattr(wsi, 'shape') else wsi.dimensions
             mask = self.make_masking_table(x, y, wsi_shape)
@@ -195,13 +196,8 @@ class H5TileDataset(Dataset):
                             tmp = self.img_transform(Image.fromarray(tmp))
                         # Assign transformed patch
                         neighbor_patch[:, k * 224:(k + 1) * 224, m * 224:(m + 1) * 224] = tmp
-
-            return i, neighbor_patch, mask_tb_i
-
-        # Use ThreadPoolExecutor for I/O-bound tasks
-        with ThreadPoolExecutor(max_workers=self.num_workers) as executor:
-            for i, patch, mask in executor.map(process_patch, range(n_patches)):
-                neighbor_patches[i] = patch
-                mask_tb[i] = mask
+                        
+            neighbor_patches[i] = neighbor_patch
+            mask_tb[i] = mask
 
         return neighbor_patches, mask_tb

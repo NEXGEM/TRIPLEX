@@ -25,7 +25,7 @@ EXTENSION='.tif'
 python preprocess/extract_img_features.py \
         --wsi_dataroot $RAW_DIR \
         --patch_dataroot $PROCESSED_DIR'/patches' \
-        --embed_dataroot $PROCESSED_DIR'/emb/neighbor' \
+        --embed_dataroot $PROCESSED_DIR'/emb/neighbor_test1' \
         --id_path $PROCESSED_DIR'/ids.csv' \
         --slide_ext $EXTENSION \
         --num_n 5

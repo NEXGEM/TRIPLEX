@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from tqdm import tqdm
+import time
 
 import numpy as np
 import pandas as pd
@@ -148,6 +149,8 @@ def main(args, device):
     min_gpu_id = args.min_gpu_id
     
     for i, sample_id in tqdm(enumerate(ids)):
+        start = time.time()
+
         if total_gpus > 1:
             gpu_id = int(os.environ.get['CUDA_VISIBLE_DEVICES']) - min_gpu_id
             if i % total_gpus != gpu_id:  # Only process items assigned to this GPU
@@ -176,7 +179,7 @@ def main(args, device):
                                         img_transform=encoder.eval_transforms, 
                                         num_n=args.num_n, 
                                         chunk_size=args.batch_size, 
-                                        num_workers=args.num_workers,
+                                        # num_workers=args.num_workers,
                                         use_openslide=args.use_openslide)
             
             tile_dataloader = torch.utils.data.DataLoader(tile_dataset,
@@ -186,6 +189,9 @@ def main(args, device):
             _ = embed_tiles(tile_dataloader, encoder, embed_path, device, precision=precision)
         else:
             logger.info(f"Skipping {sample_id} as it already exists")
+            
+        end = time.time()
+        print(f"Time taken for {sample_id}: {end - start}")
     
     
 if __name__ == '__main__':
