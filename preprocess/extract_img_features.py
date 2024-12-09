@@ -32,7 +32,7 @@ parser.add_argument('--wsi_dataroot', type=str, default=None)
 parser.add_argument('--id_path', type=str, default='ids.csv')
 parser.add_argument('--slide_ext', type=str, default= '.svs')
 parser.add_argument('--level', type=int, default=1)
-parser.add_argument('--use_openslide', action='store_true', default=True)
+parser.add_argument('--use_openslide', action='store_true', default=False)
 parser.add_argument('--weights_root', type=str, default='fm_v1')
 
 ### GPU settings ###

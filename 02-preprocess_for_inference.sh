@@ -23,4 +23,6 @@ python preprocess/extract_img_features.py  \
         --patch_dataroot $DIR_TO_COORDS'/patches' \
         --embed_dataroot $NEIGHBOR_FEATURES_DIRECTORY \
         --slide_ext $EXTENSION \
+        --use_openslide \
         --num_n 5
+        
