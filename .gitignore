@@ -23,3 +23,6 @@ results
 test.ipynb
 .vscode
 __pycache__
+
+input/*
+output/*
