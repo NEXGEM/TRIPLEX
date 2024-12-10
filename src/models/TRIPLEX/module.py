@@ -19,7 +19,7 @@ class PreNorm(nn.Module):
         x = self.norm(x)
         if 'x_kv' in kwargs.keys():
             kwargs['x_kv'] = self.norm(kwargs['x_kv'])
-         
+
         return self.fn(x, **kwargs)
 
 
