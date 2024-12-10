@@ -1,6 +1,9 @@
 
+import random
 import numpy as np
 import pandas as pd
+import torch
+import torch.nn as nn
 
 from hest import STReader, VisiumReader, VisiumHDReader, XeniumReader
 
@@ -63,3 +66,12 @@ def pxl_to_array(pixel_crds, step_size):
     y_crds = map_values(pixel_crds[:,1], step_size)
     dst = np.stack((x_crds, y_crds), axis=1)
     return dst
+
+def fix_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
