@@ -30,7 +30,7 @@ parser.add_argument('--overwrite', action='store_true', default=False, help='ove
 parser.add_argument('--patch_dataroot', type=str, default='./res_tcga/patches')
 parser.add_argument('--embed_dataroot', type=str, default='./res_tcga/features/neighbor')
 parser.add_argument('--wsi_dataroot', type=str, default=None)
-parser.add_argument('--id_path', type=str, default='ids.csv')
+parser.add_argument('--id_path', type=str, default=None)
 parser.add_argument('--slide_ext', type=str, default= '.svs')
 parser.add_argument('--level', type=int, default=1)
 parser.add_argument('--use_openslide', action='store_true', default=False)
@@ -132,12 +132,16 @@ def main(args, device):
     embedding_dir = os.path.join(args.embed_dataroot, args.model_name)
     os.makedirs(embedding_dir, exist_ok=True)
     
-    if not os.path.isfile(args.id_path):
-        raise ValueError(f"{args.id_path} doesn't exist")
+    if args.id_path is not None:
+        if not os.path.isfile(args.id_path):
+            raise ValueError(f"{args.id_path} doesn't exist")
+        
+        if 'sample_id' not in pd.read_csv(args.id_path).columns:
+            raise ValueError("Column 'sample_id' not found in id file")
+        ids = pd.read_csv(args.id_path)['sample_id'].tolist()
     
-    if 'ids' not in pd.read_csv(args.id_path).columns:
-        raise ValueError("Column 'ids' not found in id file")
-    ids = pd.read_csv(args.id_path)['ids'].tolist()
+    else:
+        ids = [os.path.splitext(f)[0] for f in os.listdir(args.patch_dataroot) if f.endswith('.h5')]
     
     # Embed patches
     logger.info(f"Embedding tiles using {args.model_name} encoder")
