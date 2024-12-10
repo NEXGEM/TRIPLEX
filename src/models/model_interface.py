@@ -24,13 +24,14 @@ import pytorch_lightning as pl
 class  ModelInterface(pl.LightningModule):
 
     #---->init
-    def __init__(self, **kargs):
+    def __init__(self, model, train, **kargs):
         super(ModelInterface, self).__init__()
         self.save_hyperparameters()
         self.load_model()
         self.loss = nn.MSELoss()
+        self.train = train
         
-        self.num_output = kargs['num_output']
+        self.num_output = model.num_output
         # self.log_path = kargs['log']
         
         self.validation_step_outputs = []
@@ -110,7 +111,7 @@ class  ModelInterface(pl.LightningModule):
         self.log_dict(test_metric, on_epoch = True, logger = True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.hparams.lr)
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.train.learning_rate)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, 
             mode='min',
