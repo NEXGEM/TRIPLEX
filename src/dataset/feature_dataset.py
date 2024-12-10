@@ -43,12 +43,6 @@ class H5TileDataset(Dataset):
                 wsi_path = glob(f"{wsi_dir}/{sample_id}/*{ext}*")[0]
                 
             self.wsi = self.load_wsi(wsi_path)
-        # if 'SNU' in sample_id:
-        #     self.wsi_path = glob(f"/home/shared/spRNAseq/visium/inhouse/SMC/GBM/{sample_id}/*.tif*")[0]
-        # elif 'LUNG' in sample_id:
-        #     self.wsi_path = glob(f"/home/shared/spRNAseq/visium/inhouse/SMC/NSCLC/{sample_id}/*.tif*")[0]
-        # else:
-        #     self.wsi_path = f"{wsi_dir}/{sample_id}.tif"
         
         self.img_transform = img_transform
         
@@ -59,11 +53,7 @@ class H5TileDataset(Dataset):
         
         with h5py.File(h5_path, 'r') as f:
             self.n_chunks = int(np.ceil(len(f['coords']) / chunk_size))        
-            # keys = f.keys()
     
-        # if 'img' not in keys:
-        #     self.wsi = self.load_wsi(wsi_path)
-        
     def __len__(self):
         return self.n_chunks
 
@@ -83,12 +73,17 @@ class H5TileDataset(Dataset):
                 if 'img' in f.keys():
                     imgs = f['img'][start_idx:end_idx]
                 else:
+                    if self.use_openslide:
+                        imgs = [self.wsi.read_region(coord, self.level, (self.r*2, self.r*2)).convert('RGB') for coord in coords]
+                        imgs = [np.array(img) for img in imgs]
+                        imgs = np.stack(imgs)
+                    else:
+                        raise NotImplementedError("Not implemented yet")
+                    
                     # wsi = self.load_wsi()
                     # self.wsi_loaded = 1
                     # tmp = wsi.read_region((x_start + k_start, y_start + m_start), 1, (self.r, self.r))
-                    imgs = [self.wsi.read_region(coord, self.level, (self.r*2, self.r*2)).convert('RGB') for coord in coords]
-                    imgs = [np.array(img) for img in imgs]
-                    imgs = np.stack(imgs)
+                    
                     # imgs = f['img'][start_idx:end_idx]
         
         if self.num_n == 1:
