@@ -62,7 +62,7 @@ if __name__ == "__main__":
     os.makedirs(output_dir, exist_ok=True)
     
     ids = glob(input_dir + "/{prefix}*")
-    pd.DataFrame(ids, columns=['path']).to_csv(f"{output_dir}/ids.csv", index=False)
+    pd.DataFrame(ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
     
     for path in tqdm(ids):
         preprocess_st(path, output_dir, name=path.split('/')[-1], platform=platform)
