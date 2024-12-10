@@ -2,11 +2,8 @@ import os
 from glob import glob
 
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
-
 import torch
 from torch.utils.data import Dataset
-
 from PIL import Image
 import h5py
 import cv2
