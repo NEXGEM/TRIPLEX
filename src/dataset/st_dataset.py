@@ -1,5 +1,6 @@
 
 from glob import glob
+import os
 
 import numpy as np
 import pandas as pd
@@ -89,12 +90,13 @@ class TriDataset(STDataset):
         
         if mode == 'cv':
             data_path = f"{data_dir}/splits/{phase}_fold{fold}.csv"
-            
+            data = pd.read_csv(data_path)
+            ids = data['sample_id'].to_list()
+                
         elif mode == 'inference':
-            data_path = f"{data_dir}/ids.csv"
+            ids = os.listdir(f"{self.img_dir}")
+            ids = [os.path.splitext(_id)[0] for _id in ids]
             
-        data = pd.read_csv(data_path)
-        ids = data['sample_id'].to_list()
         self.int2id = dict(enumerate(ids))
         
         if phase == 'train':
