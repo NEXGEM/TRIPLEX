@@ -139,9 +139,18 @@ class TriDataset(STDataset):
                 pos = np.load(f"{self.data_dir}/pos/{name}.npy")
                 
         if self.mode == 'cv':
-            return img, st, pos, global_emb, neighbor_emb
+            return {'img': img, 
+                    'st': st, 
+                    'pos': pos, 
+                    'global_emb': global_emb, 
+                    'neighbor_emb': neighbor_emb}
+            
         elif self.mode == 'inference':
-            return img, pos, global_emb, neighbor_emb
+            return {'img': img, 
+                    'pos': pos, 
+                    'global_emb': global_emb, 
+                    'neighbor_emb': neighbor_emb}
+        
         
     def __len__(self):
         if self.mode == 'train':
