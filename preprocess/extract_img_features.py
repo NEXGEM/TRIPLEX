@@ -67,7 +67,6 @@ def post_collate_fn(batch):
         
     return batch
 
-
 def embed_tiles(dataloader,
                 model,
                 embedding_save_path,
@@ -112,7 +111,6 @@ def embed_tiles(dataloader,
                 mode=mode)
     return embedding_save_path  
 
-
 def get_bench_weights(weights_root, name):
     local_ckpt_registry = get_path_relative(__file__, 'local_ckpts.json')
     with open(local_ckpt_registry, 'r') as f:
@@ -125,7 +123,6 @@ def get_bench_weights(weights_root, name):
             return os.path.join(weights_root, path)
     else:
         raise ValueError(f"Please specify the weights path to {name} in {local_ckpt_registry}")
-
 
 def main(args, device):
 
