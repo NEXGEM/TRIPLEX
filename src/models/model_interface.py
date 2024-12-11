@@ -81,7 +81,7 @@ class  ModelInterface(pl.LightningModule):
         logits = results_dict['logits']
         
         label = batch['label']
-        outputs = {'logits' : logits, 'label' : label}
+        outputs = {'logits': logits, 'label': label}
         
         self.validation_step_outputs.append(outputs)
         
@@ -103,7 +103,7 @@ class  ModelInterface(pl.LightningModule):
         logits = results_dict['logits']
         
         label = batch['label']
-        outputs = {'logits' : logits, 'label' : label}
+        outputs = {'logits': logits, 'label': label}
         
         self.test_step_outputs.append(outputs)
         
