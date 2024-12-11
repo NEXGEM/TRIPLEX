@@ -57,12 +57,15 @@ class  ModelInterface(pl.LightningModule):
         return items
 
     def training_step(self, batch, batch_idx):
+        name = self.hparams.model.name
+        
         #---->Forward
+        
         results_dict = self.model(batch)
         logits = results_dict['logits']
         
         #---->Loss
-        label = batch['st']
+        label = batch['label']
         loss = self.loss(logits, label)  
 
         return {'loss': loss} 
@@ -72,7 +75,7 @@ class  ModelInterface(pl.LightningModule):
         results_dict = self.model(batch)
         logits = results_dict['logits']
         
-        label = batch['st']
+        label = batch['label']
         outputs = {'logits' : logits, 'label' : label}
         
         self.validation_step_outputs.append(outputs)
@@ -94,7 +97,7 @@ class  ModelInterface(pl.LightningModule):
         results_dict = self.model(batch)
         logits = results_dict['logits']
         
-        label = batch['st']
+        label = batch['label']
         outputs = {'logits' : logits, 'label' : label}
         
         self.test_step_outputs.append(outputs)
