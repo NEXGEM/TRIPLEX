@@ -20,7 +20,11 @@ def preprocess_st(input_path, output_dir, platform='visium'):
     os.makedirs(f"{output_dir}/st", exist_ok=True)
     
     print("Loading ST data...")
-    st = load_st(input_path, platform=platform)
+    try:
+        st = load_st(input_path, platform=platform)
+    except:
+        print("Failed to load ST data. Move to next sample.")
+        return None
     
     if os.path.exists(f"{output_dir}/patches/{fname}.h5"):
         print("Patches already exists. Skipping...")
