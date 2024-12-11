@@ -17,15 +17,15 @@ TRAINING:
     mode: max
   
 MODEL:
-  name: TRIPLEX 
-  num_genes: 250
-  emb_dim: 512
+  model_name: TRIPLEX 
+  num_outputs: 1000
+  emb_dim: 1024
   depth1: 1
   depth2: 5
   depth3: 4
-  num_heads1: 4
+  num_heads1: 8
   num_heads2: 8
-  num_heads3: 4
+  num_heads3: 8
   mlp_ratio1: 4
   mlp_ratio2: 4
   mlp_ratio3: 4
@@ -40,7 +40,7 @@ DATA:
   dataset_name: tri_dataset
   
   train_dataloader:
-        batch_size: 1 
+        batch_size: 128 
         num_workers: 4
         pin_memory: True
         shuffle: True
