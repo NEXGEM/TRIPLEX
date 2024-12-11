@@ -114,7 +114,7 @@ if __name__ == '__main__':
     cfg.GENERAL.model_path = args.model_path
     cfg.DATA.mode = args.mode
 
-    timestamp = datetime.now().strftime("%Y-%m%d-%H%M")
+    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
     cfg.GENERAL.timestamp = timestamp
     
     if args.mode == 'cv':
