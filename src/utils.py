@@ -197,16 +197,16 @@ def load_loggers(cfg: Dict):
     version_name = Path(cfg.config).name
     # now = datetime.now()
     # current_time = now.strftime("%D-%H-%M").replace("/", "-")
-    cfg.log_path = Path(log_path) / log_name / version_name / current_time / f'fold{cfg.Data.fold}'
+    cfg.log_path = f"{log_path}/{log_name}/{version_name}/{current_time}/fold{cfg.DATA.fold}"
     print(f'---->Log dir: {cfg.log_path}')
     
-    #---->TensorBoard
-    tb_logger = pl_loggers.TensorBoardLogger(log_path+log_name,
-                                            name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}',
-                                            log_graph = True, default_hp_metric = False)
+    # #---->TensorBoard
+    # tb_logger = pl_loggers.TensorBoardLogger(log_path+log_name,
+    #                                         name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}',
+    #                                         log_graph = True, default_hp_metric = False)
     #---->CSV
-    csv_logger = pl_loggers.CSVLogger(log_path+log_name,
-                                    name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}', )
+    csv_logger = pl_loggers.CSVLogger(f"{log_path}/{log_name}",
+                                    name = f"{version_name}/{current_time}", version = f'fold{cfg.DATA.fold}', )
     
     # log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.timestamp)
 
@@ -218,7 +218,7 @@ def load_loggers(cfg: Dict):
     #     log_path,
     #     name = cfg.GENERAL.log_name)
     
-    loggers = [tb_logger, csv_logger]
+    loggers = [csv_logger]
     
     return loggers
 
@@ -250,10 +250,10 @@ def load_callbacks(cfg: Dict):
         mode=mode
     )
     Mycallbacks.append(early_stop_callback)
-    fname = cfg.GENERAL.log_name + '-{epoch:02d}-{valid_loss:.4f}' if cfg.MODEL.name == "BLEEP" else cfg.GENERAL.log_name + '-{epoch:02d}-{valid_loss:.4f}-{R:.4f}'
+    log_name = '{epoch:02d}-{valid_loss:.4f}' if cfg.MODEL.name == "BLEEP" else '{epoch:02d}-{valid_loss:.4f}-{R:.4f}'
     checkpoint_callback = ModelCheckpoint(monitor = target,
-                                    dirpath = str(log_path) + '/' + cfg.GENERAL.log_name,
-                                    filename=fname,
+                                    dirpath = cfg.log_path,
+                                    filename = log_name,
                                     verbose = True,
                                     save_last = False,
                                     save_top_k = 1,
