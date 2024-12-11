@@ -107,36 +107,51 @@ class TRIPLEX(nn.Module):
         self.fc_target = nn.Linear(emb_dim, num_genes)
 
         # Neighbor Encoder
-        self.neighbor_encoder = NeighborEncoder(emb_dim, depth3, num_heads3, int(emb_dim*mlp_ratio3), dropout = dropout3, resolution=res_neighbor)
+        self.neighbor_encoder = NeighborEncoder(emb_dim, 
+                                                depth3, 
+                                                num_heads3, 
+                                                int(emb_dim*mlp_ratio3), 
+                                                dropout = dropout3, 
+                                                resolution=res_neighbor)
         self.fc_neighbor = nn.Linear(emb_dim, num_genes)
 
         # Global Encoder        
-        self.global_encoder = GlobalEncoder(emb_dim, depth2, num_heads2, int(emb_dim*mlp_ratio2), dropout2, kernel_size)
+        self.global_encoder = GlobalEncoder(emb_dim, 
+                                            depth2, 
+                                            num_heads2, 
+                                            int(emb_dim*mlp_ratio2), 
+                                            dropout2, 
+                                            kernel_size)
         self.fc_global = nn.Linear(emb_dim, num_genes)
     
         # Fusion Layer
-        self.fusion_encoder = FusionEncoder(emb_dim, depth1, num_heads1, int(emb_dim*mlp_ratio1), dropout1)    
+        self.fusion_encoder = FusionEncoder(emb_dim, 
+                                            depth1, 
+                                            num_heads1, 
+                                            int(emb_dim*mlp_ratio1), 
+                                            dropout1)    
         self.fc = nn.Linear(emb_dim, num_genes)
     
     def forward(self, data):
-        """Forward pass of TRIPLEX
-
+        """Forward pass of TRIPLEX model.
+        
         Args:
-            x (torch.Tensor): Target spot image (batch_size x 3 x 224 x 224)
-            x_total (list): Extracted features of all the spot images in the patient. (batch_size * (num_spot x 512))
-            position (list): Relative position coordinates of all the spots. (batch_size * (num_spot x 2))
-            neighbor (torch.Tensor): Neighbor spot features. (batch_size x num_neighbor x 512)
-            mask (torch.Tensor): Masking table for neighbor spot. (batch_size x num_neighbor)
-            pid (torch.LongTensor, optional): Patient index. Defaults to None. (batch_size x 1)
-            sid (torch.LongTensor, optional): Spot index of the patient. Defaults to None. (batch_size x 1)
+            data (dict): Input data dictionary containing:
+                img (torch.Tensor): Target spot image (B x 3 x 224 x 224)
+                mask (torch.Tensor): Masking table for neighbor spots (B x num_neighbor) 
+                neighbor_emb (torch.Tensor): Neighbor spot features (B x num_neighbor x 512)
+                pos (list): Relative position coordinates of all spots
+                global_emb (dict or torch.Tensor): Global embedding features
+                pid (torch.LongTensor, optional): Patient indices (B x 1)
+                sid (torch.LongTensor, optional): Spot indices (B x 1)
+                label (torch.Tensor): Ground truth labels
 
         Returns:
-            tuple:
-                out: Prediction of fused feature
-                out_target: Prediction of TEM
-                out_neighbor: Prediction of NEM
-                out_global: Prediction of GEM
+            dict: Contains:
+                loss: Training loss value
+                pred: Model predictions (B x num_genes)
         """
+        
         if 'dataset' in data:
             data = self.retrieve_global_emb(data)
         
@@ -179,7 +194,7 @@ class TRIPLEX(nn.Module):
         out_global = self.fc_global(global_token) # B x num_genes
         
         preds = (output, out_target, out_neighbor, out_global)
-        label = data['st']
+        label = data['label']
         
         loss = self.calculate_loss(preds, label)
         
