@@ -234,13 +234,16 @@ class CrossEncoder(nn.Module):
 class PEGH(nn.Module):
     def __init__(self, dim=512, kernel_size=3):
         super(PEGH, self).__init__()
-        
         self.proj1 = nn.Conv2d(dim, dim, kernel_size, padding=kernel_size//2, bias=True, groups=dim)
         
     def forward(self, x, pos):
-
         pos = pos - pos.min(0)[0]
-        x_sparse = torch.sparse_coo_tensor(pos.T , x.squeeze())
+        
+        sorted_indices = torch.argsort(pos[:, 0])
+        sorted_pos = pos[sorted_indices]
+        sorted_x = x.squeeze()[sorted_indices]
+        
+        x_sparse = torch.sparse_coo_tensor(sorted_pos.T, sorted_x)
         x_dense = x_sparse.to_dense().permute(2,1,0).unsqueeze(dim=0)
         
         x_pos = self.proj1(x_dense)
@@ -248,7 +251,10 @@ class PEGH(nn.Module):
         mask = (x_dense.sum(dim=1) != 0.)
         x_pos = x_pos.masked_fill(~mask, 0.) + x_dense
         x_pos_sparse = x_pos.squeeze().permute(2,1,0).to_sparse(2)
-        x_out = x_pos_sparse.values().unsqueeze(dim=0)
+        x_out_sorted = x_pos_sparse.values().unsqueeze(dim=0)
+        
+        original_order_indices = torch.argsort(sorted_indices)
+        x_out = x_out_sorted[:, original_order_indices]
         
         return x_out
 
