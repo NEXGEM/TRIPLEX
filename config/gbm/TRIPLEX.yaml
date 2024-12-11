@@ -35,12 +35,7 @@ MODEL:
   kernel_size: 3
   learning_rate: 0.0001
 
-DATASET:
+DATA:
   data_dir: /data/temp/spatial/TRIPLEX/data
   type: GBM_data
-  num_neighbors: 5
-  t_global_dir: 'gt_features_224'
-  n_global_dir: 'gn_features'
-  neighbor_dir: 'n_features'
-  radius: 224
-  use_pyvips: False
+  
