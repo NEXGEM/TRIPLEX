@@ -12,7 +12,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchmetrics
 from torchmetrics.regression import ( PearsonCorrCoef, 
-                                    # SpearmanCorrCoef,
                                     ConcordanceCorrCoef, 
                                     MeanSquaredError,
                                     MeanAbsoluteError,
@@ -38,12 +37,11 @@ class  ModelInterface(pl.LightningModule):
         self.load_model()
         # self.log_path = kargs['log']
         
-        self.validation_step_outputs = []
-        self.test_step_outputs = []
+        # self.validation_step_outputs = []
+        # self.test_step_outputs = []
         # self.best_loss = 100000
 
         metrics = torchmetrics.MetricCollection([PearsonCorrCoef(num_outputs = num_outputs),
-                                                # SpearmanCorrCoef(num_outputs = num_outputs),
                                                 ConcordanceCorrCoef(num_outputs = num_outputs),
                                                 MeanSquaredError(num_outputs = num_outputs),
                                                 MeanAbsoluteError(num_outputs = num_outputs),
@@ -70,6 +68,8 @@ class  ModelInterface(pl.LightningModule):
         
         #---->Loss
         loss = results_dict['loss']
+        
+        self.log("train_loss", loss)
 
         return {'loss': loss} 
 
