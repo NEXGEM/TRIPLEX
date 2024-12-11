@@ -200,7 +200,7 @@ def load_loggers(cfg: Dict):
     cfg.log_path = f"{log_path}/{log_name}/{version_name}/{current_time}/fold{cfg.DATA.fold}"
     print(f'---->Log dir: {cfg.log_path}')
     
-    # #---->TensorBoard
+    # #---->Wandb
     # tb_logger = pl_loggers.TensorBoardLogger(log_path+log_name,
     #                                         name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}',
     #                                         log_graph = True, default_hp_metric = False)
@@ -232,15 +232,12 @@ def load_callbacks(cfg: Dict):
     Returns:
         List: Return List containing the Callbacks.
     """
-    # log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.timestamp)
-    log_path = cfg.log_path
     
     Mycallbacks = []
     
     target = cfg.TRAINING.early_stopping.monitor
     patience = cfg.TRAINING.early_stopping.patience
     mode = cfg.TRAINING.early_stopping.mode
-    
     
     early_stop_callback = EarlyStopping(
         monitor=target,
@@ -250,7 +247,7 @@ def load_callbacks(cfg: Dict):
         mode=mode
     )
     Mycallbacks.append(early_stop_callback)
-    log_name = '{epoch:02d}-{valid_loss:.4f}' if cfg.MODEL.name == "BLEEP" else '{epoch:02d}-{valid_loss:.4f}-{R:.4f}'
+    log_name = '{epoch:02d}-{val_MeanSquaredError:.4f}' if cfg.MODEL.name == "BLEEP" else '{epoch:02d}-{val_ConcordanceCorrCoef:.4f}-{CCC:.4f}'
     checkpoint_callback = ModelCheckpoint(monitor = target,
                                     dirpath = cfg.log_path,
                                     filename = log_name,
