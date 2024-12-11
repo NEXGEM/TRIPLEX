@@ -6,24 +6,27 @@ PROCESSED_DIR=input/lunit/lung
 
 
 # Preprocess ST data for inference (only WSI)
-python preprocess/CLAM/create_patches_fp.py \
-        --source $RAW_DIR \
-        --save_dir $PROCESSED_DIR \
-        --patch_size 256 \
-        --seg \
-        --patch \
-        --stitch \
-        --patch_level 1
+# python preprocess/CLAM/create_patches_fp.py \
+#         --source $RAW_DIR \
+#         --save_dir $PROCESSED_DIR \
+#         --patch_size 256 \
+#         --seg \
+#         --patch \
+#         --stitch \
+#         --patch_level 1
+
+# python preprocess/prepare_data.py --input_dir $PROCESSED_DIR'/patches' --output_dir $PROCESSED_DIR --mode inference
 
 EXTENSION='.mrxs'
 
-# ### Global features
-# python preprocess/extract_img_features.py  \
-#         --wsi_dataroot $RAW_DIR \
-#         --patch_dataroot $PROCESSED_DIR'/patches' \
-#         --embed_dataroot $PROCESSED_DIR'/emb/global' \
-#         --slide_ext $EXTENSION \
-#         --num_n 1
+### Global features
+python preprocess/extract_img_features.py  \
+        --wsi_dataroot $RAW_DIR \
+        --patch_dataroot $PROCESSED_DIR'/patches' \
+        --embed_dataroot $PROCESSED_DIR'/emb/global' \
+        --slide_ext $EXTENSION \
+        --use_openslide \
+        --num_n 1
 
 # ### Neighbor features
 # python preprocess/extract_img_features.py  \
