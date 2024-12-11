@@ -73,8 +73,11 @@ class TriDataset(STDataset):
                 ):
         super(TriDataset, self).__init__()
         
-        assert mode in ['cv', 'inference'], f"mode must be 'cv' or 'inference', but got {mode}"
-        assert phase in ['train', 'test'], f"phase must be 'train' or 'test', but got {phase}"
+        if mode not in ['cv', 'inference']:
+            raise ValueError(f"emb_name must be 'cv' or 'inference', but got {mode}")
+        
+        if phase not in ['train', 'test']:
+            raise ValueError(f"phase must be 'train' or 'test', but got {phase}")
 
         if mode == 'inference':
             phase = 'test'
@@ -82,8 +85,6 @@ class TriDataset(STDataset):
         self.img_dir = f"{data_dir}/patches"
         self.st_dir = f"{data_dir}/st"
         self.emb_dir = f"{data_dir}/emb"
-        # self.global_dir = f"{data_dir}/emb/global"
-        # self.neighbor_dir = f"{data_dir}/emb/neighbor"
     
         self.mode = mode
         self.phase = phase
@@ -101,13 +102,12 @@ class TriDataset(STDataset):
         
         if phase == 'train':
             self.st_dict = {_id: self.load_st(_id) for _id in ids}
-            # self.img_dict = {_id: self.load_img(_id) for _id in ids}
-            # self.emb_dict = {_id: self.load_emb(_id) for _id in ids}
-
             self.lengths = [len(adata) for adata in self.st_dict.values()]
             self.cumlen = np.cumsum(self.lengths)
         
     def __getitem__(self, index):
+        data = {}
+        
         if self.phase == 'train':
             i = 0
             while index >= self.cumlen[i]:
@@ -118,39 +118,47 @@ class TriDataset(STDataset):
 
             name = self.id2name[i]
             img = self.load_img(name, idx)
+            img = self.train_transforms(img)
+            
             global_emb = self.load_emb(name, emb_name='global')
-            neighbor_emb = self.load_emb(name, emb_name='neighbor', idx=idx)
+            neighbor_emb, mask = self.load_emb(name, emb_name='neighbor', idx=idx)
             
             adata = self.st_dict[name]
-            pos = adata.obs[['array_row', 'array_col']].to_numpy()
+            pos = adata.obs[['array_row', 'array_col']].to_numpy()            
             st = adata[idx]
+            
+            data['img'] = img
+            data['mask'] = mask
+            data['neighbor_emb'] = neighbor_emb
+            data['pos'] = torch.LongTensor(pos)
+            data['global_emb'] = global_emb
+            data['st'] = st
             
         elif self.phase == 'test':
             name = self.id2name[index]
             img = self.load_img(name)
+            img = self.test_transforms(img)
+            
             global_emb = self.load_emb(name, emb_name='global')
-            neighbor_emb = self.load_emb(name, emb_name='neighbor')
+            neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
             
             if self.mode == 'cv':
                 st = self.load_st(name)
                 pos = adata.obs[['array_row', 'array_col']].to_numpy()
-            
+                data['st'] = st
+
             elif self.mode == 'inference':
                 pos = np.load(f"{self.data_dir}/pos/{name}.npy")
-                
-        if self.mode == 'cv':
-            return {'img': img, 
-                    'st': st, 
-                    'pos': pos, 
-                    'global_emb': global_emb, 
-                    'neighbor_emb': neighbor_emb}
             
-        elif self.mode == 'inference':
-            return {'img': img, 
-                    'pos': pos, 
-                    'global_emb': global_emb, 
-                    'neighbor_emb': neighbor_emb}
-        
+            data['img'] = img
+            data['mask'] = mask
+            data['neighbor_emb'] = neighbor_emb
+            data['pos'] = torch.LongTensor(pos)
+            data['global_emb'] = global_emb
+            data['pid'] = torch.LongTensor([index])
+            data['sid'] = torch.arange(len(pos))
+                
+        return data
         
     def __len__(self):
         if self.mode == 'train':
@@ -159,15 +167,15 @@ class TriDataset(STDataset):
             return len(self.int2id)
         
     def load_emb(self, name: str, emb_name: str = 'global', idx: int = None):
-        assert emb_name in ['global', 'neighbor'], f"emb_name must be 'global' or 'neighbor', but got {emb_name}"
-    
+        if emb_name not in ['global', 'neighbor']:
+            raise ValueError(f"emb_name must be 'global' or 'neighbor', but got {emb_name}")
+        
         path = f"{self.emb_dir}/{emb_name}/{name}.h5"
         
-        if idx is not None:
-            with h5py.File(path, 'r') as f:
-                emb = f['embeddings'][idx]
-        else:
-            with h5py.File(path, 'r') as f:
-                emb = f['embeddings'][:]
-                
+        with h5py.File(path, 'r') as f:
+            emb = f['embeddings'][idx] if idx is not None else f['embeddings'][:]
+            if emb_name == 'neighbor':
+                mask = f['mask_tb'][idx] if idx is not None else f['mask_tb'][:]
+                return emb, mask
+            
         return emb
