@@ -73,13 +73,14 @@ class TriDataset(STDataset):
                 ):
         super(TriDataset, self).__init__()
         
-        if mode not in ['cv', 'inference']:
-            raise ValueError(f"emb_name must be 'cv' or 'inference', but got {mode}")
+        if mode not in ['cv', 'eval', 'inference']:
+            raise ValueError(f"mode must be 'cv' or 'eval' or 'inference', but got {mode}")
         
         if phase not in ['train', 'test']:
             raise ValueError(f"phase must be 'train' or 'test', but got {phase}")
 
-        if mode == 'inference':
+        if mode in ['eval', 'inference'] and phase == 'train':
+            print(f"mode is {mode} but phase is 'train', so phase is changed to 'test'")
             phase = 'test'
         
         self.img_dir = f"{data_dir}/patches"
