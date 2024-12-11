@@ -14,7 +14,9 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 from einops import rearrange
 
-from models.module import GlobalEncoder, NeighborEncoder, FusionEncoder
+from models.TRIPLEX.module import ( GlobalEncoder, 
+                                NeighborEncoder, 
+                                FusionEncoder )
 
 
 def load_model_weights(path: str):       
@@ -159,8 +161,17 @@ class TRIPLEX(nn.Module):
         """
         
         if global_emb is None:
-            global_emb, pos = self.retrieve_global_emb(pid, kwargs['dataset'])
-        
+            global_emb, position = self.retrieve_global_emb(pid, kwargs['dataset'])
+            
+        if len(img.shape) == 5:
+            img = img.squeeze(0)
+        if len(mask.shape) == 3:
+            mask = mask.squeeze(0)
+        if len(neighbor_emb.shape) == 4:
+            neighbor_emb = neighbor_emb.squeeze(0)
+        if len(position.shape) == 3:
+            position = position.squeeze(0)
+            
         # Target tokens
         target_token = self.target_encoder(img) # B x 512 x 7 x 7
         B, dim, w, h = target_token.shape
@@ -179,7 +190,7 @@ class TRIPLEX(nn.Module):
                 g_token = self.global_encoder(x_g, pos).squeeze()  # N x 512
                 global_token[batch_idx] = g_token[sid[batch_idx]] # B x D
         else:
-            global_token = self.global_encoder(global_emb.unsqueeze(0), position).squeeze()  # N x 512
+            global_token = self.global_encoder(global_emb, position).squeeze()  # N x 512
             if sid is not None:
                 global_token = global_token[sid]
     
