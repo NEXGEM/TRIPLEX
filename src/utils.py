@@ -5,6 +5,7 @@ from addict import Dict
 from pathlib import Path
 
 import numpy as np
+from scipy import sparse
 import pandas as pd
 import scanpy as sc
 import torch
