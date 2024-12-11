@@ -12,7 +12,7 @@ TRAINING:
   learning_rate: 1.0e-4
   num_epochs: 200
   early_stopping:
-    monitor: R
+    monitor: val_ConcordanceCorrCoef
     patience: 20
     mode: max
   
