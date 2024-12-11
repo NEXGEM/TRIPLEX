@@ -1,5 +1,6 @@
 
 import os
+import sys
 from glob import glob
 from tqdm import tqdm
 
@@ -8,7 +9,8 @@ import numpy as np
 import pandas as pd
 import h5py
 
-from utils import load_st, pxl_to_array
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.utils import load_st, pxl_to_array
 
 
 def preprocess_st(input_path, output_dir, platform='visium'):
@@ -88,9 +90,9 @@ if __name__ == "__main__":
     prefix = args.prefix
     step_size = args.step_size
     
-    assert mode in ['cv', 'inference'], "mode must be either 'cv' or 'inference'"
+    assert mode in ['pair', 'image'], "mode must be either 'pair' or 'image'"
     
-    if mode == 'cv':
+    if mode == 'pair':
         os.makedirs(output_dir, exist_ok=True)
         
         ids = glob(input_dir + "/{prefix}*")
@@ -99,7 +101,7 @@ if __name__ == "__main__":
         for input_path in tqdm(ids):
             preprocess_st(input_path, output_dir, platform=platform)
             
-    elif mode == 'inference':
+    elif mode == 'image':
         output_dir = f"{output_dir}/pos"
         os.makedirs(output_dir, exist_ok=True)
         
