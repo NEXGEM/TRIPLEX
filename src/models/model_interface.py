@@ -30,7 +30,6 @@ class  ModelInterface(pl.LightningModule):
         super(ModelInterface, self).__init__()
         self.save_hyperparameters()
         self.load_model()
-        self.loss = nn.MSELoss()
         self.train = train
         
         self.num_output = model.num_output
@@ -67,19 +66,17 @@ class  ModelInterface(pl.LightningModule):
             batch['dataset'] = dataset
             
         results_dict = self.model(**batch)
-        logits = results_dict['logits']
         
         #---->Loss
-        label = batch['label']
-        loss = self.loss(logits, label)  
+        loss = results_dict['loss']
 
         return {'loss': loss} 
 
     def validation_step(self, batch, batch_idx):
         #---->Forward
         results_dict = self.model(**batch)
-        logits = results_dict['logits']
         
+        logits = results_dict['logits']
         label = batch['label']
         outputs = {'logits': logits, 'label': label}
         
@@ -91,17 +88,17 @@ class  ModelInterface(pl.LightningModule):
         val_step_outputs = self.validation_step_outputs
         
         logits = torch.cat([x['logits'] for x in val_step_outputs], dim = 0)
-        target = torch.stack([x['label'] for x in val_step_outputs], dim = 0)
+        targets = torch.stack([x['label'] for x in val_step_outputs], dim = 0)
         
-        val_metric = self.valid_metrics(logits, target)
+        val_metric = self.valid_metrics(logits, targets)
         self.log_dict(val_metric, on_epoch = True, logger = True)
 
 
     def test_step(self, batch, batch_idx):
         #---->Forward
         results_dict = self.model(**batch)
-        logits = results_dict['logits']
         
+        logits = results_dict['logits']
         label = batch['label']
         outputs = {'logits': logits, 'label': label}
         
@@ -113,9 +110,9 @@ class  ModelInterface(pl.LightningModule):
         test_step_outputs = self.test_step_outputs
         
         logits = torch.cat([x['logits'] for x in test_step_outputs], dim = 0)
-        target = torch.stack([x['label'] for x in test_step_outputs], dim = 0)
+        targets = torch.stack([x['label'] for x in test_step_outputs], dim = 0)
         
-        test_metric = self.test_metrics(logits, target)
+        test_metric = self.test_metrics(logits, targets)
         self.log_dict(test_metric, on_epoch = True, logger = True)
 
     def configure_optimizers(self):
