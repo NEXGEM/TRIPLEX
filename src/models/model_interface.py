@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchmetrics
 from torchmetrics.regression import ( PearsonCorrCoef, 
-                                    SpearmanCorrCoef,
+                                    # SpearmanCorrCoef,
                                     ConcordanceCorrCoef, 
                                     MeanSquaredError,
                                     MeanAbsoluteError,
@@ -26,25 +26,27 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 class  ModelInterface(pl.LightningModule):
 
     #---->init
-    def __init__(self, model, **kwargs):
+    def __init__(self, model_name=None, **kwargs):
         super(ModelInterface, self).__init__()
         self.save_hyperparameters()
+        
+        self.model_name = model_name
+        self.config = kwargs['config']
+        self.model_config = self.config.MODEL
+        num_outputs = self.model_config.num_outputs
+        
         self.load_model()
-        
-        self.kwargs = kwargs
-        
-        self.num_output = model.num_output
         # self.log_path = kargs['log']
         
         self.validation_step_outputs = []
         self.test_step_outputs = []
         # self.best_loss = 100000
 
-        metrics = torchmetrics.MetricCollection([PearsonCorrCoef(num_output = self.num_output),
-                                                SpearmanCorrCoef(num_output = self.num_output),
-                                                ConcordanceCorrCoef(num_output = self.num_output),
-                                                MeanSquaredError(num_output = self.num_output),
-                                                MeanAbsoluteError(num_output = self.num_output),
+        metrics = torchmetrics.MetricCollection([PearsonCorrCoef(num_outputs = num_outputs),
+                                                # SpearmanCorrCoef(num_outputs = num_outputs),
+                                                ConcordanceCorrCoef(num_outputs = num_outputs),
+                                                MeanSquaredError(num_outputs = num_outputs),
+                                                MeanAbsoluteError(num_outputs = num_outputs),
                                                 ExplainedVariance()
                                                 ])
         
@@ -59,11 +61,9 @@ class  ModelInterface(pl.LightningModule):
         return items
 
     def training_step(self, batch, batch_idx):
-        name = self.hparams.model.name
-        
         #---->Forward
-        if name == 'TRIPLEX':
-            dataset = self.train_dataloader().dataset
+        if self.model_name == 'TRIPLEX':
+            dataset = self._trainer.train_dataloader.dataset
             batch['dataset'] = dataset
             
         results_dict = self.model(**batch)
@@ -81,21 +81,25 @@ class  ModelInterface(pl.LightningModule):
         loss = results_dict['loss']
         
         logits = results_dict['logits']
-        label = batch['label']
+        label = batch['label'].squeeze(0)
+        
+        val_metric = self.valid_metrics(logits, label)
+        val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0}
+        self.log_dict(val_metric, on_epoch = True, logger = True, sync_dist=True)
         outputs = {'logits': logits, 'label': label}
         
-        self.validation_step_outputs.append(outputs)
+        # self.validation_step_outputs.append(outputs)
         
         return outputs
 
-    def on_validation_epoch_end(self):
-        val_step_outputs = self.validation_step_outputs
+    # def on_validation_epoch_end(self):
+    #     val_step_outputs = self.validation_step_outputs
         
-        logits = torch.cat([x['logits'] for x in val_step_outputs], dim = 0)
-        targets = torch.stack([x['label'] for x in val_step_outputs], dim = 0)
+    #     logits = torch.cat([x['logits'] for x in val_step_outputs], dim = 0)
+    #     targets = torch.stack([x['label'] for x in val_step_outputs], dim = 0)
         
-        val_metric = self.valid_metrics(logits, targets)
-        self.log_dict(val_metric, on_epoch = True, logger = True)
+    #     val_metric = self.valid_metrics(logits, targets)
+    #     self.log_dict(val_metric, on_epoch = True, logger = True)
 
 
     def test_step(self, batch, batch_idx):
@@ -106,30 +110,32 @@ class  ModelInterface(pl.LightningModule):
         loss = results_dict['loss']
         
         logits = results_dict['logits']
-        label = batch['label']
-        outputs = {'logits': logits, 'label': label}
+        label = batch['label'].squeeze(0)
         
-        self.test_step_outputs.append(outputs)
+        test_metric = self.test_metrics(logits, label)
+        test_metric = {k:v.mean() for k,v in test_metric.items() if len(v.shape) > 0}
+        self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True)
+        outputs = {'logits': logits, 'label': label}
+        # self.validation_step_outputs.append(outputs)
         
         return outputs
 
-    def on_test_epoch_end(self):
-        test_step_outputs = self.test_step_outputs
+    # def on_test_epoch_end(self):
+    #     test_step_outputs = self.test_step_outputs
         
-        logits = torch.cat([x['logits'] for x in test_step_outputs], dim = 0)
-        targets = torch.stack([x['label'] for x in test_step_outputs], dim = 0)
+    #     logits = torch.cat([x['logits'] for x in test_step_outputs], dim = 0)
+    #     targets = torch.stack([x['label'] for x in test_step_outputs], dim = 0)
         
-        test_metric = self.test_metrics(logits, targets)
-        self.log_dict(test_metric, on_epoch = True, logger = True)
+    #     test_metric = self.test_metrics(logits, targets)
+    #     self.log_dict(test_metric, on_epoch = True, logger = True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.kwargs['config']['training'].learning_rate)
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.TRAINING.learning_rate)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, 
             mode='min',
             factor=0.1,
-            patience=5,
-            verbose=True
+            patience=5
         )
         return {
             "optimizer": optimizer,
@@ -140,17 +146,16 @@ class  ModelInterface(pl.LightningModule):
         }
     
     def load_model(self):
-        name = self.hparams.model.name
         # Change the `trans_unet.py` file name to `TransUnet` class name.
         # Please always name your model file name as `trans_unet.py` and
         # class name or funciton name corresponding `TransUnet`.
-        if '_' in name:
-            camel_name = ''.join([i.capitalize() for i in name.split('_')])
+        if '_' in self.model_name:
+            camel_name = ''.join([i.capitalize() for i in self.model_name.split('_')])
         else:
-            camel_name = name
+            camel_name = self.model_name
         try:
             Model = getattr(importlib.import_module(
-                f'models.{name}'), camel_name)
+                f'models.{self.model_name}'), camel_name)
         except:
             raise ValueError('Invalid Module File Name or Invalid Class Name!')
         self.model = self.instancialize(Model)
@@ -158,15 +163,15 @@ class  ModelInterface(pl.LightningModule):
 
     def instancialize(self, Model, **other_args):
         """ Instancialize a model using the corresponding parameters
-            from self.hparams dictionary. You can also input any args
-            to overwrite the corresponding value in self.hparams.
+            from self.model_config dictionary. You can also input any args
+            to overwrite the corresponding value in self.model_config.
         """
-        class_args = inspect.getargspec(Model.__init__).args[1:]
-        inkeys = self.hparams.model.keys()
+        class_args = inspect.getfullargspec(Model.__init__).args[1:]
+        inkeys = self.model_config.keys()
         args1 = {}
         for arg in class_args:
             if arg in inkeys:
-                args1[arg] = getattr(self.hparams.model, arg)
+                args1[arg] = getattr(self.model_config, arg)
         args1.update(other_args)
         return Model(**args1)
     
