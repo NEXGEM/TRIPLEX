@@ -76,6 +76,9 @@ class  ModelInterface(pl.LightningModule):
         #---->Forward
         results_dict = self.model(**batch)
         
+        #---->Loss
+        loss = results_dict['loss']
+        
         logits = results_dict['logits']
         label = batch['label']
         outputs = {'logits': logits, 'label': label}
@@ -97,6 +100,9 @@ class  ModelInterface(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         #---->Forward
         results_dict = self.model(**batch)
+        
+        #---->Loss
+        loss = results_dict['loss']
         
         logits = results_dict['logits']
         label = batch['label']
