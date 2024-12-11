@@ -4,6 +4,7 @@ import os
 import json
 
 import numpy as np
+from scipy import sparse
 import pandas as pd
 import h5py
 import scanpy as sc
@@ -137,11 +138,15 @@ class TriDataset(STDataset):
             
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor', idx=idx)
             adata = self.adata_dict[name]
+            expression = adata[idx].X
+            expression = expression.toarray().squeeze(0) \
+                if sparse.issparse(expression) else expression.squeeze(0)
             
+                
             data['img'] = img
             data['mask'] = mask
             data['neighbor_emb'] = neighbor_emb
-            data['label'] = adata[idx].X.toarray().squeeze(0)
+            data['label'] = expression
             data['pid'] = torch.LongTensor([i])
             data['sid'] = torch.LongTensor([idx])
             
@@ -157,7 +162,8 @@ class TriDataset(STDataset):
             if self.mode == 'cv':
                 adata = self.load_st(name)[:,self.genes]
                 pos = adata.obs[['array_row', 'array_col']].to_numpy()
-                data['label'] = adata.X.toarray()
+                expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
+                data['label'] = expression
 
             elif self.mode == 'inference':
                 pos = np.load(f"{self.data_dir}/pos/{name}.npy")
