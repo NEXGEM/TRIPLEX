@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import scanpy as sc
 import torch
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -84,6 +85,35 @@ def fix_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+    
+def normalize_adata(adata: sc.AnnData, smooth=False) -> sc.AnnData:
+    """
+    Normalize each spot by total gene counts + Logarithmize each spot
+    """
+    filtered_adata = adata.copy()
+    filtered_adata.X = filtered_adata.X.astype(np.float64)
+    
+    # Normalize each spot
+    sc.pp.normalize_total(adata)
+    
+    # Logarithm of the expression
+    sc.pp.log1p(filtered_adata)
+    
+    #print(adata.obs)
+    if smooth:
+        adata_df = adata.to_df()
+        for index, df_row in adata.obs.iterrows():
+            row = int(df_row['array_row'])
+            col = int(df_row['array_col'])
+            neighbors_index = adata.obs[((adata.obs['array_row'] >= row - 1) & (adata.obs['array_row'] <= row + 1)) & \
+                ((adata.obs['array_col'] >= col - 1) & (adata.obs['array_col'] <= col + 1))].index
+            neighbors = adata_df.loc[neighbors_index]
+            nb_neighbors = len(neighbors)
+            
+            avg = neighbors.sum() / nb_neighbors
+            filtered_adata[index] = avg
+    
+    return filtered_adata
     
 def match(x: np.array, y: np.array):
     """Returns a NumPy array of the positions of first occurrences of values in y in x. 
@@ -201,6 +231,9 @@ def load_loggers(cfg: Dict):
     print(f'---->Log dir: {cfg.log_path}')
     
     # #---->Wandb
+    wandb_logger = pl_loggers.WandbLogger(save_dir=cfg.log_path,
+                                        name='TRIPLEX', 
+                                        project='ST_prediction')
     # tb_logger = pl_loggers.TensorBoardLogger(log_path+log_name,
     #                                         name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}',
     #                                         log_graph = True, default_hp_metric = False)
@@ -218,7 +251,7 @@ def load_loggers(cfg: Dict):
     #     log_path,
     #     name = cfg.GENERAL.log_name)
     
-    loggers = [csv_logger]
+    loggers = [wandb_logger, csv_logger]
     
     return loggers
 
