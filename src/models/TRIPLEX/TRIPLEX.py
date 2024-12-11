@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torchvision
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import BasePredictionWriter
+
 import torch.nn.functional as F
 from einops import rearrange
 
@@ -52,9 +52,9 @@ def load_model_weights(path: str):
         resnet.fc = nn.Identity()
 
         return resnet
-    
 
-class TRIPLEX(pl.LightningModule):
+
+class TRIPLEX(nn.Module):
     """Model class for TRIPLEX
     """
     def __init__(self, 
@@ -97,17 +97,8 @@ class TRIPLEX(pl.LightningModule):
         
         super().__init__()
         
-        self.save_hyperparameters()
-        
-        self.learning_rate = learning_rate
-        
-        # Initialize best metrics
-        self.best_loss = np.inf
-        self.best_cor = -1
-        
         self.num_genes = num_genes
         self.alpha = 0.3
-        self.num_n = res_neighbor[0]
     
         # Target Encoder
         resnet18 = load_model_weights("weights/tenpercent_resnet18.ckpt")
@@ -127,8 +118,7 @@ class TRIPLEX(pl.LightningModule):
         self.fusion_encoder = FusionEncoder(emb_dim, depth1, num_heads1, int(emb_dim*mlp_ratio1), dropout1)    
         self.fc = nn.Linear(emb_dim, num_genes)
     
-    
-    def forward(self, x, x_total, position, neighbor, mask, pid=None, sid=None, return_emb=False):
+    def forward(self, data):
         """Forward pass of TRIPLEX
 
         Args:
@@ -147,33 +137,38 @@ class TRIPLEX(pl.LightningModule):
                 out_neighbor: Prediction of NEM
                 out_global: Prediction of GEM
         """
+        if 'dataset' in data:
+            data = self.retrieve_global_emb(data)
+        
+        x_target = data['img']
+        mask = data['mask']
+        x_neighbor = data['neighbor_emb']
+        position = data['pos']
+        x_global = data['global_emb']
+        pid = data.get('pid', None)
+        sid = data.get('sid', None)
         
         # Target tokens
-        target_token = self.target_encoder(x) # B x 512 x 7 x 7
-        _, dim, w, h = target_token.shape
+        target_token = self.target_encoder(x_target) # B x 512 x 7 x 7
+        B, dim, w, h = target_token.shape
         target_token = rearrange(target_token, 'b d h w -> b (h w) d', d = dim, w=w, h=h)
     
         # Neighbor tokens
-        neighbor_token = self.neighbor_encoder(neighbor, mask) # B x 26 x 512
+        neighbor_token = self.neighbor_encoder(x_neighbor, mask) # B x 26 x 512
         
         # Global tokens
-        if pid == None:
-            global_token = self.global_encoder(x_total, position.squeeze()).squeeze()  # N x 512
-            if sid != None:
-                global_token = global_token[sid]
+        if isinstance(x_global, dict):
+            global_token = torch.zeros((B, target_token.shape[-1])).to(x_target.device)
+            for _id, x_g in x_global.items():
+                batch_idx = pid == _id
+                pos = position[_id]
+                # x_cond_encoded = self.encode_cond(x_g, pos[id_]) # N x D
+                g_token = self.global_encoder(x_g, pos).squeeze()  # N x 512
+                global_token[batch_idx] = g_token[sid[batch_idx]] # B x D
         else:
-            pid = pid.view(-1)
-            sid = sid.view(-1)
-            global_token = torch.zeros((len(x_total), x_total[0].shape[1])).to(x.device)
-            
-            pid_unique = pid.unique()
-            for pu in pid_unique:
-                ind = int(torch.argmax((pid == pu).int()))
-                x_g = x_total[ind].unsqueeze(0) # 1 x N x 512
-                pos = position[ind]
-                
-                emb = self.global_encoder(x_g, pos).squeeze() 
-                global_token[pid == pu] = emb[sid[pid == pu]].float()
+            global_token = self.global_encoder(x_global.unsqueeze(0), position).squeeze()  # N x 512
+            if sid is not None:
+                global_token = global_token[sid]
     
         # Fusion tokens
         fusion_token = self.fusion_encoder(target_token, neighbor_token, global_token, mask=mask) # B x 512
@@ -182,283 +177,39 @@ class TRIPLEX(pl.LightningModule):
         out_target = self.fc_target(target_token.mean(1)) # B x num_genes
         out_neighbor = self.fc_neighbor(neighbor_token.mean(1)) # B x num_genes
         out_global = self.fc_global(global_token) # B x num_genes
-        if return_emb:
-            return output, out_target, out_neighbor, out_global, fusion_token
-        else:
-            return output, out_target, out_neighbor, out_global
-    
-    
-    def training_step(self, batch, batch_idx):
-        """Train the model. Transfer knowledge from fusion to each module.
+        
+        preds = (output, out_target, out_neighbor, out_global)
+        label = data['st']
+        
+        loss = self.calculate_loss(preds, label)
+        
+        return {'loss': loss, 'pred': output}
 
-        """
-        patch, exp, pid, sid, wsi, position, neighbor, mask  = batch
+    def calculate_loss(self, preds, label):
         
-        outputs = self(patch, wsi, position, neighbor, mask, pid, sid)
+        loss = F.mse_loss(preds[0], label)                       # Supervised loss for Fusion
         
-        # Fusion loss
-        loss = F.mse_loss(outputs[0].view_as(exp), exp)                   # Supervised loss for Fusion
-        
-        # Target loss
-        loss += F.mse_loss(outputs[1].view_as(exp), exp) * (1-self.alpha) # Supervised loss for Target
-        loss += F.mse_loss(outputs[0], outputs[1]) * self.alpha           # Distillation loss for Target
+        for i in range(1, len(preds)):
+            loss += F.mse_loss(preds[i], label) * (1-self.alpha) # Supervised loss
+            loss += F.mse_loss(preds[0], preds[i]) * self.alpha  # Distillation loss
     
-        # Neighbor loss
-        loss += F.mse_loss(outputs[2].view_as(exp), exp) * (1-self.alpha) # Supervised loss for Neighbor
-        loss += F.mse_loss(outputs[0], outputs[2]) * self.alpha           # Distillation loss for Neighbor
-    
-        # Global loss
-        loss += F.mse_loss(outputs[3].view_as(exp), exp) * (1-self.alpha) # Supervised loss for Global
-        loss += F.mse_loss(outputs[0], outputs[3]) * self.alpha           # Distillation loss for Global
-            
-        self.log('train_loss', loss, sync_dist=True)
         return loss
     
-    def validation_step(self, batch, batch_idx):
-        """Validating the model in a sample. Calucate MSE and PCC for all spots in the sample.
-
-        Returns:
-            dict: 
-                val_loss: MSE loss between pred and label
-                corr: PCC between pred and label (across genes)
-        """
-        patch, exp, sid, wsi, position, name, neighbor, mask = batch
-        patch, exp, sid, neighbor, mask = patch.squeeze(), exp.squeeze(), sid.squeeze(), neighbor.squeeze(), mask.squeeze()
+    def retrieve_global_emb(self, data):
+        device = data['img'].device
+        unique_pid = data['pid'].view(-1).unique()
+        dataset = data['dataset']
         
-        # outputs = self(patch, wsi, position, neighbor, mask)
-        # wsi = wsi[0].unsqueeze(0)
-        # position = position[0]
-        
-        patches = patch.split(512, dim=0)
-        neighbors = neighbor.split(512, dim=0)
-        masks = mask.split(512, dim=0)
-        sids = sid.split(512, dim=0)
-        
-        pred  = []
-        for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
-            outputs = self(patch, wsi, position, neighbor, mask, sid=sid)
-            p = outputs[0]
+        global_emb = {}
+        pos = {}
+        for pid in unique_pid:
+            _id = dataset.int2id[pid]
             
-            pred.append(p)
+            global_emb[pid] = dataset.global_embs[_id].clone().to(device).unsqueeze(0)
+            pos[pid] = dataset.pos_dict[_id].clone().to(device)
             
-        pred = torch.cat(pred, axis=0)
+        data['global_emb'] = global_emb
+        data['pos'] = pos
         
-        # pred = outputs[0]
-        loss = F.mse_loss(pred.view_as(exp), exp)
-
-        pred=pred.cpu().numpy().T
-        exp=exp.cpu().numpy().T        
-        r=[]
-        for g in range(self.num_genes):
-            r.append(pearsonr(pred[g],exp[g])[0])
-        rr = torch.Tensor(r)
-        
-        self.get_meta(name)
-        
-        return {"val_loss":loss, "corr":rr}
+        return data
     
-    def validation_epoch_end(self, outputs):
-        avg_loss = torch.stack(
-            [x["val_loss"] for x in outputs]).mean()
-        
-        avg_corr = torch.stack(
-            [x["corr"] for x in outputs])
-        
-        os.makedirs(f"results/{self.__class__.__name__}/{self.data}", exist_ok=True)
-        if self.best_cor < avg_corr.mean():
-            torch.save(avg_corr.cpu(), f"results/{self.__class__.__name__}/{self.data}/R_{self.patient}")
-            torch.save(avg_loss.cpu(), f"results/{self.__class__.__name__}/{self.data}/loss_{self.patient}")
-            
-            self.best_cor = avg_corr.mean()
-            self.best_loss = avg_loss
-        
-        self.log('valid_loss', avg_loss, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        self.log('R', avg_corr.nanmean(), on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-    
-    def test_step(self, batch, batch_idx):
-        """Testing the model in a sample. 
-        Calucate MSE, MAE and PCC for all spots in the sample.
-
-        Returns:
-            dict:
-                MSE: MSE loss between pred and label
-                MAE: MAE loss between pred and label
-                corr: PCC between pred and label (across genes)
-        """
-        patch, exp, sid, wsi, position, name, neighbor, mask = batch
-        patch, exp, sid, neighbor, mask = patch.squeeze(), exp.squeeze(), sid.squeeze(), neighbor.squeeze(), mask.squeeze()
-        
-        # wsi = wsi[0].unsqueeze(0)
-        # position = position[0]
-        
-        patches = patch.split(512, dim=0)
-        neighbors = neighbor.split(512, dim=0)
-        masks = mask.split(512, dim=0)
-        sids = sid.split(512, dim=0)
-        
-        pred  = []
-        for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
-            outputs = self(patch, wsi, position, neighbor, mask, sid=sid)
-            p = outputs[0]
-            
-            pred.append(p)
-            
-        pred = torch.cat(pred, axis=0)
-        
-        if '10x_breast' in name[0]:
-            # wsi = wsi[0].unsqueeze(0)
-            # position = position[0]
-            
-            # patches = patch.split(512, dim=0)
-            # neighbors = neighbor.split(512, dim=0)
-            # masks = mask.split(512, dim=0)
-            # sids = sid.split(512, dim=0)
-            
-            # pred  = []
-            # for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids):
-            #     outputs = self(patch, wsi, position, neighbor, mask, sid=sid)
-            #     p = outputs[0]
-                
-            #     pred.append(p)
-                
-            # pred = torch.cat(pred, axis=0)
-            
-            # outputs = self(patch, wsi, position, neighbor.squeeze(), mask.squeeze(), sid=sid)
-            # pred = outputs[0]
-            
-            ind_match = np.load(f'/data/temp/spatial/TRIPLEX/data/test/{name[0]}/ind_match.npy', allow_pickle=True)
-            self.num_genes = len(ind_match)
-            pred = pred[:,ind_match]
-            
-        # else:        
-        #     outputs = self(patch, wsi, position, neighbor.squeeze(), mask.squeeze())
-        #     pred = outputs[0]
-            
-        mse = F.mse_loss(pred.view_as(exp), exp)
-        mae = F.l1_loss(pred.view_as(exp), exp)
-        
-        pred=pred.cpu().numpy().T
-        exp=exp.cpu().numpy().T
-        
-        r=[]
-        for g in range(self.num_genes):
-            r.append(pearsonr(pred[g],exp[g])[0])
-        rr = torch.Tensor(r)
-        
-        self.get_meta(name)
-        
-        os.makedirs(f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}", exist_ok=True)
-        np.save(f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}/{name[0]}", pred.T)
-        
-        return {"MSE":mse, "MAE":mae, "corr":rr}
-    
-    def test_epoch_end(self, outputs):
-        avg_mse = torch.stack(
-            [x["MSE"] for x in outputs]).nanmean()
-
-        avg_mae = torch.stack(
-            [x["MAE"] for x in outputs]).nanmean()
-
-        avg_corr = torch.stack(
-            [x["corr"] for x in outputs]).nanmean(0)
-
-        os.makedirs(f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}", exist_ok=True)
-        torch.save(avg_mse.cpu(), f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}/MSE")
-        torch.save(avg_mae.cpu(), f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}/MAE")
-        torch.save(avg_corr.cpu(), f"final/{self.__class__.__name__}_{self.num_n}/{self.data}/{self.patient}/cor")
-        
-    def predict_step(self, batch, batch_idx):
-        
-        patches, sids, wsi, position, neighbors, masks = batch
-        patches, sids, neighbors, masks = patches.squeeze(), sids.squeeze(), neighbors.squeeze(), masks.squeeze()
-
-        patches = patches.split(512, dim=0)
-        neighbors = neighbors.split(512, dim=0)
-        masks = masks.split(512, dim=0)
-        sids = sids.split(512, dim=0)
-        
-        preds, embs  = [], []
-        for patch, neighbor, mask, sid in zip(patches, neighbors, masks, sids, return_emb=True):
-            outputs = self(patch, wsi, position, neighbor, mask, sid=sid)
-            pred = outputs[0].cpu()
-            emb = outputs[-1].cpu()
-            
-            preds.append(pred)
-            embs.append(emb)
-            
-        preds = torch.cat(preds, axis=0)
-        embs = torch.cat(embs, axis=0)
-        
-        return preds, embs
-    
-    def configure_optimizers(self):
-        # self.hparams available because we called self.save_hyperparameters()
-        optim=torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        StepLR = torch.optim.lr_scheduler.StepLR(optim, step_size=50, gamma=0.9)
-        optim_dict = {'optimizer': optim, 'lr_scheduler': StepLR}
-        return optim_dict
-    
-    def get_meta(self, name):
-        if '10x_breast' in name[0]:
-            self.patient = name[0]
-            self.data = "test"
-        else:
-            name = name[0]
-            name_split = name.split("+")
-            self.data = name_split[1]
-            self.patient = name_split[0]
-            
-            if self.data == 'her2st':
-                self.patient = self.patient[0]
-            elif self.data in ['stnet', 'GBM_data']:
-                self.patient = name_split[2]
-            elif self.data == 'skin':
-                self.patient = self.patient.split('_')[0]
-    
-    
-    def load_model(self):
-        name = self.hparams.MODEL.name
-        if '_' in name:
-            camel_name = ''.join([i.capitalize() for i in name.split('_')])
-        else:
-            camel_name = name
-        try:
-            Model = getattr(importlib.import_module(
-                f'models.{name}'), camel_name)
-        except:
-            raise ValueError('Invalid Module File Name or Invalid Class Name!')
-        self.model = self.instancialize(Model)
-
-    def instancialize(self, Model, **other_args):
-        """ Instancialize a model using the corresponding parameters
-            from self.hparams dictionary. You can also input any args
-            to overwrite the corresponding value in self.hparams.
-        """
-        class_args = inspect.getargspec(Model.__init__).args[1:]
-        inkeys = self.hparams.MODEL.keys()
-        args1 = {}
-        for arg in class_args:
-            if arg in inkeys:
-                args1[arg] = getattr(self.hparams.MODEL, arg)
-        args1.update(other_args)
-        return Model(**args1)
-      
-class CustomWriter(BasePredictionWriter):
-    def __init__(self, pred_dir, write_interval, emb_dir=None, names=None):
-        super().__init__(write_interval)
-        self.pred_dir = pred_dir
-        self.emb_dir = emb_dir
-        self.names = names
-
-    def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
-        # this will create N (num processes) files in `output_dir` each containing
-        # the predictions of it's respective rank
-        for i, batch in enumerate(batch_indices[0]):
-            torch.save(predictions[0][i][0], os.path.join(self.pred_dir, f"{self.names[i]}.pt"))
-            torch.save(predictions[0][i][1], os.path.join(self.emb_dir, f"{self.names[i]}.pt"))
-
-        # optionally, you can also save `batch_indices` to get the information about the data index
-        # from your prediction data
-        # torch.save(batch_indices, os.path.join(self.output_dir, f"batch_indices_{trainer.global_rank}.pt"))
-
-
