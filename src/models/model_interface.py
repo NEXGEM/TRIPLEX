@@ -26,11 +26,12 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 class  ModelInterface(pl.LightningModule):
 
     #---->init
-    def __init__(self, model, training, **kwargs):
+    def __init__(self, model, **kwargs):
         super(ModelInterface, self).__init__()
         self.save_hyperparameters()
         self.load_model()
-        self.training = training
+        
+        self.kwargs = kwargs
         
         self.num_output = model.num_output
         # self.log_path = kargs['log']
@@ -122,7 +123,7 @@ class  ModelInterface(pl.LightningModule):
         self.log_dict(test_metric, on_epoch = True, logger = True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.training.learning_rate)
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.kwargs['config']['training'].learning_rate)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, 
             mode='min',
