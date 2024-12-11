@@ -18,6 +18,8 @@ from models.TRIPLEX.module import ( GlobalEncoder,
                                 NeighborEncoder, 
                                 FusionEncoder )
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 def load_model_weights(path: str):       
         """Load pretrained ResNet18 model without final fc layer.
@@ -60,7 +62,7 @@ class TRIPLEX(nn.Module):
     """Model class for TRIPLEX
     """
     def __init__(self, 
-                num_genes=250,
+                num_outputs=250,
                 emb_dim=512,
                 depth1=2,
                 depth2=2,
@@ -75,8 +77,7 @@ class TRIPLEX(nn.Module):
                 dropout2=0.1,
                 dropout3=0.1,
                 kernel_size=3,
-                res_neighbor=(5,5),
-                learning_rate= 0.0001):
+                res_neighbor=(5,5)):
         """TRIPLEX model 
 
         Args:
@@ -99,14 +100,14 @@ class TRIPLEX(nn.Module):
         
         super().__init__()
         
-        self.num_genes = num_genes
         self.alpha = 0.3
     
         # Target Encoder
         resnet18 = load_model_weights("weights/tenpercent_resnet18.ckpt")
         module=list(resnet18.children())[:-2]
         self.target_encoder = nn.Sequential(*module)
-        self.fc_target = nn.Linear(emb_dim, num_genes)
+        self.fc_target = nn.Linear(emb_dim, num_outputs)
+        self.target_linear = nn.Linear(512, emb_dim)
 
         # Neighbor Encoder
         self.neighbor_encoder = NeighborEncoder(emb_dim, 
@@ -115,7 +116,7 @@ class TRIPLEX(nn.Module):
                                                 int(emb_dim*mlp_ratio3), 
                                                 dropout = dropout3, 
                                                 resolution=res_neighbor)
-        self.fc_neighbor = nn.Linear(emb_dim, num_genes)
+        self.fc_neighbor = nn.Linear(emb_dim, num_outputs)
 
         # Global Encoder        
         self.global_encoder = GlobalEncoder(emb_dim, 
@@ -124,7 +125,7 @@ class TRIPLEX(nn.Module):
                                             int(emb_dim*mlp_ratio2), 
                                             dropout2, 
                                             kernel_size)
-        self.fc_global = nn.Linear(emb_dim, num_genes)
+        self.fc_global = nn.Linear(emb_dim, num_outputs)
     
         # Fusion Layer
         self.fusion_encoder = FusionEncoder(emb_dim, 
@@ -132,7 +133,7 @@ class TRIPLEX(nn.Module):
                                             num_heads1, 
                                             int(emb_dim*mlp_ratio1), 
                                             dropout1)    
-        self.fc = nn.Linear(emb_dim, num_genes)
+        self.fc = nn.Linear(emb_dim, num_outputs)
     
     def forward(self, 
                 img, 
@@ -158,24 +159,31 @@ class TRIPLEX(nn.Module):
             dict: Contains:
                 loss: Training loss value
                 pred: Model predictions (B x num_genes)
-        """
-        
-        if global_emb is None:
-            global_emb, position = self.retrieve_global_emb(pid, kwargs['dataset'])
-            
+        """    
         if len(img.shape) == 5:
             img = img.squeeze(0)
         if len(mask.shape) == 3:
             mask = mask.squeeze(0)
         if len(neighbor_emb.shape) == 4:
             neighbor_emb = neighbor_emb.squeeze(0)
-        if len(position.shape) == 3:
-            position = position.squeeze(0)
+        if position is not None:
+            if len(position.shape) == 3:
+                position = position.squeeze(0)
+        if pid is not None:
+            if len(pid.shape) == 2:
+                pid = pid.view(-1)
+        if sid is not None:
+            if len(sid.shape) == 2:
+                sid = sid.view(-1)
+        
+        if global_emb is None:
+            global_emb, position = self.retrieve_global_emb(pid, kwargs['dataset'])
             
         # Target tokens
         target_token = self.target_encoder(img) # B x 512 x 7 x 7
         B, dim, w, h = target_token.shape
         target_token = rearrange(target_token, 'b d h w -> b (h w) d', d = dim, w=w, h=h)
+        target_token = self.target_linear(target_token)
     
         # Neighbor tokens
         neighbor_token = self.neighbor_encoder(neighbor_emb, mask) # B x 26 x 512
@@ -204,6 +212,8 @@ class TRIPLEX(nn.Module):
         
         preds = (output, out_target, out_neighbor, out_global)
         label = kwargs['label']
+        if len(label.shape) == 3:
+            label = label.squeeze(0)
         
         loss = self.calculate_loss(preds, label)
         
@@ -221,11 +231,12 @@ class TRIPLEX(nn.Module):
     
     def retrieve_global_emb(self, pid, dataset):
         device = pid.device
-        unique_pid = pid.view(-1).unique()
+        unique_pid = pid.unique()
         
         global_emb = {}
         pos = {}
         for pid in unique_pid:
+            pid = int(pid)
             _id = dataset.int2id[pid]
             
             global_emb[pid] = dataset.global_embs[_id].clone().to(device).unsqueeze(0)
