@@ -174,8 +174,11 @@ class TriDataset(STDataset):
         
         with h5py.File(path, 'r') as f:
             emb = f['embeddings'][idx] if idx is not None else f['embeddings'][:]
+            emb = torch.Tensor(emb)
+            
             if emb_name == 'neighbor':
                 mask = f['mask_tb'][idx] if idx is not None else f['mask_tb'][:]
+                mask = torch.LongTensor(mask)
                 return emb, mask
             
         return emb
