@@ -122,7 +122,7 @@ class TriDataset(STDataset):
             if i > 0:
                 idx = index - self.cumlen[i-1]
 
-            name = self.id2name[i]
+            name = self.int2id[i]
             img = self.load_img(name, idx)
             img = self.train_transforms(img)
             
@@ -133,9 +133,11 @@ class TriDataset(STDataset):
             data['mask'] = mask
             data['neighbor_emb'] = neighbor_emb
             data['label'] = adata[idx].X.toarray()
+            data['pid'] = torch.LongTensor([index])
+            data['sid'] = torch.arange(len(img))
             
         elif self.phase == 'test':
-            name = self.id2name[index]
+            name = self.int2id[index]
             img = self.load_img(name)
             img = self.test_transforms(img)
             
@@ -155,9 +157,7 @@ class TriDataset(STDataset):
             data['neighbor_emb'] = neighbor_emb
             data['pos'] = torch.LongTensor(pos)
             data['global_emb'] = global_emb
-            data['pid'] = torch.LongTensor([index])
-            data['sid'] = torch.arange(len(pos))
-                
+            
         return data
         
     def __len__(self):
@@ -182,3 +182,4 @@ class TriDataset(STDataset):
                 return emb, mask
             
         return emb
+    
