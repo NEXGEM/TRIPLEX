@@ -66,7 +66,7 @@ class  ModelInterface(pl.LightningModule):
             dataset = self.train_dataloader().dataset
             batch['dataset'] = dataset
             
-        results_dict = self.model(batch)
+        results_dict = self.model(**batch)
         logits = results_dict['logits']
         
         #---->Loss
@@ -77,7 +77,7 @@ class  ModelInterface(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         #---->Forward
-        results_dict = self.model(batch)
+        results_dict = self.model(**batch)
         logits = results_dict['logits']
         
         label = batch['label']
@@ -99,7 +99,7 @@ class  ModelInterface(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         #---->Forward
-        results_dict = self.model(batch)
+        results_dict = self.model(**batch)
         logits = results_dict['logits']
         
         label = batch['label']
