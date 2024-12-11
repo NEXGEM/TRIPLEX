@@ -8,9 +8,7 @@ from torchvision import transforms
 
 class DataInterface(pl.LightningDataModule):
 
-    def __init__(self, 
-                dataset_name=None, 
-                **kwargs):
+    def __init__(self, dataset_name=None, **kwargs):
         """[summary]
 
         Args:
@@ -21,9 +19,7 @@ class DataInterface(pl.LightningDataModule):
         super().__init__()
 
         self.dataset_name = dataset_name
-        self.kwargs = kwargs
-        self.train_config = kwargs['train_dataloader']
-        self.test_config = kwargs['test_dataloader']
+        self.data_config = kwargs['data_config']
         self.load_data_module()
 
     def prepare_data(self):
@@ -46,7 +42,7 @@ class DataInterface(pl.LightningDataModule):
         # Assign train/val datasets for use in dataloaders
         if stage == 'fit' or stage is None:
             self.train_dataset = self.instancialize(phase='train')
-            self.val_dataset = self.instancialize(phase='val')
+            self.val_dataset = self.instancialize(phase='test')
 
         # Assign test dataset for use in dataloader(s)
         if stage == 'test' or stage is None:
@@ -56,24 +52,24 @@ class DataInterface(pl.LightningDataModule):
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, 
-                        batch_size=self.train_config['batch_size'], 
-                        num_workers=self.train_config['num_workers'], 
-                        pin_memory=self.train_config['pin_memory'],
-                        shuffle=self.train_config['shuffle'])
+                        batch_size=self.data_config.train_dataloader.batch_size, 
+                        num_workers=self.data_config.train_dataloader.num_workers, 
+                        pin_memory=self.data_config.train_dataloader.pin_memory,
+                        shuffle=self.data_config.train_dataloader.shuffle)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, 
-                        batch_size=self.test_config['batch_size'], 
-                        num_workers=self.test_config['num_workers'], 
-                        pin_memory=self.test_config['pin_memory'],
-                        shuffle=self.test_config['shuffle'])
+                        batch_size=self.data_config.test_dataloader.batch_size, 
+                        num_workers=self.data_config.test_dataloader.num_workers, 
+                        pin_memory=self.data_config.test_dataloader.pin_memory,
+                        shuffle=self.data_config.test_dataloader.shuffle)
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, 
-                        batch_size=self.test_config['batch_size'], 
-                        num_workers=self.test_config['num_workers'], 
-                        pin_memory=self.test_config['pin_memory'],
-                        shuffle=self.test_config['shuffle'])
+                        batch_size=self.data_config.test_dataloader.batch_size, 
+                        num_workers=self.data_config.test_dataloader.num_workers, 
+                        pin_memory=self.data_config.test_dataloader.pin_memory,
+                        shuffle=self.data_config.test_dataloader.shuffle)
 
 
     def load_data_module(self):
@@ -88,14 +84,14 @@ class DataInterface(pl.LightningDataModule):
     
     def instancialize(self, **other_args):
         """ Instancialize a model using the corresponding parameters
-            from self.hparams dictionary. You can also input any args
-            to overwrite the corresponding value in self.kwargs.
+            from self.data_config dictionary. You can also input any args
+            to overwrite the corresponding value in self.data_config.
         """
-        class_args = inspect.getargspec(self.data_module.__init__).args[1:]
-        inkeys = self.kwargs.keys()
+        class_args = inspect.getfullargspec(self.data_module.__init__).args[1:]
+        inkeys = self.data_config.keys()
         args1 = {}
         for arg in class_args:
             if arg in inkeys:
-                args1[arg] = self.kwargs[arg]
+                args1[arg] = self.data_config[arg]
         args1.update(other_args)
         return self.data_module(**args1)
