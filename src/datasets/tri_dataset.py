@@ -1,6 +1,7 @@
 
 from glob import glob
 import os
+import json
 
 import numpy as np
 import pandas as pd
@@ -70,6 +71,7 @@ class TriDataset(STDataset):
                 phase: str,
                 fold: int,
                 data_dir: str,
+                gene_type: str = 'heg'
                 ):
         super(TriDataset, self).__init__()
         
@@ -82,6 +84,9 @@ class TriDataset(STDataset):
         if mode in ['eval', 'inference'] and phase == 'train':
             print(f"mode is {mode} but phase is 'train', so phase is changed to 'test'")
             phase = 'test'
+            
+        if gene_type not in ['heg', 'hvg']:
+            raise ValueError(f"gene_type must be 'heg' or 'hvg', but got {gene_type}")
         
         self.img_dir = f"{data_dir}/patches"
         self.st_dir = f"{data_dir}/st"
@@ -101,8 +106,11 @@ class TriDataset(STDataset):
             
         self.int2id = dict(enumerate(ids))
         
+        with open(f"{data_dir}/geneset.json", 'r') as f:
+            self.genes = json.load(f)[gene_type]
+        
         if phase == 'train':
-            self.adata_dict = {_id: self.load_st(_id) \
+            self.adata_dict = {_id: self.load_st(_id)[:,self.genes] \
                 for _id in ids}
             self.pos_dict = {_id: torch.LongTensor(adata.obs[['array_row', 'array_col']].to_numpy()) \
                 for _id, adata in self.adata_dict.items()}
@@ -146,7 +154,7 @@ class TriDataset(STDataset):
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
             
             if self.mode == 'cv':
-                adata = self.load_st(name)
+                adata = self.load_st(name)[:,self.genes]
                 pos = adata.obs[['array_row', 'array_col']].to_numpy()
                 data['label'] = adata.X.toarray()
 

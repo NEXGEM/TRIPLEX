@@ -1,1 +1,1 @@
-from .st_dataset import TriDataset
+from .tri_dataset import TriDataset
