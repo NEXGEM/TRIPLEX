@@ -23,7 +23,7 @@ def split_data_cv(data, n_splits=5, shuffle=True, random_state=42):
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--input_dir", type=str, help="Path to the directory containing ST data")
-    argparser.add_argument("--n_splits", type=str, help="Number of splits for cross-validation")
+    argparser.add_argument("--n_splits", type=str, default=5, help="Number of splits for cross-validation")
     
     args = argparser.parse_args()
     input_dir = args.input_dir
