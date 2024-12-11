@@ -244,7 +244,7 @@ def load_loggers(cfg: Dict):
     
     # #---->Wandb
     wandb_logger = pl_loggers.WandbLogger(save_dir=cfg.log_path,
-                                        name='TRIPLEX', 
+                                        name=f'{log_name}-{version_name}-{current_time}-fold{cfg.DATA.fold}', 
                                         project='ST_prediction')
     # tb_logger = pl_loggers.TensorBoardLogger(log_path+log_name,
     #                                         name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}',
