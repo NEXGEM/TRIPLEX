@@ -2,11 +2,12 @@ import os
 import random
 import yaml
 from addict import Dict
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
-from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
+from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
@@ -188,15 +189,34 @@ def load_loggers(cfg: Dict):
         List: _description_
     """
     
-    log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.timestamp)
+    log_path = cfg.GENERAL.log_path
+    current_time = cfg.GENERAL.timestamp
+    
+    Path(log_path).mkdir(exist_ok=True, parents=True)
+    log_name = Path(cfg.config).parent.name
+    version_name = Path(cfg.config).name
+    # now = datetime.now()
+    # current_time = now.strftime("%D-%H-%M").replace("/", "-")
+    cfg.log_path = Path(log_path) / log_name / version_name / current_time / f'fold{cfg.Data.fold}'
+    print(f'---->Log dir: {cfg.log_path}')
+    
+    #---->TensorBoard
+    tb_logger = pl_loggers.TensorBoardLogger(log_path+log_name,
+                                            name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}',
+                                            log_graph = True, default_hp_metric = False)
+    #---->CSV
+    csv_logger = pl_loggers.CSVLogger(log_path+log_name,
+                                    name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}', )
+    
+    # log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.timestamp)
 
-    tb_logger = TensorBoardLogger(
-        log_path,
-        name = cfg.GENERAL.log_name)
+    # tb_logger = TensorBoardLogger(
+    #     log_path,
+    #     name = cfg.GENERAL.log_name)
 
-    csv_logger = CSVLogger(
-        log_path,
-        name = cfg.GENERAL.log_name)
+    # csv_logger = CSVLogger(
+    #     log_path,
+    #     name = cfg.GENERAL.log_name)
     
     loggers = [tb_logger, csv_logger]
     
@@ -212,7 +232,8 @@ def load_callbacks(cfg: Dict):
     Returns:
         List: Return List containing the Callbacks.
     """
-    log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.timestamp)
+    # log_path = os.path.join(cfg.GENERAL.log_path, cfg.GENERAL.timestamp)
+    log_path = cfg.log_path
     
     Mycallbacks = []
     
