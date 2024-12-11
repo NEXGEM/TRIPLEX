@@ -121,9 +121,9 @@ def normalize_adata(adata: sc.AnnData, smooth=False) -> sc.AnnData:
         
         new_X = np.stack(new_X)
         if sparse.issparse(adata.X):
-            adata.layers['X_smooth'] = sparse.csr_matrix(new_X)
+            adata.X = sparse.csr_matrix(new_X)
         else:
-            adata.layers['X_smooth'] = new_X
+            adata.X = new_X
 
     return adata
     
