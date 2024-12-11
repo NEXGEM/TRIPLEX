@@ -12,9 +12,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.strategies.ddp import DDPStrategy
 
 from models.model_interface import ModelInterface, CustomWriter
-from datasets import DataInterface, TriDataset
-from utils import ( collate_fn, 
-                    load_callbacks, 
+from datasets import DataInterface
+from utils import ( load_callbacks, 
                     load_config, 
                     load_loggers, 
                     fix_seed )
@@ -22,11 +21,15 @@ from utils import ( collate_fn,
 
 def get_parse():
     parser = argparse.ArgumentParser()
+    
+    # Main configuration
     parser.add_argument('--config_name', type=str, default='gbm/TRIPLEX', help='logger path.')
-    parser.add_argument('--gpu', type=int, default=[0], help='gpu id')
     parser.add_argument('--mode', type=str, default='cv', help='cv / eval / inference')
-    parser.add_argument('--test_name', type=str, default='DRP1', help='dataset name:{"10x_breast_ff1","10x_breast_ff2", "10x_breast_ff3"}.')
+    # Acceleration 
+    parser.add_argument('--gpu', type=int, default=[0], help='gpu id')
+    # Experiments
     parser.add_argument('--exp_id', type=int, default=0, help='')
+    # Others
     parser.add_argument('--fold', type=int, default=0, help='')
     parser.add_argument('--model_path', type=str, default='logs/2024-04-10/0-TRIPLEX-her2st-2021-3/0-TRIPLEX-her2st-2021-3-epoch=20-valid_loss=0.3268-R=0.1917.ckpt', help='')
 
@@ -90,8 +93,9 @@ def main(cfg):
         os.makedirs(pred_path, exist_ok=True)
         os.makedirs(emb_path, exist_ok=True)
         
-        names = data_loaders['test_loader'].dataset.names
-        pred_writer = CustomWriter(pred_dir=pred_path, emb_dir=emb_path, write_interval="epoch", names=names)
+        # TODO: Deal with the data name to be saved
+        # names = data_loaders['test_loader'].dataset.names
+        pred_writer = CustomWriter(pred_dir=pred_path, emb_dir=emb_path, write_interval="epoch")
         trainer = pl.Trainer(accelerator="gpu", devices=gpus, callbacks=[pred_writer])
 
         checkpoint = cfg.GENERAL.model_path
