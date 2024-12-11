@@ -132,19 +132,25 @@ class TRIPLEX(nn.Module):
                                             dropout1)    
         self.fc = nn.Linear(emb_dim, num_genes)
     
-    def forward(self, data):
+    def forward(self, 
+                img, 
+                mask, 
+                neighbor_emb, 
+                position=None, 
+                global_emb=None, 
+                pid=None, 
+                sid=None, 
+                **kwargs):
         """Forward pass of TRIPLEX model.
         
         Args:
-            data (dict): Input data dictionary containing:
-                img (torch.Tensor): Target spot image (B x 3 x 224 x 224)
-                mask (torch.Tensor): Masking table for neighbor spots (B x num_neighbor) 
-                neighbor_emb (torch.Tensor): Neighbor spot features (B x num_neighbor x 512)
-                pos (list): Relative position coordinates of all spots
-                global_emb (dict or torch.Tensor): Global embedding features
-                pid (torch.LongTensor, optional): Patient indices (B x 1)
-                sid (torch.LongTensor, optional): Spot indices (B x 1)
-                label (torch.Tensor): Ground truth labels
+            img (torch.Tensor): Target spot image (B x 3 x 224 x 224)
+            mask (torch.Tensor): Masking table for neighbor spots (B x num_neighbor) 
+            neighbor_emb (torch.Tensor): Neighbor spot features (B x num_neighbor x 512)
+            pos (list): Relative position coordinates of all spots
+            global_emb (dict or torch.Tensor): Global embedding features
+            pid (torch.LongTensor, optional): Patient indices (B x 1)
+            sid (torch.LongTensor, optional): Spot indices (B x 1)
 
         Returns:
             dict: Contains:
@@ -152,36 +158,28 @@ class TRIPLEX(nn.Module):
                 pred: Model predictions (B x num_genes)
         """
         
-        if 'dataset' in data:
-            data = self.retrieve_global_emb(data)
-        
-        x_target = data['img']
-        mask = data['mask']
-        x_neighbor = data['neighbor_emb']
-        position = data['pos']
-        x_global = data['global_emb']
-        pid = data.get('pid', None)
-        sid = data.get('sid', None)
+        if global_emb is None:
+            global_emb, pos = self.retrieve_global_emb(pid, kwargs['dataset'])
         
         # Target tokens
-        target_token = self.target_encoder(x_target) # B x 512 x 7 x 7
+        target_token = self.target_encoder(img) # B x 512 x 7 x 7
         B, dim, w, h = target_token.shape
         target_token = rearrange(target_token, 'b d h w -> b (h w) d', d = dim, w=w, h=h)
     
         # Neighbor tokens
-        neighbor_token = self.neighbor_encoder(x_neighbor, mask) # B x 26 x 512
+        neighbor_token = self.neighbor_encoder(neighbor_emb, mask) # B x 26 x 512
         
         # Global tokens
-        if isinstance(x_global, dict):
-            global_token = torch.zeros((B, target_token.shape[-1])).to(x_target.device)
-            for _id, x_g in x_global.items():
+        if isinstance(global_emb, dict):
+            global_token = torch.zeros((B, target_token.shape[-1])).to(img.device)
+            for _id, x_g in global_emb.items():
                 batch_idx = pid == _id
                 pos = position[_id]
                 # x_cond_encoded = self.encode_cond(x_g, pos[id_]) # N x D
                 g_token = self.global_encoder(x_g, pos).squeeze()  # N x 512
                 global_token[batch_idx] = g_token[sid[batch_idx]] # B x D
         else:
-            global_token = self.global_encoder(x_global.unsqueeze(0), position).squeeze()  # N x 512
+            global_token = self.global_encoder(global_emb.unsqueeze(0), position).squeeze()  # N x 512
             if sid is not None:
                 global_token = global_token[sid]
     
@@ -194,7 +192,7 @@ class TRIPLEX(nn.Module):
         out_global = self.fc_global(global_token) # B x num_genes
         
         preds = (output, out_target, out_neighbor, out_global)
-        label = data['label']
+        label = kwargs['label']
         
         loss = self.calculate_loss(preds, label)
         
@@ -210,10 +208,9 @@ class TRIPLEX(nn.Module):
     
         return loss
     
-    def retrieve_global_emb(self, data):
-        device = data['img'].device
-        unique_pid = data['pid'].view(-1).unique()
-        dataset = data['dataset']
+    def retrieve_global_emb(self, pid, dataset):
+        device = pid.device
+        unique_pid = pid.view(-1).unique()
         
         global_emb = {}
         pos = {}
@@ -222,9 +219,6 @@ class TRIPLEX(nn.Module):
             
             global_emb[pid] = dataset.global_embs[_id].clone().to(device).unsqueeze(0)
             pos[pid] = dataset.pos_dict[_id].clone().to(device)
-            
-        data['global_emb'] = global_emb
-        data['pos'] = pos
         
-        return data
+        return global_emb, pos
     
