@@ -66,7 +66,6 @@ def main(cfg):
             max_epochs = cfg.TRAINING.num_epochs,
             logger = loggers,
             check_val_every_n_epoch = 1,
-            log_every_n_steps=10,
             callbacks = callbacks,
             precision = '16-mixed'
         )
