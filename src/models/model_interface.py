@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy as np
 import inspect
 import importlib
@@ -19,6 +20,7 @@ from torchmetrics.regression import ( PearsonCorrCoef,
 
 #---->
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import BasePredictionWriter
 
 
 class  ModelInterface(pl.LightningModule):
@@ -60,7 +62,10 @@ class  ModelInterface(pl.LightningModule):
         name = self.hparams.model.name
         
         #---->Forward
-        
+        if name == 'TRIPLEX':
+            dataset = self.train_dataloader().dataset
+            batch['dataset'] = dataset
+            
         results_dict = self.model(batch)
         logits = results_dict['logits']
         
@@ -160,3 +165,24 @@ class  ModelInterface(pl.LightningModule):
                 args1[arg] = getattr(self.hparams.model, arg)
         args1.update(other_args)
         return Model(**args1)
+    
+    
+class CustomWriter(BasePredictionWriter):
+    def __init__(self, pred_dir, write_interval, emb_dir=None, names=None):
+        super().__init__(write_interval)
+        self.pred_dir = pred_dir
+        self.emb_dir = emb_dir
+        self.names = names
+
+    def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
+        # this will create N (num processes) files in `output_dir` each containing
+        # the predictions of it's respective rank
+        for i, batch in enumerate(batch_indices[0]):
+            torch.save(predictions[0][i][0], os.path.join(self.pred_dir, f"{self.names[i]}.pt"))
+            torch.save(predictions[0][i][1], os.path.join(self.emb_dir, f"{self.names[i]}.pt"))
+
+        # optionally, you can also save `batch_indices` to get the information about the data index
+        # from your prediction data
+        # torch.save(batch_indices, os.path.join(self.output_dir, f"batch_indices_{trainer.global_rank}.pt"))
+
+
