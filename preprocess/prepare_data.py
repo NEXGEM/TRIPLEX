@@ -25,6 +25,7 @@ def preprocess_st(input_path, output_dir, platform='visium'):
     if os.path.exists(f"{output_dir}/patches/{fname}.h5"):
         print("Patches already exists. Skipping...")
     else:
+        # TODO: Add code to save result of segmentation & Resume
         print("Segmenting tissue...")
         st.segment_tissue(method='deep')
     
