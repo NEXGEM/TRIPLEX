@@ -1,3 +1,4 @@
 addict
 openslide-bin
 wget
+wandb
