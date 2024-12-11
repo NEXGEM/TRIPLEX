@@ -3,16 +3,18 @@ import os
 import argparse
 from datetime import datetime
 
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.ddp import DDPStrategy
 
-from models.model_interface import ModelInterface, CustomWriter
+from models import ModelInterface, CustomWriter
 from datasets import DataInterface
 from utils import ( load_callbacks, 
                     load_config, 
                     load_loggers, 
                     fix_seed )
 
+torch.set_float32_matmul_precision('high')
 
 def get_parse():
     parser = argparse.ArgumentParser()
@@ -37,7 +39,7 @@ def main(cfg):
     fix_seed(cfg.GENERAL.seed)
     
     # Configurations
-    mode = cfg.GENERAL.mode
+    mode = cfg.DATA.mode
     gpus = cfg.GENERAL.gpu
     
     # Load loggers and callbacks for Trainer
@@ -46,11 +48,11 @@ def main(cfg):
     
     # Define Data 
     DataInterface_dict = {'dataset_name': cfg.DATA.dataset_name,
-                        'dataset_cfg': cfg.DATA}
+                        'data_config': cfg.DATA}
     dm = DataInterface(**DataInterface_dict)
     
     # Define model
-    ModelInterface_dict = {'model': cfg.MODEL,
+    ModelInterface_dict = {'model_name': cfg.MODEL.model_name,
                             'config': cfg}
     model = ModelInterface(**ModelInterface_dict)
     
@@ -66,8 +68,7 @@ def main(cfg):
             check_val_every_n_epoch = 1,
             log_every_n_steps=10,
             callbacks = callbacks,
-            amp_backend = 'native',
-            precision = 16
+            precision = '16-mixed'
         )
         
         trainer.fit(model, datamodule = dm)
@@ -108,13 +109,12 @@ if __name__ == '__main__':
     cfg = load_config(args.config_name)
 
     cfg.config = args.config_name
-    cfg.GENERAL.test_name = args.test_name
     cfg.GENERAL.exp_id = args.exp_id
     cfg.GENERAL.gpu = args.gpu
     cfg.GENERAL.model_path = args.model_path
     cfg.DATA.mode = args.mode
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%D-%H-%M").replace("/", "-")
     cfg.GENERAL.timestamp = timestamp
     
     if args.mode == 'cv':
