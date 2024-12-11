@@ -90,30 +90,41 @@ def normalize_adata(adata: sc.AnnData, smooth=False) -> sc.AnnData:
     """
     Normalize each spot by total gene counts + Logarithmize each spot
     """
-    filtered_adata = adata.copy()
-    filtered_adata.X = filtered_adata.X.astype(np.float64)
+    # print(f"Number of spots before filetering: {adata.shape[0]}")
+    # normed_adata.X = normed_adata.X.astype(np.float64)
+    # sc.pp.filter_cells(adata, min_counts=100)
+    # print(f"Number of spots after filetering: {adata.shape[0]}")
     
+    normed_adata = adata.copy()
+
     # Normalize each spot
-    sc.pp.normalize_total(adata)
-    
+    sc.pp.normalize_total(normed_adata)
+
     # Logarithm of the expression
-    sc.pp.log1p(filtered_adata)
-    
-    #print(adata.obs)
+    sc.pp.log1p(normed_adata)
+
     if smooth:
-        adata_df = adata.to_df()
-        for index, df_row in adata.obs.iterrows():
+        new_X = []
+        for index, df_row in normed_adata.obs.iterrows():
             row = int(df_row['array_row'])
             col = int(df_row['array_col'])
-            neighbors_index = adata.obs[((adata.obs['array_row'] >= row - 1) & (adata.obs['array_row'] <= row + 1)) & \
-                ((adata.obs['array_col'] >= col - 1) & (adata.obs['array_col'] <= col + 1))].index
-            neighbors = adata_df.loc[neighbors_index]
+            
+            neighbors_index = normed_adata.obs[((normed_adata.obs['array_row'] >= row - 1) & (normed_adata.obs['array_row'] <= row + 1)) & \
+                ((normed_adata.obs['array_col'] >= col - 1) & (normed_adata.obs['array_col'] <= col + 1))].index
+            neighbors = normed_adata[neighbors_index]
             nb_neighbors = len(neighbors)
             
-            avg = neighbors.sum() / nb_neighbors
-            filtered_adata[index] = avg
-    
-    return filtered_adata
+            avg = neighbors.X.sum(0) / nb_neighbors
+            new_X.append(avg)
+            # normed_normed_adata[i] = avg            
+        
+        new_X = np.stack(new_X)
+        if sparse.issparse(adata.X):
+            adata.layers['X_smooth'] = sparse.csr_matrix(new_X)
+        else:
+            adata.layers['X_smooth'] = new_X
+
+    return adata
     
 def match(x: np.array, y: np.array):
     """Returns a NumPy array of the positions of first occurrences of values in y in x. 
