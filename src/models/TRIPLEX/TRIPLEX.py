@@ -196,7 +196,7 @@ class TRIPLEX(nn.Module):
         
         loss = self.calculate_loss(preds, label)
         
-        return {'loss': loss, 'pred': output}
+        return {'loss': loss, 'logits': output}
 
     def calculate_loss(self, preds, label):
         
