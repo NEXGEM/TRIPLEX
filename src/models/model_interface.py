@@ -26,7 +26,7 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 class  ModelInterface(pl.LightningModule):
 
     #---->init
-    def __init__(self, model, training, **kargs):
+    def __init__(self, model, training, **kwargs):
         super(ModelInterface, self).__init__()
         self.save_hyperparameters()
         self.load_model()
