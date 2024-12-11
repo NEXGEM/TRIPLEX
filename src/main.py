@@ -34,42 +34,6 @@ def get_parse():
     
     return args
 
-def load_dataset(cfg):
-    data_loaders = {}
-    
-    mode = cfg.GENERAL.mode
-    batch_size = cfg.TRAINING.batch_size
-    data_dir = cfg.DATASET.data_dir
-    
-    # Load dataset
-    if mode == 'cv':
-        trainset = TriDataset(mode='cv', 
-                            phase='train', 
-                            fold=fold, 
-                            data_dir=data_dir)
-        train_loader = DataLoader(trainset, 
-                                batch_size=batch_size, 
-                                # collate_fn=collate_fn, 
-                                num_workers=4, 
-                                pin_memory=True, 
-                                shuffle=True)
-        data_loaders['train_loader'] = train_loader
-        
-    testset = TriDataset(mode=mode, 
-                        phase='test', 
-                        fold=fold, 
-                        data_dir=data_dir)
-    test_loader = DataLoader(testset, 
-                            batch_size=1, 
-                            num_workers=4, 
-                            pin_memory=True, 
-                            shuffle=False)
-        
-    data_loaders['test_loader'] = test_loader
-    
-    return data_loaders 
-
-
 def main(cfg):    
     
     fix_seed(cfg.GENERAL.seed)
@@ -77,9 +41,6 @@ def main(cfg):
     # Configurations
     mode = cfg.GENERAL.mode
     gpus = cfg.GENERAL.gpu
-    
-    # Get dataloader
-    data_loaders = load_dataset(cfg)
     
     # Load loggers and callbacks for Trainer
     loggers = load_loggers(cfg)
