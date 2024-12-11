@@ -57,6 +57,8 @@ def preprocess_st(input_path, output_dir, platform='visium'):
         adata = normalize_adata(adata, smooth=True)
         adata.write(name_st)
         
+    return fname
+        
 def get_pos(input_path, output_dir, step_size=160):
     fname = os.path.splitext(os.path.basename(input_path))[0]
     
@@ -78,7 +80,6 @@ def get_pos(input_path, output_dir, step_size=160):
         check_dup = df_crds.apply(tuple, axis=1).duplicated().sum()
     
     np.save(f"{output_dir}/{fname}", array_crds)
-    
         
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -102,13 +103,15 @@ if __name__ == "__main__":
     
     if mode == 'pair':
         os.makedirs(output_dir, exist_ok=True)
-        
-        print(f"{input_dir}/{prefix}*")
         ids = glob(f"{input_dir}/{prefix}*")
-        pd.DataFrame(os.path.basename(ids), columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
         
+        sample_ids = []
         for input_path in tqdm(ids):
-            preprocess_st(input_path, output_dir, platform=platform)
+            sample_id = preprocess_st(input_path, output_dir, platform=platform)
+            if sample_id is not None:
+                sample_ids.append(sample_id)
+        
+        pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
             
     elif mode == 'image':
         output_dir = f"{output_dir}/pos"
