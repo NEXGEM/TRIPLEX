@@ -96,7 +96,7 @@ class TriDataset(STDataset):
         self.phase = phase
         
         if mode == 'cv':
-            data_path = f"{data_dir}/splits/{phase}_fold{fold}.csv"
+            data_path = f"{data_dir}/splits/{phase}_{fold}.csv"
             data = pd.read_csv(data_path)
             ids = data['sample_id'].to_list()
                 
@@ -117,7 +117,7 @@ class TriDataset(STDataset):
             self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
                 for _id in ids}
             
-            self.lengths = [len(adata) for adata in self.st_dict.values()]
+            self.lengths = [len(adata) for adata in self.adata_dict.values()]
             self.cumlen = np.cumsum(self.lengths)
         
     def __getitem__(self, index):
@@ -141,14 +141,15 @@ class TriDataset(STDataset):
             data['img'] = img
             data['mask'] = mask
             data['neighbor_emb'] = neighbor_emb
-            data['label'] = adata[idx].X.toarray()
-            data['pid'] = torch.LongTensor([index])
-            data['sid'] = torch.arange(len(img))
+            data['label'] = adata[idx].X.toarray().squeeze(0)
+            data['pid'] = torch.LongTensor([i])
+            data['sid'] = torch.LongTensor([idx])
             
         elif self.phase == 'test':
             name = self.int2id[index]
             img = self.load_img(name)
-            img = self.test_transforms(img)
+            img = torch.stack([self.test_transforms(im) for im in img], dim=0)
+            # img = self.test_transforms(img)
             
             global_emb = self.load_emb(name, emb_name='global')
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
@@ -164,13 +165,13 @@ class TriDataset(STDataset):
             data['img'] = img
             data['mask'] = mask
             data['neighbor_emb'] = neighbor_emb
-            data['pos'] = torch.LongTensor(pos)
+            data['position'] = torch.LongTensor(pos)
             data['global_emb'] = global_emb
             
         return data
         
     def __len__(self):
-        if self.mode == 'train':
+        if self.phase == 'train':
             return self.cumlen[-1]
         else:
             return len(self.int2id)
@@ -179,7 +180,7 @@ class TriDataset(STDataset):
         if emb_name not in ['global', 'neighbor']:
             raise ValueError(f"emb_name must be 'global' or 'neighbor', but got {emb_name}")
         
-        path = f"{self.emb_dir}/{emb_name}/{name}.h5"
+        path = f"{self.emb_dir}/{emb_name}/uni_v1/{name}.h5"
         
         with h5py.File(path, 'r') as f:
             emb = f['embeddings'][idx] if idx is not None else f['embeddings'][:]
