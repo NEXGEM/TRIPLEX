@@ -101,7 +101,13 @@ class TriDataset(STDataset):
         self.int2id = dict(enumerate(ids))
         
         if phase == 'train':
-            self.st_dict = {_id: self.load_st(_id) for _id in ids}
+            self.adata_dict = {_id: self.load_st(_id) \
+                for _id in ids}
+            self.pos_dict = {_id: torch.LongTensor(adata.obs[['array_row', 'array_col']].to_numpy()) \
+                for _id, adata in self.adata_dict.items()}
+            self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
+                for _id in ids}
+            
             self.lengths = [len(adata) for adata in self.st_dict.values()]
             self.cumlen = np.cumsum(self.lengths)
         
@@ -120,19 +126,13 @@ class TriDataset(STDataset):
             img = self.load_img(name, idx)
             img = self.train_transforms(img)
             
-            global_emb = self.load_emb(name, emb_name='global')
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor', idx=idx)
-            
-            adata = self.st_dict[name]
-            pos = adata.obs[['array_row', 'array_col']].to_numpy()            
-            st = adata[idx]
+            adata = self.adata_dict[name]
             
             data['img'] = img
             data['mask'] = mask
             data['neighbor_emb'] = neighbor_emb
-            data['pos'] = torch.LongTensor(pos)
-            data['global_emb'] = global_emb
-            data['st'] = st
+            data['label'] = adata[idx].X.toarray()
             
         elif self.phase == 'test':
             name = self.id2name[index]
@@ -143,9 +143,9 @@ class TriDataset(STDataset):
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
             
             if self.mode == 'cv':
-                st = self.load_st(name)
+                adata = self.load_st(name)
                 pos = adata.obs[['array_row', 'array_col']].to_numpy()
-                data['st'] = st
+                data['label'] = adata.X.toarray()
 
             elif self.mode == 'inference':
                 pos = np.load(f"{self.data_dir}/pos/{name}.npy")
