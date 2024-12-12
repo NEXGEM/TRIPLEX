@@ -1,7 +1,6 @@
 # TRIPLEX
 
-Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features (accepted to CVPR 2024)
-Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee*
+TRIPLEX is a deep learning framework designed for predicting spatial transcriptomics from histology images by integrating multi-resolution features. It is now integrated with HEST for enhanced functionality.
 
 ## Table of Contents
 - [Requirements](#requirements)
@@ -77,6 +76,12 @@ pip install -e .
 ```
 
 Install remaining dependencies:
+
+- Flash-attention
+
+```bash
+pip install flash-attn --no-build-isolation
+```
 
 ```bash
 pip install -r requirements.txt
