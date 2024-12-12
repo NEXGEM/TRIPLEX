@@ -72,7 +72,8 @@ class TriDataset(STDataset):
                 phase: str,
                 fold: int,
                 data_dir: str,
-                gene_type: str = 'heg'
+                gene_type: str = 'mean',
+                num_outputs: int = 1000
                 ):
         super(TriDataset, self).__init__()
         
@@ -86,8 +87,8 @@ class TriDataset(STDataset):
             print(f"mode is {mode} but phase is 'train', so phase is changed to 'test'")
             phase = 'test'
             
-        if gene_type not in ['heg', 'hvg']:
-            raise ValueError(f"gene_type must be 'heg' or 'hvg', but got {gene_type}")
+        if gene_type not in ['var', 'mean']:
+            raise ValueError(f"gene_type must be 'var' or 'mean', but got {gene_type}")
         
         self.img_dir = f"{data_dir}/patches"
         self.st_dir = f"{data_dir}/adata"
@@ -107,8 +108,13 @@ class TriDataset(STDataset):
             
         self.int2id = dict(enumerate(ids))
         
-        with open(f"{data_dir}/geneset.json", 'r') as f:
-            self.genes = json.load(f)[gene_type]
+        if not os.path.isfile(f"{data_dir}/{gene_type}_{num_outputs}genes.json"):
+            raise ValueError(f"gene_type_{num_outputs}genes.json is not found in {data_dir}")
+        
+        with open(f"{data_dir}/{gene_type}_{num_outputs}genes.json", 'r') as f:
+            self.genes = json.load(f)['genes']
+        if gene_type == 'mean':
+            self.genes = self.genes[:num_outputs]
         
         if phase == 'train':
             self.adata_dict = {_id: self.load_st(_id)[:,self.genes] \

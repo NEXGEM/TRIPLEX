@@ -38,13 +38,13 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, min_spot_percentage=0.
         data_combined = ad.concat(data_combined, label="batch")    
         sc.pp.highly_variable_genes(data_combined, n_top_genes=n_top_hvg, batch_key="batch")
         top_genes_var = expressed_genes[data_combined.var['highly_variable']]
-        output['hvg'] = top_genes_var.tolist()
+        output['var'] = top_genes_var.tolist()
 
     if method in ['HEG', 'ALL']:
         gene_counts = pd.concat([pd.DataFrame(adata[:, expressed_genes].X.sum(axis=0)) for adata in data_list], axis=0)
         total_counts = gene_counts.sum(axis=0)
         top_genes_mean = expressed_genes[total_counts.argsort()[::-1][:n_top_heg]]
-        output['heg'] = top_genes_mean.tolist()
+        output['mean'] = top_genes_mean.tolist()
         # top_genes = expressed_genes[total_counts.nlargest(n_top).index]
     
     else:
@@ -70,5 +70,8 @@ if __name__ == "__main__":
     # geneset_exp = find_geneset(data_list, method='HEG', n_top=n_top_heg)
     # geneset = {'hvg': geneset_var.tolist(), 'heg': geneset_exp.tolist()}
     
-    with open(f"{args.output_dir}/geneset.json", "w") as f:
-        json.dump(geneset, f)
+    for prefix in ['var', 'mean']:
+        n_top = n_top_hvg if prefix == 'var' else n_top_heg
+        with open(f"{args.output_dir}/{prefix}_{n_top}genes.json", "w") as f:
+            json.dump({"genes": geneset[prefix]}, f)
+        

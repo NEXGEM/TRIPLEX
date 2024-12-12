@@ -43,6 +43,8 @@ MODEL:
 DATA:
   data_dir: input/smc/brain
   dataset_name: tri_dataset
+  gene_type: 'mean'
+  num_outputs: 1000
   
   train_dataloader:
         batch_size: 128 
