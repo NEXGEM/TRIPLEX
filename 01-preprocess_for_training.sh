@@ -10,10 +10,12 @@ PROCESSED_DIR=input/smc/brain
 # Preprocess ST data for training
 
 ## Prepare patches and st data
-python preprocess/prepare_data.py --input_dir $RAW_DIR --output_dir $PROCESSED_DIR --mode cv
+python preprocess/prepare_data.py --input_dir $RAW_DIR \
+                                --output_dir $PROCESSED_DIR \
+                                --mode pair
 
 ## Prepare geneset for training
-python preprocess/get_geneset.py --st_dir $PROCESSED_DIR'/st' --output_dir $PROCESSED_DIR
+python preprocess/get_geneset.py --st_dir $PROCESSED_DIR'/adata' --output_dir $PROCESSED_DIR
 
 ## Prepare geneset for training
 python preprocess/split_data.py --input_dir $PROCESSED_DIR
