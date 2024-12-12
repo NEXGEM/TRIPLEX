@@ -10,7 +10,7 @@ import pandas as pd
 import h5py
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.utils import load_st, pxl_to_array, normalize_adata
+from utils import load_st, pxl_to_array, normalize_adata
 
 
 def preprocess_st(input_path, output_dir, platform='visium'):
