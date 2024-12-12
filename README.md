@@ -75,13 +75,13 @@ cd HEST
 pip install -e .
 ```
 
-Install remaining dependencies:
-
-- Flash-attention
+Instann FlashAttention
 
 ```bash
 pip install flash-attn --no-build-isolation
 ```
+
+Install remaining dependencies:
 
 ```bash
 pip install -r requirements.txt
