@@ -90,7 +90,7 @@ class TriDataset(STDataset):
             raise ValueError(f"gene_type must be 'heg' or 'hvg', but got {gene_type}")
         
         self.img_dir = f"{data_dir}/patches"
-        self.st_dir = f"{data_dir}/st"
+        self.st_dir = f"{data_dir}/adata"
         self.emb_dir = f"{data_dir}/emb"
     
         self.mode = mode
