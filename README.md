@@ -226,6 +226,7 @@ Modify these files as needed for your experiments.
 
 ## Citation
 
+```
 @inproceedings{chung2024accurate,
   title={Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features},
   author={Chung, Youngmin and Ha, Ji Hun and Im, Kyeong Chan and Lee, Joo Sang},
@@ -233,6 +234,7 @@ Modify these files as needed for your experiments.
   pages={11591--11600},
   year={2024}
 }
+```
 
 ---
 
