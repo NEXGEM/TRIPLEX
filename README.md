@@ -25,11 +25,6 @@ TRIPLEX is a deep learning framework designed for predicting spatial transcripto
 - CUDA-enabled GPU (recommended)
 
 TRIPLEX is tested on Python 3.11, PyTorch 2.4.1, PyTorch Lightning 2.4.0, and CUDA 12.1.
-Additional dependencies are listed in the `requirements.txt` file. To install them, run:
-
-```bash
-pip install -r requirements.txt
-```
 
 ---
 
