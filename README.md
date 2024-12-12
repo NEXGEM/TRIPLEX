@@ -1,133 +1,192 @@
-# Accurate Spatial Gene Expression Prediction by Integrating Multi-Resolution Features 
+# TRIPLEX
 
-> Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features (accepted to CVPR 2024) \
-Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
+Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features (accepted to CVPR 2024)
+Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee*
 
-<img src="./figures/TRIPLEX_main.jpg" title="TRIPLEX"/>
+## Table of Contents
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Project Structure](#project-structure)
+- [Usage](#usage)
+  - [Preprocessing](#preprocessing)
+  - [Training](#training)
+  - [Evaluation](#evaluation)
+  - [Inference](#inference)
+- [Configuration](#configuration)
+- [Contributing](#contributing)
+- [License](#license)
 
-## TODO
-- [x] Add code to automatically download the ResNet18 weight
-- [x] Add code for inference
-- [ ] Add code to preprocess WSIs in svs or tif format
+---
 
-## Installation
-- Python 3.9.19
-- Specify pip version
-```bash
-conda install pip=23
-```
-- Install pytorch
-```bash
-pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
-```
-- Install the remaining required packages
+## Requirements
+
+- Python 3.8+
+- PyTorch 2.0+
+- PyTorch Lightning 2.0+
+- CUDA-enabled GPU (recommended)
+
+Additional dependencies are listed in the `requirements.txt` file. To install them, run:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-## Data Preparation and Model Weights
-### Step 1: Download Preprocessed Data
-Begin by downloading the preprocessed data [here](https://drive.google.com/drive/folders/13oJqeoU5_QPy4_yeZ4eK694AGoBuQjop?usp=drive_link). \
-Save the downloaded TRIPLEX.zip file into the ./data directory within your project workspace.
+---
 
-### Step 2: Unzip the Data
-After downloading, unzip the TRIPLEX.zip file using the following command:
+## Installation
+
+Clone this repository:
+
 ```bash
-unzip ./data/TRIPLEX.zip -d ./data
-```
-This will extract the data into four subdirectories within the ./data folder, namely her2ts, skin, stnet, and test.
-
-### Step 3: Extract features of slide images
-TRIPLEX requires pre-extracted features from WSIs. Run following commands to extract features using pre-trained ResNet18.  
-- Cross validation
-```python
-# BC1 dataset
-python preprocess/extract_features.py --config her2st/TRIPLEX --mode internal --extract_mode target
-python preprocess/extract_features.py --config her2st/TRIPLEX --mode internal --extract_mode neighbor
-# BC2 dataset
-python preprocess/extract_features.py --config stnet/TRIPLEX --mode internal --extract_mode target
-python preprocess/extract_features.py --config stnet/TRIPLEX --mode internal --extract_mode neighbor
-# SCC dataset
-python preprocess/extract_features.py --config skin/TRIPLEX --mode internal --extract_mode target
-python preprocess/extract_features.py --config skin/TRIPLEX --mode internal --extract_mode neighbor
+git clone https://github.com/your-username/triplex.git
+cd triplex
 ```
 
-- External test
-```python
-# 10x Visium-1
-python preprocess/extract_features.py --test_name 10x_breast_ff1 --mode external --extract_mode target 
-python preprocess/extract_features.py --test_name 10x_breast_ff1 --mode external --extract_mode neighbor
-# 10x Visium-2
-python preprocess/extract_features.py --test_name 10x_breast_ff2 --mode external --extract_mode target 
-python preprocess/extract_features.py --test_name 10x_breast_ff2 --mode external --extract_mode neighbor
-# 10x Visium-3
-python preprocess/extract_features.py --test_name 10x_breast_ff3 --mode external --extract_mode target 
-python preprocess/extract_features.py --test_name 10x_breast_ff3 --mode external --extract_mode neighbor
-```
+Install dependencies:
 
-### Directory Structure
-After completing the above steps, your project directory should follow this structure: 
 ```bash
-# Directory structure for HER2ST
-  .
-  ├── data
-  │   ├── her2st
-  │   │   ├── ST-cnts
-  │   │   ├── ST-imgs
-  │   │   ├── ST-spotfiles
-  │   │   ├── gt_features_224
-  │   │   └── n_features_5_224
-  └── weights/tenpercent_resnet18.ckpt
-
+pip install -r requirements.txt
 ```
 
+---
+
+## Project Structure
+
+```
+.
+├── config/                 # Configuration files for experiments
+├── docker/                 # Docker-related setup files
+├── figures/                # Figures for results and documentation
+├── src/                    # Source code
+│   ├── datasets/           # Dataset loading and preprocessing modules
+│   ├── models/             # Model architectures
+│   ├── preprocess/         # Scripts for preprocessing data
+│   ├── __init__.py         # Package initialization
+│   ├── main.py             # Main script for training and inference
+│   ├── utils.py            # Utility functions
+├── 01-preprocess_for_training.sh  # Preprocessing script for training
+├── 02-preprocess_for_inference.sh # Preprocessing script for inference
+├── README.md               # Project documentation
+├── requirements.txt        # Python dependencies
+├── run_extract_features.txt# Example feature extraction commands
+```
+
+---
 
 ## Usage
-### Training and Testing
-- BC1 dataset
-```python
-# Train
-python main.py --config her2st/TRIPLEX --mode cv
-# Test
-python main.py --config her2st/TRIPLEX --mode test --fold [num_fold] --model_path [path/model/weight]
+
+### Preprocessing
+
+Before training or inference, raw data must be preprocessed. Modify the paths in the respective shell scripts and run them:
+
+#### For Training:
+```bash
+bash 01-preprocess_for_training.sh
 ```
 
-- BC2 dataset
-```python
-# Train
-python main.py --config stnet/TRIPLEX --mode cv
-# Test
-python main.py --config stnet/TRIPLEX --mode test --fold [num_fold] --model_path [path/model/weight]
+#### For Inference:
+```bash
+bash 02-preprocess_for_inference.sh
 ```
 
-- SCC dataset
-```python
-# Train
-python main.py --config skin/TRIPLEX --mode cv
-# Test
-python main.py --config skin/TRIPLEX --mode test --fold [num_fold] --model_path [path/model/weight]
+### Training
+
+To train the model using cross-validation, run the following command:
+
+```bash
+python src/main.py --config_name=<config_path> --mode=cv --gpu=0
 ```
 
-Training results will be saved in *./logs*
+Replace `<config_path>` with the path to your configuration file.
 
-- Independent test
+### Evaluation
 
-```python
-# 10x Visium-1
-python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff1 --model_path [path/model/weight]
-# 10x Visium-2
-python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff2 --model_path [path/model/weight]
-# 10x Visium-3
-python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast_ff3 --model_path [path/model/weight]
+To evaluate the model:
+
+```bash
+python src/main.py --config_name=<config_path> --mode=eval --gpu=0 --model_path=<model_checkpoint_path>
 ```
 
-## Acknowledgements
-- Code for data processing is based on [HisToGene](https://github.com/maxpmx/HisToGene)
-- Code for various Transformer architectures was adapted from [vit-pytorch](https://github.com/lucidrains/vit-pytorch)
-- Code for position encoding generator was adapted via making modifications to [TransMIL](https://github.com/szc19990412/TransMIL)
-- If you found our work useful in your research, please consider citing our works(s) at:
+Replace `<model_checkpoint_path>` with the path to your trained model checkpoint.
 
+### Inference
+
+To run inference:
+
+```bash
+python src/main.py --config_name=<config_path> --mode=inference --gpu=0 --model_path=<model_checkpoint_path>
 ```
+
+---
+
+## Configuration
+
+Configurations are managed using YAML files located in the `config/` directory. Each configuration file specifies parameters for the dataset, model, training, and evaluation. Example configuration parameters include:
+
+```yaml
+GENERAL:
+  seed: 2021
+  log_path: ./logs
+  
+TRAINING:
+  num_k: 5
+  batch_size: 128
+  loss: MSE
+  optimizer: adam
+  learning_rate: 1.0e-4
+  num_epochs: 200
+  early_stopping:
+    monitor: val_MeanSquaredError
+    patience: 20
+    mode: min
+  lr_scheduler:
+    monitor: val_MeanSquaredError
+    patience: 5
+    factor: 0.1
+    mode: min
+  
+MODEL:
+  model_name: TRIPLEX 
+  num_outputs: 1000
+  emb_dim: 1024
+  depth1: 1
+  depth2: 5
+  depth3: 4
+  num_heads1: 8
+  num_heads2: 8
+  num_heads3: 8
+  mlp_ratio1: 4
+  mlp_ratio2: 4
+  mlp_ratio3: 4
+  dropout1: 0.4
+  dropout2: 0.3
+  dropout3: 0.3
+  kernel_size: 3
+  learning_rate: 0.0001
+
+DATA:
+  data_dir: input/path/to/data
+  dataset_name: tri_dataset
+  
+  train_dataloader:
+        batch_size: 128 
+        num_workers: 4
+        pin_memory: True
+        shuffle: True
+
+  test_dataloader:
+      batch_size: 1
+      num_workers: 4
+      pin_memory: True
+      shuffle: False
+```
+
+Modify these files as needed for your experiments.
+
+---
+
+## Citation
+
 @inproceedings{chung2024accurate,
   title={Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features},
   author={Chung, Youngmin and Ha, Ji Hun and Im, Kyeong Chan and Lee, Joo Sang},
@@ -135,4 +194,8 @@ python main.py --config skin/TRIPLEX --mode external_test --test_name 10x_breast
   pages={11591--11600},
   year={2024}
 }
-```
+
+---
+
+
+
