@@ -292,7 +292,7 @@ def load_callbacks(cfg: Dict):
         mode=mode
     )
     Mycallbacks.append(early_stop_callback)
-    log_name = '{epoch:02d}-{val_MeanSquaredError:.4f}' if cfg.MODEL.name == "BLEEP" else '{epoch:02d}-{val_MeanSquaredError:.4f}-{val_ConcordanceCorrCoef:.4f}'
+    log_name = '{epoch:02d}-{val_MeanSquaredError:.4f}'
     checkpoint_callback = ModelCheckpoint(monitor = target,
                                     dirpath = cfg.log_path,
                                     filename = log_name,
