@@ -78,8 +78,6 @@ class  ModelInterface(pl.LightningModule):
         results_dict = self.model(**batch)
         
         #---->Loss
-        loss = results_dict['loss']
-        
         logits = results_dict['logits']
         label = batch['label'].squeeze(0)
         
@@ -107,8 +105,6 @@ class  ModelInterface(pl.LightningModule):
         results_dict = self.model(**batch)
         
         #---->Loss
-        loss = results_dict['loss']
-        
         logits = results_dict['logits']
         label = batch['label'].squeeze(0)
         
