@@ -16,9 +16,6 @@ from src.utils import load_st, pxl_to_array, normalize_adata
 def preprocess_st(input_path, output_dir, platform='visium'):
     fname = os.path.basename(input_path)
     
-    os.makedirs(f"{output_dir}/patches", exist_ok=True)
-    os.makedirs(f"{output_dir}/st", exist_ok=True)
-    
     print("Loading ST data...")
     try:
         st = load_st(input_path, platform=platform)
@@ -41,7 +38,8 @@ def preprocess_st(input_path, output_dir, platform='visium'):
             target_pixel_size=0.5 # pixel size of the patches in um/px after rescaling
         )
     
-    name_st = f"{output_dir}/st/{fname}.h5ad"
+    name_st = f"{output_dir}/adata/{fname}.h5ad"
+    
     if os.path.exists(name_st):
         print("ST data already exists. Skipping...")
     else:
@@ -102,7 +100,9 @@ if __name__ == "__main__":
     assert mode in ['pair', 'image'], "mode must be either 'pair' or 'image'"
     
     if mode == 'pair':
-        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(f"{output_dir}/patches", exist_ok=True)
+        os.makedirs(f"{output_dir}/adata", exist_ok=True)
+        
         ids = glob(f"{input_dir}/{prefix}*")
         
         sample_ids = []
