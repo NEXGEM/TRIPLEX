@@ -20,11 +20,12 @@ Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee*
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - PyTorch 2.0+
 - PyTorch Lightning 2.0+
 - CUDA-enabled GPU (recommended)
 
+TRIPLEX is tested on Python 3.11, PyTorch 2.4.1, PyTorch Lightning 2.4.0, and CUDA 12.1.
 Additional dependencies are listed in the `requirements.txt` file. To install them, run:
 
 ```bash
@@ -38,11 +39,44 @@ pip install -r requirements.txt
 Clone this repository:
 
 ```bash
-git clone https://github.com/your-username/triplex.git
+git clone https://github.com/NEXGEM/TRIPLEX.git
 cd triplex
 ```
 
-Install dependencies:
+Create a conda environment:
+
+```bash
+conda create -n TRIPLEX python=3.11
+```
+
+Install Pytorch 
+
+```bash
+pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu121
+```
+
+Install HEST
+
+- Dependencies (CUDA-related Python packages)
+
+```bash
+pip install \
+    --extra-index-url=https://pypi.nvidia.com \
+    cudf-cu12==24.6.0 \
+    dask-cudf-cu12==24.6.0 \
+    cucim-cu12==24.6.0 \
+    raft-dask-cu12==24.6.0
+```
+
+- HEST
+
+```bash
+git clone https://github.com/mahmoodlab/HEST.git 
+cd HEST 
+pip install -e .
+```
+
+Install remaining dependencies:
 
 ```bash
 pip install -r requirements.txt
