@@ -84,7 +84,8 @@ class  ModelInterface(pl.LightningModule):
         label = batch['label'].squeeze(0)
         
         val_metric = self.valid_metrics(logits, label)
-        val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0}
+        # val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0 else k:v}
+        val_metric = {k: v.mean() if len(v.shape) > 0 else v for k, v in val_metric.items()}
         self.log_dict(val_metric, on_epoch = True, logger = True, sync_dist=True)
         outputs = {'logits': logits, 'label': label}
         
@@ -101,7 +102,6 @@ class  ModelInterface(pl.LightningModule):
     #     val_metric = self.valid_metrics(logits, targets)
     #     self.log_dict(val_metric, on_epoch = True, logger = True)
 
-
     def test_step(self, batch, batch_idx):
         #---->Forward
         results_dict = self.model(**batch)
@@ -113,7 +113,8 @@ class  ModelInterface(pl.LightningModule):
         label = batch['label'].squeeze(0)
         
         test_metric = self.test_metrics(logits, label)
-        test_metric = {k:v.mean() for k,v in test_metric.items() if len(v.shape) > 0}
+        # test_metric = {k:v.mean() for k,v in test_metric.items() if len(v.shape) > 0}
+        val_metric = {k: v.mean() if len(v.shape) > 0 else v for k, v in val_metric.items()}
         self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True)
         outputs = {'logits': logits, 'label': label}
         # self.validation_step_outputs.append(outputs)
@@ -133,15 +134,15 @@ class  ModelInterface(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.TRAINING.learning_rate)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, 
-            mode='min',
-            factor=0.1,
-            patience=5
+            mode=self.config.TRAINING.lr_scheduler.mode,
+            factor=self.config.TRAINING.lr_scheduler.factor,
+            patience=self.config.TRAINING.lr_scheduler.patience
         )
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "monitor": "val_loss"
+                "monitor": self.config.TRAINING.lr_scheduler.monitor
             }
         }
     

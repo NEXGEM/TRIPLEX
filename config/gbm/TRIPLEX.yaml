@@ -12,9 +12,14 @@ TRAINING:
   learning_rate: 1.0e-4
   num_epochs: 200
   early_stopping:
-    monitor: val_ConcordanceCorrCoef
+    monitor: val_MeanSquaredError
     patience: 20
-    mode: max
+    mode: min
+  lr_scheduler:
+    monitor: val_MeanSquaredError
+    patience: 5
+    factor: 0.1
+    mode: min
   
 MODEL:
   model_name: TRIPLEX 
