@@ -101,6 +101,7 @@ class TRIPLEX(nn.Module):
         super().__init__()
         
         self.alpha = 0.3
+        self.emb_dim = emb_dim
     
         # Target Encoder
         resnet18 = load_model_weights("weights/tenpercent_resnet18.ckpt")
@@ -135,7 +136,7 @@ class TRIPLEX(nn.Module):
                                             dropout1)    
         self.fc = nn.Linear(emb_dim, num_outputs)
     
-    def forward(self, 
+    def forward(self,
                 img, 
                 mask, 
                 neighbor_emb, 
@@ -144,53 +145,63 @@ class TRIPLEX(nn.Module):
                 pid=None, 
                 sid=None, 
                 **kwargs):
-        """Forward pass of TRIPLEX model.
         
-        Args:
-            img (torch.Tensor): Target spot image (B x 3 x 224 x 224)
-            mask (torch.Tensor): Masking table for neighbor spots (B x num_neighbor) 
-            neighbor_emb (torch.Tensor): Neighbor spot features (B x num_neighbor x 512)
-            pos (list): Relative position coordinates of all spots
-            global_emb (dict or torch.Tensor): Global embedding features
-            pid (torch.LongTensor, optional): Patient indices (B x 1)
-            sid (torch.LongTensor, optional): Spot indices (B x 1)
-
-        Returns:
-            dict: Contains:
-                loss: Training loss value
-                pred: Model predictions (B x num_genes)
-        """    
-        if len(img.shape) == 5:
-            img = img.squeeze(0)
-        if len(mask.shape) == 3:
-            mask = mask.squeeze(0)
-        if len(neighbor_emb.shape) == 4:
-            neighbor_emb = neighbor_emb.squeeze(0)
-        if position is not None:
-            if len(position.shape) == 3:
-                position = position.squeeze(0)
-        if pid is not None:
-            if len(pid.shape) == 2:
-                pid = pid.view(-1)
-        if sid is not None:
-            if len(sid.shape) == 2:
-                sid = sid.view(-1)
+        img, mask, neighbor_emb, position, pid, sid = self._preprocess_inputs(
+            img, mask, neighbor_emb, position, pid, sid
+        )
         
-        if global_emb is None:
-            global_emb, position = self.retrieve_global_emb(pid, kwargs['dataset'])
+        if 'dataset' in kwargs:
+            # Training
+            return self._forward_train(img, mask, neighbor_emb, pid, sid, kwargs['dataset'], kwargs['label'])
+        else:
+            # Inference 
+            return self._forward_inference(img, mask, neighbor_emb, position, global_emb, sid)
             
+    def _forward_train(self, img, mask, neighbor_emb, pid, sid, dataset, label):
+        global_emb, position = self.retrieve_global_emb(pid, dataset)
+        
+        fusion_token, target_token, neighbor_token, global_token = \
+            self._encode_all(img, mask, neighbor_emb, position, global_emb, pid, sid)
+        return self._get_outputs(fusion_token, target_token, neighbor_token, global_token, label)
+
+    def _forward_inference(self, img, mask, neighbor_emb, position, global_emb, sid=None):
+        if sid is None and img.shape[0] > 1024:
+            imgs = img.split(1024, dim=0)
+            neighbor_embs = neighbor_emb.split(1024, dim=0)
+            masks = mask.split(1024, dim=0)
+            sid = torch.arange(img.shape[0]).to(img.device)
+            sids = sid.split(1024, dim=0)
+            
+            pred = [self.fc(self._encode_all(img, mask, neighbor_emb, position, global_emb, sid=sid)[0]) \
+                for img, neighbor_emb, mask, sid in zip(imgs, neighbor_embs, masks, sids)]
+            return {'logits': torch.cat(pred, dim=0)}    
+        else:
+            fusion_token, _, _, _ = self._encode_all(img, mask, neighbor_emb, position, global_emb, sid)
+            logits = self.fc(fusion_token)
+        return {'logits': logits}
+    
+    def _encode_all(self, img, mask, neighbor_emb, position, global_emb, pid=None, sid=None):
+        target_token = self._encode_target(img)
+        neighbor_token = self.neighbor_encoder(neighbor_emb, mask)
+        global_token = self._encode_global(global_emb, position, pid, sid)
+        
+        fusion_token = self.fusion_encoder(target_token, neighbor_token, global_token, mask=mask)
+        
+        return fusion_token, target_token, neighbor_token, global_token
+    
+    def _encode_target(self, img):
         # Target tokens
         target_token = self.target_encoder(img) # B x 512 x 7 x 7
         B, dim, w, h = target_token.shape
         target_token = rearrange(target_token, 'b d h w -> b (h w) d', d = dim, w=w, h=h)
         target_token = self.target_linear(target_token)
-    
-        # Neighbor tokens
-        neighbor_token = self.neighbor_encoder(neighbor_emb, mask) # B x 26 x 512
         
+        return target_token
+        
+    def _encode_global(self, global_emb, position, pid=None, sid=None):
         # Global tokens
         if isinstance(global_emb, dict):
-            global_token = torch.zeros((B, target_token.shape[-1])).to(img.device)
+            global_token = torch.zeros((sid.shape[0], self.emb_dim)).to(sid.device)
             for _id, x_g in global_emb.items():
                 batch_idx = pid == _id
                 pos = position[_id]
@@ -201,24 +212,39 @@ class TRIPLEX(nn.Module):
             global_token = self.global_encoder(global_emb, position).squeeze()  # N x 512
             if sid is not None:
                 global_token = global_token[sid]
-    
-        # Fusion tokens
-        fusion_token = self.fusion_encoder(target_token, neighbor_token, global_token, mask=mask) # B x 512
-            
+                
+        return global_token
+        
+    def _get_outputs(self, fusion_token, target_token, neighbor_token, global_token, label):
         output = self.fc(fusion_token) # B x num_genes
         out_target = self.fc_target(target_token.mean(1)) # B x num_genes
         out_neighbor = self.fc_neighbor(neighbor_token.mean(1)) # B x num_genes
         out_global = self.fc_global(global_token) # B x num_genes
         
         preds = (output, out_target, out_neighbor, out_global)
-        label = kwargs['label']
+        
         if len(label.shape) == 3:
             label = label.squeeze(0)
         
         loss = self.calculate_loss(preds, label)
         
         return {'loss': loss, 'logits': output}
-
+    
+    def _preprocess_inputs(self, img, mask, neighbor_emb, position=None, pid=None, sid=None):
+        if len(img.shape) == 5:
+            img = img.squeeze(0)
+        if len(mask.shape) == 3:
+            mask = mask.squeeze(0)
+        if len(neighbor_emb.shape) == 4:
+            neighbor_emb = neighbor_emb.squeeze(0)
+        if position is not None and len(position.shape) == 3:
+            position = position.squeeze(0)
+        if pid is not None and len(pid.shape) == 2:
+            pid = pid.view(-1)
+        if sid is not None and len(sid.shape) == 2:
+            sid = sid.view(-1)
+        return img, mask, neighbor_emb, position, pid, sid
+        
     def calculate_loss(self, preds, label):
         
         loss = F.mse_loss(preds[0], label)                       # Supervised loss for Fusion
