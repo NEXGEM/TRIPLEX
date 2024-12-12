@@ -2,3 +2,4 @@ addict
 openslide-bin
 wget
 wandb
+flash-attn @ git+https://github.com/Dao-AILab/flash-attention.git --no-build-isolation
