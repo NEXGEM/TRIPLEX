@@ -73,7 +73,8 @@ class TriDataset(STDataset):
                 fold: int,
                 data_dir: str,
                 gene_type: str = 'mean',
-                num_outputs: int = 1000
+                num_genes: int = 1000,
+                num_outputs: int = 300
                 ):
         super(TriDataset, self).__init__()
         
@@ -108,10 +109,10 @@ class TriDataset(STDataset):
             
         self.int2id = dict(enumerate(ids))
         
-        if not os.path.isfile(f"{data_dir}/{gene_type}_{num_outputs}genes.json"):
-            raise ValueError(f"gene_type_{num_outputs}genes.json is not found in {data_dir}")
+        if not os.path.isfile(f"{data_dir}/{gene_type}_{num_genes}genes.json"):
+            raise ValueError(f"{gene_type}_{num_genes}genes.json is not found in {data_dir}")
         
-        with open(f"{data_dir}/{gene_type}_{num_outputs}genes.json", 'r') as f:
+        with open(f"{data_dir}/{gene_type}_{num_genes}genes.json", 'r') as f:
             self.genes = json.load(f)['genes']
         if gene_type == 'mean':
             self.genes = self.genes[:num_outputs]
