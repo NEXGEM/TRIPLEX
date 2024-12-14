@@ -27,7 +27,7 @@ def get_parse():
     # Experiments
     parser.add_argument('--exp_id', type=int, default=0, help='')
     # Others
-    parser.add_argument('--fold', type=int, default=1, help='')
+    parser.add_argument('--fold', type=int, default=2, help='')
     parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=16-val_MeanSquaredError=0.4553.ckpt', help='')
 
     args = parser.parse_args()
@@ -57,7 +57,7 @@ def main(cfg):
     
     # Train or test model
     if mode == 'cv':
-        
+
         model = ModelInterface(**ModelInterface_dict)
         
         # Instancialize Trainer 
@@ -77,7 +77,8 @@ def main(cfg):
     elif mode == 'eval':
         trainer = pl.Trainer(accelerator="gpu", 
                             devices=gpus,
-                            precision = '16-mixed')
+                            precision = '16-mixed',
+                            logger=False)
         
         checkpoint = cfg.GENERAL.ckpt_path
         model = ModelInterface.load_from_checkpoint(checkpoint, **ModelInterface_dict)
@@ -92,7 +93,8 @@ def main(cfg):
         trainer = pl.Trainer(accelerator="gpu", 
                             devices=gpus, 
                             callbacks=[pred_writer],
-                            precision = '16-mixed')
+                            precision = '16-mixed',
+                            logger=False)
 
         model = ModelInterface.load_from_checkpoint(cfg.MODEL.ckpt_path, **ModelInterface_dict)
         
