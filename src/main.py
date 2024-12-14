@@ -21,14 +21,14 @@ def get_parse():
     
     # Main configuration
     parser.add_argument('--config_name', type=str, default='gbm/TRIPLEX', help='logger path.')
-    parser.add_argument('--mode', type=str, default='cv', help='cv / eval / inference')
+    parser.add_argument('--mode', type=str, default='inference', help='cv / eval / inference')
     # Acceleration 
-    parser.add_argument('--gpu', type=int, default=[0], help='gpu id')
+    parser.add_argument('--gpu', type=int, default=1, help='gpu id')
     # Experiments
     parser.add_argument('--exp_id', type=int, default=0, help='')
     # Others
-    parser.add_argument('--fold', type=int, default=0, help='')
-    parser.add_argument('--model_path', type=str, default='logs/2024-04-10/0-TRIPLEX-her2st-2021-3/0-TRIPLEX-her2st-2021-3-epoch=20-valid_loss=0.3268-R=0.1917.ckpt', help='')
+    parser.add_argument('--fold', type=int, default=1, help='')
+    parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=16-val_MeanSquaredError=0.4553.ckpt', help='')
 
     args = parser.parse_args()
     
@@ -54,10 +54,12 @@ def main(cfg):
     # Define model
     ModelInterface_dict = {'model_name': cfg.MODEL.model_name,
                             'config': cfg}
-    model = ModelInterface(**ModelInterface_dict)
     
     # Train or test model
     if mode == 'cv':
+        
+        model = ModelInterface(**ModelInterface_dict)
+        
         # Instancialize Trainer 
         trainer = pl.Trainer(
             accelerator="gpu", 
@@ -73,28 +75,26 @@ def main(cfg):
         trainer.fit(model, datamodule = dm)
         
     elif mode == 'eval':
-        trainer = pl.Trainer(accelerator="gpu", devices=gpus)
+        trainer = pl.Trainer(accelerator="gpu", 
+                            devices=gpus,
+                            precision = '16-mixed')
         
-        # checkpoint = glob(f'logs/{log_name}/*.ckpt')[0]
-        checkpoint = cfg.GENERAL.model_path
-        model = model.load_from_checkpoint(checkpoint, **ModelInterface_dict)
+        checkpoint = cfg.GENERAL.ckpt_path
+        model = ModelInterface.load_from_checkpoint(checkpoint, **ModelInterface_dict)
         
         trainer.test(model, datamodule = dm)
         
     elif mode == 'inference':
-        pred_path = f"{cfg.DATASET.data_dir}/test/{cfg.GENERAL.test_name}/pred_{cfg.fold}"
-        emb_path = f"{cfg.DATASET.data_dir}/test/{cfg.GENERAL.test_name}/emb_{cfg.fold}"
-        
+        pred_path = f"{cfg.DATA.output_dir}/pred/fold{cfg.DATA.fold}"
         os.makedirs(pred_path, exist_ok=True)
-        os.makedirs(emb_path, exist_ok=True)
         
-        # TODO: Deal with the data name to be saved
-        # names = data_loaders['test_loader'].dataset.names
-        pred_writer = CustomWriter(pred_dir=pred_path, emb_dir=emb_path, write_interval="epoch")
-        trainer = pl.Trainer(accelerator="gpu", devices=gpus, callbacks=[pred_writer])
+        pred_writer = CustomWriter(pred_dir=pred_path, write_interval="epoch")
+        trainer = pl.Trainer(accelerator="gpu", 
+                            devices=gpus, 
+                            callbacks=[pred_writer],
+                            precision = '16-mixed')
 
-        checkpoint = cfg.GENERAL.model_path
-        model = model.load_from_checkpoint(checkpoint, **ModelInterface_dict)
+        model = ModelInterface.load_from_checkpoint(cfg.MODEL.ckpt_path, **ModelInterface_dict)
         
         trainer.predict(model, datamodule = dm, return_predictions=False)
         
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     cfg.config = args.config_name
     cfg.GENERAL.exp_id = args.exp_id
     cfg.GENERAL.gpu = args.gpu
-    cfg.GENERAL.model_path = args.model_path
+    cfg.MODEL.ckpt_path = args.ckpt_path
     cfg.DATA.mode = args.mode
 
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")

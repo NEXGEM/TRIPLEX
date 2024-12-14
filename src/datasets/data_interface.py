@@ -39,14 +39,15 @@ class DataInterface(pl.LightningDataModule):
 
         - apply transforms (defined explicitly in your datamodule or assigned in init)
         """
-        # Assign train/val datasets for use in dataloaders
-        if stage == 'fit' or stage is None:
+        
+        if stage == 'fit':
             self.train_dataset = self.instancialize(phase='train')
             self.val_dataset = self.instancialize(phase='test')
 
-        # Assign test dataset for use in dataloader(s)
-        if stage == 'test' or stage is None:
-            # self.mnist_test = MNIST(self.data_dir, train=False, transform=self.transform)
+        if stage == 'test':
+            self.test_dataset = self.instancialize(phase='test')
+            
+        if stage == "predict":
             self.test_dataset = self.instancialize(phase='test')
 
 
@@ -71,6 +72,12 @@ class DataInterface(pl.LightningDataModule):
                         pin_memory=self.data_config.test_dataloader.pin_memory,
                         shuffle=self.data_config.test_dataloader.shuffle)
 
+    def predict_dataloader(self):
+        return DataLoader(self.test_dataset, 
+                        batch_size=self.data_config.test_dataloader.batch_size, 
+                        num_workers=self.data_config.test_dataloader.num_workers, 
+                        pin_memory=self.data_config.test_dataloader.pin_memory,
+                        shuffle=self.data_config.test_dataloader.shuffle)
 
     def load_data_module(self):
         

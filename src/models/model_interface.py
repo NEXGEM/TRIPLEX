@@ -27,12 +27,14 @@ class  ModelInterface(pl.LightningModule):
     #---->init
     def __init__(self, model_name=None, **kwargs):
         super(ModelInterface, self).__init__()
-        self.save_hyperparameters()
         
         self.model_name = model_name
         self.config = kwargs['config']
         self.model_config = self.config.MODEL
         num_outputs = self.model_config.num_outputs
+        
+        if self.config.DATA.mode == 'cv':
+            self.save_hyperparameters()
         
         self.load_model()
         # self.log_path = kargs['log']
@@ -91,15 +93,6 @@ class  ModelInterface(pl.LightningModule):
         
         return outputs
 
-    # def on_validation_epoch_end(self):
-    #     val_step_outputs = self.validation_step_outputs
-        
-    #     logits = torch.cat([x['logits'] for x in val_step_outputs], dim = 0)
-    #     targets = torch.stack([x['label'] for x in val_step_outputs], dim = 0)
-        
-    #     val_metric = self.valid_metrics(logits, targets)
-    #     self.log_dict(val_metric, on_epoch = True, logger = True)
-
     def test_step(self, batch, batch_idx):
         #---->Forward
         results_dict = self.model(**batch)
@@ -117,14 +110,17 @@ class  ModelInterface(pl.LightningModule):
         
         return outputs
 
-    # def on_test_epoch_end(self):
-    #     test_step_outputs = self.test_step_outputs
+    def predict_step(self, batch, batch_idx):
+        #---->Forward
+        results_dict = self.model(**batch)
         
-    #     logits = torch.cat([x['logits'] for x in test_step_outputs], dim = 0)
-    #     targets = torch.stack([x['label'] for x in test_step_outputs], dim = 0)
+        dataset = self._trainer.predict_dataloaders.dataset
+        _id = dataset.int2id[batch_idx]
         
-    #     test_metric = self.test_metrics(logits, targets)
-    #     self.log_dict(test_metric, on_epoch = True, logger = True)
+        #---->Loss
+        preds = results_dict['logits']
+        
+        return preds, _id
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.TRAINING.learning_rate)
@@ -174,21 +170,15 @@ class  ModelInterface(pl.LightningModule):
     
     
 class CustomWriter(BasePredictionWriter):
-    def __init__(self, pred_dir, write_interval, emb_dir=None, names=None):
+    def __init__(self, pred_dir, write_interval):
         super().__init__(write_interval)
         self.pred_dir = pred_dir
-        self.emb_dir = emb_dir
-        self.names = names
-
+        
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
-        # this will create N (num processes) files in `output_dir` each containing
-        # the predictions of it's respective rank
-        for i, batch in enumerate(batch_indices[0]):
-            torch.save(predictions[0][i][0], os.path.join(self.pred_dir, f"{self.names[i]}.pt"))
-            torch.save(predictions[0][i][1], os.path.join(self.emb_dir, f"{self.names[i]}.pt"))
-
-        # optionally, you can also save `batch_indices` to get the information about the data index
-        # from your prediction data
-        # torch.save(batch_indices, os.path.join(self.output_dir, f"batch_indices_{trainer.global_rank}.pt"))
+        
+        for i, _ in enumerate(batch_indices[0]):
+            pred = predictions[i][0]
+            name = predictions[i][1]
+            torch.save(pred, os.path.join(self.pred_dir, f"{name}.pt"))
 
 

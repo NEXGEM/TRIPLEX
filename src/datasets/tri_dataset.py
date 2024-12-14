@@ -91,6 +91,7 @@ class TriDataset(STDataset):
         if gene_type not in ['var', 'mean']:
             raise ValueError(f"gene_type must be 'var' or 'mean', but got {gene_type}")
         
+        self.data_dir = data_dir
         self.img_dir = f"{data_dir}/patches"
         self.st_dir = f"{data_dir}/adata"
         self.emb_dir = f"{data_dir}/emb"
@@ -98,15 +99,14 @@ class TriDataset(STDataset):
         self.mode = mode
         self.phase = phase
         
-        if mode == 'cv':
-            data_path = f"{data_dir}/splits/{phase}_{fold}.csv"
+        data_path = f"{data_dir}/splits/{phase}_{fold}.csv"
+        if os.path.isfile(data_path):
             data = pd.read_csv(data_path)
             ids = data['sample_id'].to_list()
-                
-        elif mode == 'inference':
-            ids = os.listdir(f"{self.img_dir}")
+        else:
+            ids = [f for f in os.listdir(f"{self.img_dir}") if f.endswith('.h5')]
             ids = [os.path.splitext(_id)[0] for _id in ids]
-            
+        
         self.int2id = dict(enumerate(ids))
         
         if not os.path.isfile(f"{data_dir}/{gene_type}_{num_genes}genes.json"):
@@ -161,18 +161,19 @@ class TriDataset(STDataset):
             name = self.int2id[index]
             img = self.load_img(name)
             img = torch.stack([self.test_transforms(im) for im in img], dim=0)
-            # img = self.test_transforms(img)
             
             global_emb = self.load_emb(name, emb_name='global')
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
             
-            if self.mode == 'cv':
+            if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
                 adata = self.load_st(name)[:,self.genes]
                 pos = adata.obs[['array_row', 'array_col']].to_numpy()
-                expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
-                data['label'] = expression
-
-            elif self.mode == 'inference':
+                
+                if self.mode != 'inference':
+                    expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
+                    data['label'] = expression
+            
+            else:
                 pos = np.load(f"{self.data_dir}/pos/{name}.npy")
             
             data['img'] = img
