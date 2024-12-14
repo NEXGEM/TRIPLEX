@@ -42,6 +42,7 @@ MODEL:
 
 DATA:
   data_dir: input/smc/brain
+  output_dir: output/smc/brain
   dataset_name: tri_dataset
   gene_type: 'mean'
   num_genes: 1000
