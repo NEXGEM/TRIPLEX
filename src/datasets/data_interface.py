@@ -83,8 +83,10 @@ class DataInterface(pl.LightningDataModule):
         
         camel_name =  ''.join([i.capitalize() for i in (self.dataset_name).split('_')])
         try:
+            # self.data_module = getattr(importlib.import_module(
+            #     f'datasets.{self.dataset_name}'), camel_name)
             self.data_module = getattr(importlib.import_module(
-                f'datasets.{self.dataset_name}'), camel_name)
+                f'datasets'), camel_name)
         except:
             raise ValueError(
                 'Invalid Dataset File Name or Invalid Class Name!')
