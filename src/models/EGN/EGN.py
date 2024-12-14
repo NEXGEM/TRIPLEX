@@ -257,7 +257,7 @@ class EGN(nn.Module):
                 nn.Linear(dim * 2, num_genes)
             )
             
-    def forward(self, img, ei, ej, yj, label):
+    def forward(self, img, ei, ej, yj, **kwargs):
         data = {'img': img, 'p_feature':ei.unsqueeze(1),'op_feature':ej, 'op_count':yj}
 
         x = self.to_patch_embedding(img)
@@ -268,6 +268,10 @@ class EGN(nn.Module):
         x = self.to_latent(x)
         output = self.mlp_head(x)
         loss = F.mse_loss(output, label)
+        
+        label = kwargs['label']
+        if len(label.shape) == 3:
+            label = label.squeeze(0)
         
         return {'loss': loss, 'logits': output}
     
