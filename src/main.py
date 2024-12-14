@@ -109,14 +109,13 @@ if __name__ == '__main__':
     args = get_parse()   
     cfg = load_config(args.config_name)
 
+    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+    cfg.GENERAL.timestamp = timestamp
     cfg.config = args.config_name
     cfg.GENERAL.exp_id = args.exp_id
     cfg.GENERAL.gpu = args.gpu
     cfg.MODEL.ckpt_path = args.ckpt_path
     cfg.DATA.mode = args.mode
-
-    timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
-    cfg.GENERAL.timestamp = timestamp
     
     if args.mode == 'cv':
         num_k = cfg.TRAINING.num_k     
