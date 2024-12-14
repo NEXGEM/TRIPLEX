@@ -37,11 +37,6 @@ class  ModelInterface(pl.LightningModule):
             self.save_hyperparameters()
         
         self.load_model()
-        # self.log_path = kargs['log']
-        
-        # self.validation_step_outputs = []
-        # self.test_step_outputs = []
-        # self.best_loss = 100000
 
         metrics = torchmetrics.MetricCollection([PearsonCorrCoef(num_outputs = num_outputs),
                                                 ConcordanceCorrCoef(num_outputs = num_outputs),
