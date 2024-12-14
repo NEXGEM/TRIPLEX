@@ -3,6 +3,7 @@ import numpy as np
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 
 
@@ -15,8 +16,9 @@ class StNet(nn.Module):
         in_features = self.model.classifier.in_features
         self.model.classifier = nn.Linear(in_features, num_genes)
 
-    def forward(self, img):
+    def forward(self, img, label):
         
-        out = self.model(img)
-    
-        return out
+        output = self.model(img)
+        loss = F.mse_loss(output, label)
+
+        return {'loss': loss, 'logits': output}
