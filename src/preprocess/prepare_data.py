@@ -8,12 +8,16 @@ import argparse
 import numpy as np
 import pandas as pd
 import h5py
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+from openslide import OpenSlide
+import multiprocessing as mp
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import load_st, pxl_to_array, normalize_adata
+from utils import load_st, pxl_to_array, normalize_adata, save_hdf5
 
 
-def preprocess_st(input_path, output_dir, platform='visium'):
+def preprocess_train(input_path, output_dir, platform='visium'):
     fname = os.path.basename(input_path)
     
     print("Loading ST data...")
@@ -78,6 +82,93 @@ def get_pos(input_path, output_dir, step_size=160):
         check_dup = df_crds.apply(tuple, axis=1).duplicated().sum()
     
     np.save(f"{output_dir}/{fname}", array_crds)
+    
+# def preprocess_image(input_path, processed_path, slide_level=0, patch_size=256):
+#     wsi = OpenSlide(input_path)
+    
+#     with h5py.File(processed_path, 'r') as f:
+#         coords = f['coords'][:]
+        
+#     # imgs = [wsi.read_region(coord, slide_level, (patch_size, patch_size)).convert('RGB') for coord in coords]
+#     # imgs = [np.array(img) for img in imgs]
+#     # imgs = np.stack(imgs)
+#     imgs = np.empty((len(coords), patch_size, patch_size, 3), dtype=np.uint8)
+#     for i, coord in enumerate(coords):
+#         img = wsi.read_region(coord, slide_level, (patch_size, patch_size)).convert('RGB')
+#         imgs[i] = np.array(img)
+
+#     asset_dict = {'img': imgs}
+#     save_hdf5(processed_path, asset_dict=asset_dict, mode='a')
+
+# Global variable to hold the OpenSlide object in each process
+# _GLOBAL_WSI = None
+
+# def init_worker(input_path):
+#     # This function will run once in each worker process when the pool is initialized.
+#     global _GLOBAL_WSI
+#     _GLOBAL_WSI = OpenSlide(input_path)
+
+# def process_patch(coord, slide_level, patch_size):
+#     # Uses the global _GLOBAL_WSI opened once per process
+#     img = _GLOBAL_WSI.read_region(coord, slide_level, (patch_size, patch_size)).convert('RGB')
+#     # Convert directly to a NumPy array
+#     return np.array(img)
+
+# def process_patch(coord, input_path, slide_level, patch_size):
+#     # Instantiate OpenSlide within each process to ensure safety
+#     wsi = OpenSlide(input_path)
+#     img = wsi.read_region(coord, slide_level, (patch_size, patch_size)).convert('RGB')
+#     wsi.close()
+#     return np.array(img, dtype=np.uint8)
+    
+def save_image(input_path, processed_path, slide_level=0, patch_size=256):
+    # Open and read all coordinates
+    with h5py.File(processed_path, 'r') as f:
+        coords = f['coords'][:]
+    
+    # num_workers = mp.cpu_count()
+    # if num_workers > 4:
+    #     num_workers = 4
+    wsi = OpenSlide(input_path)
+    imgs = [np.array(wsi.read_region(coord, slide_level, (patch_size, patch_size)).convert('RGB')) for coord in coords]
+    # with ProcessPoolExecutor(max_workers=num_workers,
+    #                         initializer=init_worker,
+    #                         initargs=(input_path,)) as executor:
+    #     # Increase chunksize for fewer task dispatches
+    #     imgs = list(executor.map(
+    #         partial(process_patch, slide_level=slide_level, patch_size=patch_size),
+    #         coords,
+    #         chunksize=64  # Try a larger chunksize
+    #     ))
+
+    # Stack images into a single NumPy array
+    imgs = np.stack(imgs)
+    
+    # Prepare the dictionary for HDF5
+    asset_dict = {'img': imgs}
+    
+    # Save to HDF5
+    save_hdf5(processed_path, asset_dict=asset_dict, mode='a')
+    
+# def preprocess_image(input_path, processed_path, slide_level=0, patch_size=256):
+#     wsi = OpenSlide(input_path)
+
+#     with h5py.File(processed_path, 'r') as f:
+#         coords = f['coords'][:]
+
+#     def process_patch(coord):
+#         img = wsi.read_region(coord, slide_level, (patch_size, patch_size)).convert('RGB')
+#         return np.array(img, dtype=np.uint8)
+
+#     # Use parallel processing
+#     with ThreadPoolExecutor(max_workers=8) as executor:
+#         imgs = list(executor.map(process_patch, coords))
+
+#     imgs = np.stack(imgs)
+#     asset_dict = {'img': imgs}
+#     save_hdf5(processed_path, asset_dict=asset_dict, mode='a')
+
+    
         
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -88,6 +179,10 @@ if __name__ == "__main__":
     argparser.add_argument("--mode", type=str, default='cv')
     argparser.add_argument("--step_size", type=int, default=160)
     
+    argparser.add_argument("--slide_level", type=int, default=0)
+    argparser.add_argument("--slide_ext", type=str, default='.svs')
+    argparser.add_argument("--patch_size", type=int, default=256)
+    
     args = argparser.parse_args()
     
     mode = args.mode
@@ -97,9 +192,9 @@ if __name__ == "__main__":
     prefix = args.prefix
     step_size = args.step_size
     
-    assert mode in ['pair', 'image'], "mode must be either 'pair' or 'image'"
+    assert mode in ['train', 'inference'], "mode must be either 'train' or 'inference'"
     
-    if mode == 'pair':
+    if mode == 'train':
         os.makedirs(f"{output_dir}/patches", exist_ok=True)
         os.makedirs(f"{output_dir}/adata", exist_ok=True)
         
@@ -107,15 +202,29 @@ if __name__ == "__main__":
         
         sample_ids = []
         for input_path in tqdm(ids):
-            sample_id = preprocess_st(input_path, output_dir, platform=platform)
+            sample_id = preprocess_train(input_path, output_dir, platform=platform)
             if sample_id is not None:
                 sample_ids.append(sample_id)
         
         pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
             
-    elif mode == 'image':
+    elif mode == 'inference':
+        slide_level = args.slide_level
+        patch_size = args.patch_size
+        slide_ext = args.slide_ext
+        
+        crd_dir = f"{output_dir}/patches"
         output_dir = f"{output_dir}/pos"
         os.makedirs(output_dir, exist_ok=True)
         
-        for input_path in glob(f"{input_dir}/*.h5"):
-            get_pos(input_path, output_dir, step_size)
+        all_path = glob(f"{crd_dir}/*.h5")[::-1]
+        for input_path in tqdm(all_path):
+            # with h5py.File(input_path, 'r') as f:
+            #     if 'img' in f.keys():
+            #         print("Image already exists. Skipping...")
+            #         continue
+            # get_pos(input_path, output_dir, step_size)
+            
+            name = os.path.splitext(os.path.basename(input_path))[0]
+            raw_path = f"{input_dir}/{name}{slide_ext}"
+            save_image(raw_path, input_path, slide_level, patch_size)

@@ -19,7 +19,7 @@ from hest.bench.utils.file_utils import save_hdf5
 from hestcore.segmentation import get_path_relative
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from datasets import H5TileDataset
+from dataset import H5TileDataset
 
 
 # Generic training settings
