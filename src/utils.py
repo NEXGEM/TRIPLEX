@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy import sparse
+import h5py
 import pandas as pd
 import scanpy as sc
 import torch
@@ -159,7 +160,7 @@ def load_loggers(cfg: Dict):
     current_time = cfg.GENERAL.timestamp
     
     Path(log_path).mkdir(exist_ok=True, parents=True)
-    log_name = Path(cfg.config).parent.name
+    log_name = str(Path(cfg.config).parent)
     version_name = Path(cfg.config).name
     # now = datetime.now()
     # current_time = now.strftime("%D-%H-%M").replace("/", "-")
@@ -204,7 +205,7 @@ def load_callbacks(cfg: Dict):
     
     Mycallbacks = []
     
-    target = cfg.TRAINING.early_stopping.monitor
+    target = 'val_target'
     patience = cfg.TRAINING.early_stopping.patience
     mode = cfg.TRAINING.early_stopping.mode
     
@@ -216,7 +217,7 @@ def load_callbacks(cfg: Dict):
         mode=mode
     )
     Mycallbacks.append(early_stop_callback)
-    log_name = '{epoch:02d}-{val_MeanSquaredError:.4f}'
+    log_name = '{epoch:02d}-{val_target:.4f}'
     checkpoint_callback = ModelCheckpoint(monitor = target,
                                     dirpath = cfg.log_path,
                                     filename = log_name,
@@ -228,3 +229,61 @@ def load_callbacks(cfg: Dict):
     Mycallbacks.append(checkpoint_callback)
         
     return Mycallbacks
+
+def save_hdf5(output_fpath, 
+                  asset_dict, 
+                  attr_dict= None, 
+                  mode='a', 
+                  auto_chunk = True,
+                  chunk_size = None):
+    """
+    output_fpath: str, path to save h5 file
+    asset_dict: dict, dictionary of key, val to save
+    attr_dict: dict, dictionary of key: {k,v} to save as attributes for each key
+    mode: str, mode to open h5 file
+    auto_chunk: bool, whether to use auto chunking
+    chunk_size: if auto_chunk is False, specify chunk size
+    """
+    with h5py.File(output_fpath, mode) as f:
+        for key, val in asset_dict.items():
+            data_shape = val.shape
+            if len(data_shape) == 1:
+                val = np.expand_dims(val, axis=1)
+                data_shape = val.shape
+
+            if key not in f: # if key does not exist, create dataset
+                data_type = val.dtype
+                if data_type == np.object_: 
+                    data_type = h5py.string_dtype(encoding='utf-8')
+                if auto_chunk:
+                    chunks = True # let h5py decide chunk size
+                else:
+                    chunks = (chunk_size,) + data_shape[1:]
+                try:
+                    dset = f.create_dataset(key, 
+                                            shape=data_shape, 
+                                            chunks=chunks,
+                                            maxshape=(None,) + data_shape[1:],
+                                            dtype=data_type)
+                    ### Save attribute dictionary
+                    if attr_dict is not None:
+                        if key in attr_dict.keys():
+                            for attr_key, attr_val in attr_dict[key].items():
+                                dset.attrs[attr_key] = attr_val
+                    dset[:] = val
+                except:
+                    print(f"Error encoding {key} of dtype {data_type} into hdf5")
+                
+            else:
+                dset = f[key]
+                dset.resize(len(dset) + data_shape[0], axis=0)
+                assert dset.dtype == val.dtype
+                dset[-data_shape[0]:] = val
+        
+        # if attr_dict is not None:
+        #     for key, attr in attr_dict.items():
+        #         if (key in asset_dict.keys()) and (len(asset_dict[key].attrs.keys())==0):
+        #             for attr_key, attr_val in attr.items():
+        #                 dset[key].attrs[attr_key] = attr_val
+                
+    return output_fpath
