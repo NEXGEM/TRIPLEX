@@ -5,7 +5,7 @@ GENERAL:
   log_path: ./logs
   
 TRAINING:
-  num_k: 5
+  num_k: 2
   batch_size: 128
   loss: MSE
   optimizer: adam
@@ -21,31 +21,21 @@ TRAINING:
     mode: min
   
 MODEL:
-  model_name: TRIPLEX 
-  num_outputs: 300
-  emb_dim: 1024
-  depth1: 1
-  depth2: 5
-  depth3: 4
-  num_heads1: 8
-  num_heads2: 8
-  num_heads3: 8
-  mlp_ratio1: 4
-  mlp_ratio2: 4
-  mlp_ratio3: 4
-  dropout1: 0.4
-  dropout2: 0.3
-  dropout3: 0.3
-  kernel_size: 3
-  learning_rate: 0.0001
+  model_name: BLEEP
+  temperature: 1.0
+  image_embedding: 512
+  spot_embedding: 50
+  projection_dim: 512
+  trainable: True
+  dropout: 0.1
 
 DATA:
-  data_dir: input/TCGA/GBM
-  output_dir: output/TCGA/GBM
-  dataset_name: TriDataset
-  gene_type: 'mean'
-  num_genes: 1000
-  num_outputs: 300
+  data_dir: input/hest/bench_data/COAD
+  output_dir: output/hest/bench_data/COAD
+  dataset_name: STDataset
+  gene_type: 'var'
+  num_genes: 50
+  num_outputs: 50
   
   train_dataloader:
         batch_size: 128

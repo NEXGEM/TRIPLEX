@@ -5,7 +5,7 @@ GENERAL:
   log_path: ./logs
   
 TRAINING:
-  num_k: 5
+  num_k: 3
   batch_size: 128
   loss: MSE
   optimizer: adam
@@ -22,7 +22,7 @@ TRAINING:
   
 MODEL:
   model_name: TRIPLEX 
-  num_outputs: 300
+  num_outputs: 50
   emb_dim: 1024
   depth1: 1
   depth2: 5
@@ -40,12 +40,12 @@ MODEL:
   learning_rate: 0.0001
 
 DATA:
-  data_dir: input/TCGA/GBM
-  output_dir: output/TCGA/GBM
+  data_dir: input/hest/bench_data/PAAD
+  output_dir: output/hest/bench_data/PAAD
   dataset_name: TriDataset
-  gene_type: 'mean'
-  num_genes: 1000
-  num_outputs: 300
+  gene_type: 'var'
+  num_genes: 50
+  num_outputs: 50
   
   train_dataloader:
         batch_size: 128
