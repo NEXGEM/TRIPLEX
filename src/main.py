@@ -7,8 +7,8 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.ddp import DDPStrategy
 
-from models import ModelInterface, CustomWriter
-from datasets import DataInterface
+from model import ModelInterface, CustomWriter
+from dataset import DataInterface
 from utils import ( load_callbacks, 
                     load_config, 
                     load_loggers, 
@@ -20,15 +20,15 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-    parser.add_argument('--config_name', type=str, default='gbm/TRIPLEX', help='logger path.')
-    parser.add_argument('--mode', type=str, default='inference', help='cv / eval / inference')
+    parser.add_argument('--config_name', type=str, default='hest/CCRCC/StNet', help='logger path.')
+    parser.add_argument('--mode', type=str, default='cv', help='cv / eval / inference')
     # Acceleration 
     parser.add_argument('--gpu', type=int, default=1, help='gpu id')
     # Experiments
     parser.add_argument('--exp_id', type=int, default=0, help='')
     # Others
-    parser.add_argument('--fold', type=int, default=2, help='')
-    parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=16-val_MeanSquaredError=0.4553.ckpt', help='')
+    parser.add_argument('--fold', type=int, default=0, help='')
+    parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=23-val_MeanSquaredError=0.4032.ckpt', help='')
 
     args = parser.parse_args()
     
