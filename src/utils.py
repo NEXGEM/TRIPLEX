@@ -88,7 +88,7 @@ def fix_seed(seed):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     
-def normalize_adata(adata: sc.AnnData, smooth=False) -> sc.AnnData:
+def normalize_adata(adata: sc.AnnData, cpm=False, smooth=False) -> sc.AnnData:
     """
     Normalize each spot by total gene counts + Logarithmize each spot
     """
@@ -98,9 +98,10 @@ def normalize_adata(adata: sc.AnnData, smooth=False) -> sc.AnnData:
     # print(f"Number of spots after filetering: {adata.shape[0]}")
     
     normed_adata = adata.copy()
-
-    # Normalize each spot
-    sc.pp.normalize_total(normed_adata)
+    
+    if cpm:
+        # Normalize each spot
+        sc.pp.normalize_total(normed_adata)
 
     # Logarithm of the expression
     sc.pp.log1p(normed_adata)
@@ -121,12 +122,13 @@ def normalize_adata(adata: sc.AnnData, smooth=False) -> sc.AnnData:
             # normed_normed_adata[i] = avg            
         
         new_X = np.stack(new_X)
-        if sparse.issparse(adata.X):
-            adata.X = sparse.csr_matrix(new_X)
-        else:
-            adata.X = new_X
+        normed_adata.X = new_X
+        # if sparse.issparse(adata.X):
+        #     adata.X = sparse.csr_matrix(new_X)
+        # else:
+        #     adata.X = new_X
 
-    return adata
+    return normed_adata
 
 # Load config
 def load_config(config_name: str):
@@ -207,7 +209,7 @@ def load_callbacks(cfg: Dict):
     
     target = 'val_target'
     patience = cfg.TRAINING.early_stopping.patience
-    mode = cfg.TRAINING.early_stopping.mode
+    mode = cfg.TRAINING.mode
     
     early_stop_callback = EarlyStopping(
         monitor=target,
