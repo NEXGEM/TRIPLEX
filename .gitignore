@@ -23,3 +23,6 @@ __pycache__
 
 input/*
 output/*
+
+*test.R
+*test.ipynb
