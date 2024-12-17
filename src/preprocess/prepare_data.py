@@ -14,6 +14,8 @@ from openslide import OpenSlide
 import multiprocessing as mp
 import scanpy as sc
 
+import datasets
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import load_st, pxl_to_array, normalize_adata, save_hdf5
 
@@ -30,6 +32,7 @@ def preprocess_st(name, adata, output_dir, normalize=False):
     if normalize:
         print("Normalizing ST data...")
         adata = normalize_adata(adata, cpm=True, smooth=True)
+    os.makedirs(f"{output_dir}/adata", exist_ok=True)
     adata.write(f"{output_dir}/adata/{name}.h5ad")
     
     return adata
@@ -117,7 +120,7 @@ if __name__ == "__main__":
     prefix = args.prefix
     step_size = args.step_size
     
-    assert mode in ['train', 'hest_bench', 'inference'], "mode must be either 'train' or 'hest_bench' or 'inference'"
+    assert mode in ['train', 'hest', 'inference'], "mode must be either 'train' or 'hest' or 'inference'"
     
     if mode == 'train':
         os.makedirs(f"{output_dir}/patches", exist_ok=True)
@@ -138,16 +141,27 @@ if __name__ == "__main__":
         
         if not os.path.exists(f"{output_dir}/ids.csv"):
             pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
+            
+    elif mode == 'hest':
         
-    elif mode == 'hest_bench':
-        
-        ids = glob(f"{output_dir}/patches/*.h5")
-    
+        if not os.path.exists(f"{output_dir}/ids.csv"):
+            ids = glob(f"{output_dir}/patches/*.h5")
+        else:
+            ids = pd.read_csv(f"{output_dir}/ids.csv")['sample_id'].tolist()
+
+            if not os.path.exists(f"{output_dir}/patches"):    
+                list_patterns = [f"*{id}[_.]**" for id in ids]
+                datasets.load_dataset(
+                    'MahmoodLab/hest', 
+                    cache_dir=output_dir,
+                    patterns=list_patterns
+                )
+            
         for input_path in tqdm(ids):
             name = os.path.splitext(os.path.basename(input_path))[0]
             st_path = f"{input_dir}/{name}.h5ad"
             adata = sc.read_h5ad(st_path)
-            sample_id = preprocess_st(name, adata, output_dir, normalize=False)
+            preprocess_st(name, adata, output_dir, normalize=False)
             
     elif mode == 'inference':
         slide_level = args.slide_level
