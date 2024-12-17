@@ -22,7 +22,9 @@ class STDataset(torch.utils.data.Dataset):
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
                 num_outputs: int = 300,
-                normalize: bool = False
+                normalize: bool = False,
+                cpm=True,
+                smooth=True
                 ):
         super(STDataset, self).__init__()
         
@@ -45,7 +47,7 @@ class STDataset(torch.utils.data.Dataset):
     
         self.mode = mode
         self.phase = phase
-        self.normalize = normalize
+        self.norm_param = {'normalize': normalize, 'cpm': cpm, 'smooth': smooth}
         
         data_path = f"{data_dir}/splits/{phase}_{fold}.csv"
         self.ids = self._get_ids(data_path)
@@ -61,7 +63,7 @@ class STDataset(torch.utils.data.Dataset):
             self.genes = self.genes[:num_outputs]
         
         if phase == 'train':
-            self.adata_dict = {_id: self.load_st(_id, self.normalize)[:,self.genes] \
+            self.adata_dict = {_id: self.load_st(_id, **self.norm_param)[:,self.genes] \
                 for _id in self.ids}
             
             self.lengths = [len(adata) for adata in self.adata_dict.values()]
@@ -111,7 +113,7 @@ class STDataset(torch.utils.data.Dataset):
             img = torch.stack([self.transforms(im) for im in img], dim=0)
             
             if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
-                adata = self.load_st(name, self.normalize)[:,self.genes]
+                adata = self.load_st(name, **self.norm_param)[:,self.genes]
                 
                 if self.mode != 'inference':
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
@@ -141,6 +143,7 @@ class STDataset(torch.utils.data.Dataset):
 
         Args:
             name (str): name of a sample
+            idx (int): index of a patch.
 
         Returns:
             numpy.array: return whole slide image.
@@ -156,12 +159,15 @@ class STDataset(torch.utils.data.Dataset):
             
         return img
     
-    def load_st(self, name: str, normalize: bool = True):
+    def load_st(self, name: str, normalize: bool = True, cpm=False, smooth=False):
         """Load gene expression data of a sample.
 
         Args:
             name (str): name of a sample
-
+            normalize (bool): whether to normalize gene expression data.
+            cpm (bool): whether to conduct CPM while normalizing gene expression data.
+            smooth (bool): whether to smooth gene expression data.
+            
         Returns:
             annData: return adata of st data. 
         """
@@ -169,7 +175,7 @@ class STDataset(torch.utils.data.Dataset):
         adata = sc.read_h5ad(path)
         
         if normalize:
-            adata = normalize_adata(adata)
+            adata = normalize_adata(adata, cpm=cpm, smooth=smooth)
     
         return adata
         
@@ -183,7 +189,9 @@ class EGNDataset(STDataset):
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
                 num_outputs: int = 300,
-                normalize: bool = False
+                normalize: bool = False,
+                cpm=True,
+                smooth=True
                 ):
         super(EGNDataset, self).__init__(
                                 mode=mode,
@@ -193,7 +201,9 @@ class EGNDataset(STDataset):
                                 gene_type=gene_type,
                                 num_genes=num_genes,
                                 num_outputs=num_outputs,
-                                normalize=normalize )
+                                normalize=normalize,
+                                cpm=cpm,
+                                smooth=smooth )
         
     def __getitem__(self, index):
         data = {}
@@ -251,7 +261,9 @@ class BleepDataset(STDataset):
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
                 num_outputs: int = 300,
-                normalize: bool = False
+                normalize: bool = False,
+                cpm=True,
+                smooth=True
                 ):
         super(BleepDataset, self).__init__(
                                 mode=mode,
@@ -261,7 +273,9 @@ class BleepDataset(STDataset):
                                 gene_type=gene_type,
                                 num_genes=num_genes,
                                 num_outputs=num_outputs,
-                                normalize=normalize )
+                                normalize=normalize,
+                                cpm=cpm,
+                                smooth=smooth )
             
         if mode != 'cv':
             data_path = f"{data_dir}/splits/train_{fold}.csv"
@@ -269,7 +283,7 @@ class BleepDataset(STDataset):
             
             spot_expressions_ref = []
             for _id in ids_ref:
-                expression = self.load_st(_id, self.normalize)[:,self.genes].X
+                expression = self.load_st(_id, **self.norm_param)[:,self.genes].X
                 expression = expression.toarray() if sparse.issparse(expression) else expression
                 expression = torch.FloatTensor(expression) 
                 spot_expressions_ref.append(expression)

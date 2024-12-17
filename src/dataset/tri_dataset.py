@@ -18,7 +18,9 @@ class TriDataset(STDataset):
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
                 num_outputs: int = 300,
-                normalize: bool = False
+                normalize: bool = False,
+                cpm=True,
+                smooth=True
                 ):
         super(TriDataset, self).__init__(
                                 mode=mode,
@@ -28,7 +30,9 @@ class TriDataset(STDataset):
                                 gene_type=gene_type,
                                 num_genes=num_genes,
                                 num_outputs=num_outputs,
-                                normalize=normalize )
+                                normalize=normalize,
+                                cpm=cpm,
+                                smooth=smooth)
     
         self.emb_dir = f"{data_dir}/emb"
         
@@ -76,7 +80,7 @@ class TriDataset(STDataset):
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
             
             if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
-                adata = self.load_st(name, self.normalize)[:,self.genes]
+                adata = self.load_st(name, **self.norm_param)[:,self.genes]
                 pos = adata.obs[['array_row', 'array_col']].to_numpy()
                 
                 if self.mode != 'inference':
