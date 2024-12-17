@@ -12,12 +12,39 @@ from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from openslide import OpenSlide
 import multiprocessing as mp
+import scanpy as sc
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import load_st, pxl_to_array, normalize_adata, save_hdf5
 
 
-def preprocess_train(input_path, output_dir, platform='visium'):
+def preprocess_hest(input_path, output_dir):
+    fname =  os.path.splitext(os.path.basename(input_path))[0]
+    
+    # if os.path.exists(name_st):
+    #     print("ST data already exists. Skipping...")
+    # else:
+    #     print("Dumping matched ST data...")
+    with h5py.File(f"{output_dir}/patches/{fname}.h5", "r") as f:
+        barcode = f['barcode'][:].astype('str').squeeze()
+    
+    adata = sc.read_h5ad(input_path)
+    
+    # if 'log1p' in adata.uns:
+    #     print("ST data already processed. Skipping...")
+    #     return None
+    
+    barcode = pd.DataFrame(index=barcode)
+    barcode_merged = pd.merge(adata.obs, barcode, left_index=True, right_index=True).index
+    adata = adata[barcode_merged]
+    
+    print("Normalizing ST data...")
+    # adata = normalize_adata(adata)
+    adata.write(f"{output_dir}/adata/{fname}.h5ad")
+        
+    return fname
+
+def preprocess_train_new(input_path, output_dir, platform='visium'):
     fname = os.path.basename(input_path)
     
     print("Loading ST data...")
@@ -56,7 +83,7 @@ def preprocess_train(input_path, output_dir, platform='visium'):
         adata = st.adata[barcode_merged]
         
         print("Normalizing ST data...")
-        adata = normalize_adata(adata, smooth=True)
+        adata = normalize_adata(adata, cpm=True, smooth=True)
         adata.write(name_st)
         
     return fname
@@ -172,7 +199,7 @@ def save_image(input_path, processed_path, slide_level=0, patch_size=256):
         
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--input_dir", type=str, required=True)
+    argparser.add_argument("--input_dir", type=str, default=None)
     argparser.add_argument("--output_dir", type=str, required=True)
     argparser.add_argument("--platform", type=str, default='visium')
     argparser.add_argument("--prefix", type=str, default='')
@@ -192,9 +219,9 @@ if __name__ == "__main__":
     prefix = args.prefix
     step_size = args.step_size
     
-    assert mode in ['train', 'inference'], "mode must be either 'train' or 'inference'"
+    assert mode in ['train', 'train_hest', 'inference'], "mode must be either 'train' or 'train_hest' or 'inference'"
     
-    if mode == 'train':
+    if mode == 'train_new':
         os.makedirs(f"{output_dir}/patches", exist_ok=True)
         os.makedirs(f"{output_dir}/adata", exist_ok=True)
         
@@ -202,11 +229,21 @@ if __name__ == "__main__":
         
         sample_ids = []
         for input_path in tqdm(ids):
-            sample_id = preprocess_train(input_path, output_dir, platform=platform)
+            sample_id = preprocess_train_new(input_path, output_dir, platform=platform)
             if sample_id is not None:
                 sample_ids.append(sample_id)
         
         pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
+        
+    elif mode == 'train_hest':
+        patch_dir = f"{output_dir}/patches"
+        
+        ids = glob(f"{patch_dir}/*.h5")
+    
+        for input_path in tqdm(ids):
+            name = os.path.splitext(os.path.basename(input_path))[0]
+            raw_path = f"{input_dir}/{name}.h5ad"
+            sample_id = preprocess_hest(raw_path, output_dir)
             
     elif mode == 'inference':
         slide_level = args.slide_level
@@ -217,8 +254,8 @@ if __name__ == "__main__":
         output_dir = f"{output_dir}/pos"
         os.makedirs(output_dir, exist_ok=True)
         
-        all_path = glob(f"{crd_dir}/*.h5")[::-1]
-        for input_path in tqdm(all_path):
+        ids = glob(f"{crd_dir}/*.h5")
+        for input_path in tqdm(ids):
             # with h5py.File(input_path, 'r') as f:
             #     if 'img' in f.keys():
             #         print("Image already exists. Skipping...")
