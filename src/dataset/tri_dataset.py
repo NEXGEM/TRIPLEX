@@ -11,10 +11,11 @@ import scanpy as sc
 import torch
 import torchvision.transforms as transforms
 
-from dataset.base_dataset import BaseDataset
+from dataset.base_dataset import STDataset
+from utils import normalize_adata
 
 
-class TriDataset(BaseDataset):
+class TriDataset(STDataset):
     def __init__(self, 
                 mode: str,
                 phase: str,
@@ -22,59 +23,26 @@ class TriDataset(BaseDataset):
                 data_dir: str,
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
-                num_outputs: int = 300
+                num_outputs: int = 300,
+                normalize: bool = False
                 ):
-        super(TriDataset, self).__init__()
-        
-        if mode not in ['cv', 'eval', 'inference']:
-            raise ValueError(f"mode must be 'cv' or 'eval' or 'inference', but got {mode}")
-        
-        if phase not in ['train', 'test']:
-            raise ValueError(f"phase must be 'train' or 'test', but got {phase}")
-
-        if mode in ['eval', 'inference'] and phase == 'train':
-            print(f"mode is {mode} but phase is 'train', so phase is changed to 'test'")
-            phase = 'test'
-            
-        if gene_type not in ['var', 'mean']:
-            raise ValueError(f"gene_type must be 'var' or 'mean', but got {gene_type}")
-        
-        self.data_dir = data_dir
-        self.img_dir = f"{data_dir}/patches"
-        self.st_dir = f"{data_dir}/adata"
-        self.emb_dir = f"{data_dir}/emb"
+        super(TriDataset, self).__init__(
+                                mode=mode,
+                                phase=phase,
+                                fold=fold,
+                                data_dir=data_dir,
+                                gene_type=gene_type,
+                                num_genes=num_genes,
+                                num_outputs=num_outputs,
+                                normalize=normalize )
     
-        self.mode = mode
-        self.phase = phase
-        
-        data_path = f"{data_dir}/splits/{phase}_{fold}.csv"
-        if os.path.isfile(data_path):
-            data = pd.read_csv(data_path)
-            ids = data['sample_id'].to_list()
-        else:
-            ids = [f for f in os.listdir(f"{self.img_dir}") if f.endswith('.h5')]
-            ids = [os.path.splitext(_id)[0] for _id in ids]
-        
-        self.int2id = dict(enumerate(ids))
-        
-        if not os.path.isfile(f"{data_dir}/{gene_type}_{num_genes}genes.json"):
-            raise ValueError(f"{gene_type}_{num_genes}genes.json is not found in {data_dir}")
-        
-        with open(f"{data_dir}/{gene_type}_{num_genes}genes.json", 'r') as f:
-            self.genes = json.load(f)['genes']
-        if gene_type == 'mean':
-            self.genes = self.genes[:num_outputs]
+        self.emb_dir = f"{data_dir}/emb"
         
         if phase == 'train':
-            self.adata_dict = {_id: self.load_st(_id)[:,self.genes] \
-                for _id in ids}
             self.pos_dict = {_id: torch.LongTensor(adata.obs[['array_row', 'array_col']].to_numpy()) \
                 for _id, adata in self.adata_dict.items()}
             self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
-                for _id in ids}
-            
-            self.lengths = [len(adata) for adata in self.adata_dict.values()]
-            self.cumlen = np.cumsum(self.lengths)
+                for _id in self.ids}
         
     def __getitem__(self, index):
         data = {}
@@ -101,7 +69,7 @@ class TriDataset(BaseDataset):
             data['img'] = img
             data['mask'] = mask
             data['neighbor_emb'] = neighbor_emb
-            data['label'] = expression
+            data['label'] = torch.FloatTensor(expression)
             data['pid'] = torch.LongTensor([i])
             data['sid'] = torch.LongTensor([idx])
             
@@ -114,12 +82,12 @@ class TriDataset(BaseDataset):
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
             
             if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
-                adata = self.load_st(name)[:,self.genes]
+                adata = self.load_st(name, self.normalize)[:,self.genes]
                 pos = adata.obs[['array_row', 'array_col']].to_numpy()
                 
                 if self.mode != 'inference':
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
-                    data['label'] = expression
+                    data['label'] = torch.FloatTensor(expression) 
             
             else:
                 pos = np.load(f"{self.data_dir}/pos/{name}.npy")
