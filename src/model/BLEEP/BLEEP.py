@@ -5,6 +5,8 @@ import torch.nn.functional as F
 import torchvision
 import timm
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 def load_pretrained_resnet18(path: str):       
         """Load pretrained ResNet18 model without final fc layer.
@@ -236,7 +238,8 @@ class BLEEP(nn.Module):
         pretrained=True,
         trainable=True,
         dropout=0.1,
-        weight="weights/tenpercent_resnet18.ckpt"
+        weight="weights/tenpercent_resnet18.ckpt",
+        infer_method='average'
     ):
         super().__init__()
         
@@ -248,17 +251,49 @@ class BLEEP(nn.Module):
 
         self.temperature = temperature
         
-    def forward(self, img, label):
-        # Getting Image and spot Features
-        image_features = self.image_encoder(img)
-        spot_features = label
+        self.infer_method = infer_method
+        self.num_k = 1 if infer_method == 'simple' else 50
         
-        spot_embeddings = self.spot_projection(spot_features)
-        loss = self.calculate_loss(image_features, spot_embeddings)
+    def forward(self, img, label, **kwargs):
+        # Getting Image and spot Features
+        if img.shape[0] > 1024:
+            imgs = img.split(1024, dim=0)
+            image_features = [self.image_encoder(img) for img in imgs]
+            image_features = torch.cat(image_features, dim=0)
+        else:
+            image_features = self.image_encoder(img)
             
-        loss = self.calculate_loss(image_features, spot_embeddings)
+        if 'dataset' in kwargs:
+            device = img.device
+            spot_expressions_ref = kwargs['dataset'].spot_expressions_ref.clone().to(device)
+            spot_embeddings_ref = self.get_spot_embeddings(spot_expressions_ref)
+            indices = self.find_matches(spot_embeddings_ref, image_features, top_k=self.num_k)
             
-        return {'loss': loss}
+            if self.infer_method == 'simple':    
+                matched_spot_expression_pred = spot_expressions_ref[indices[:,0],:]
+                
+            elif self.infer_method == 'average':
+                matched_spot_expression_pred = torch.zeros((indices.shape[0], spot_expressions_ref.shape[1])).to(device)
+                for i in range(indices.shape[0]):
+                    matched_spot_expression_pred[i,:] = torch.mean(spot_expressions_ref[indices[i,:],:], dim=0)
+                    
+            elif self.infer_method == 'weighted_average':
+                matched_spot_expression_pred = torch.zeros((indices.shape[0], spot_expressions_ref.shape[1])).to(device)
+                for i in range(indices.shape[0]):
+                    a = torch.sum((spot_embeddings_ref[indices[i,0],:] - image_features[i,:])**2) #the smallest MSE 
+                    weights = torch.exp(-(torch.sum((spot_embeddings_ref[indices[i,:],:] - image_features[i,:])**2, dim=1)-a+1))
+                    matched_spot_expression_pred[i,:] = torch.sum(spot_expressions_ref[indices[i,:],:] * weights.unsqueeze(1), dim=0) / weights.sum()
+
+            return {'logits': matched_spot_expression_pred}
+        else:    
+            spot_features = label
+            # spot_embeddings = self.spot_projection(spot_features)
+            spot_embeddings = self.get_spot_embeddings(spot_features)
+            loss = self.calculate_loss(image_features, spot_embeddings)
+                
+            loss = self.calculate_loss(image_features, spot_embeddings)
+            
+            return {'loss': loss}
     
     def calculate_loss(self, image_features, spot_embeddings):
         # Getting Image and Spot Embeddings (with same dimension) 
@@ -276,4 +311,32 @@ class BLEEP(nn.Module):
         loss =  (images_loss + spots_loss) / 2.0 # shape: (batch_size)
         
         return loss.mean()
+    
+    @staticmethod
+    def find_matches(spot_embeddings, query_embeddings, top_k=1):
+        #find the closest matches 
+        # spot_embeddings = torch.tensor(spot_embeddings)
+        # query_embeddings = torch.tensor(query_embeddings)
+        query_embeddings = F.normalize(query_embeddings, p=2, dim=-1)
+        spot_embeddings = F.normalize(spot_embeddings, p=2, dim=-1)
+        dot_similarity = query_embeddings @ spot_embeddings.T   #2277x2265
+        print(dot_similarity.shape)
+        _, indices = torch.topk(dot_similarity.squeeze(0), k=top_k)
         
+        return indices
+    
+    def get_spot_embeddings(self, spot_expression):
+        # spot_embedding_keys = []
+        # for spot_expression in spot_expressions:
+        #     spot_embedding_key = self.spot_projection(spot_expression)
+        #     spot_embedding_keys.append(spot_embedding_key)
+        
+        # spot_embedding_keys = torch.stack(spot_embedding_keys, dim=0)
+        if spot_expression.shape[0] > 1024:
+            spot_expressions = spot_expression.split(1024, dim=0)
+            spot_embeddings = [self.spot_projection(spot_expression) for spot_expression in spot_expressions]
+            spot_embeddings = torch.cat(spot_embeddings, dim=0)
+        else:
+            spot_embeddings = self.spot_projection(spot_expression)
+        
+        return spot_embeddings
