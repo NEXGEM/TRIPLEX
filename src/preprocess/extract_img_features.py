@@ -27,13 +27,13 @@ parser = argparse.ArgumentParser(description='Configurations for linear probing'
 
 ### data settings ###
 parser.add_argument('--overwrite', action='store_true', default=False, help='overwrite existing results')
-parser.add_argument('--patch_dataroot', type=str, default='./res_tcga/patches')
-parser.add_argument('--embed_dataroot', type=str, default='./res_tcga/features/neighbor')
-parser.add_argument('--wsi_dataroot', type=str, default=None)
+parser.add_argument('--patch_dataroot', type=str, default='input/hest/bench_data/SKCM/patches')
+parser.add_argument('--embed_dataroot', type=str, default='input/hest/bench_data/SKCM/emb/neighbor')
+parser.add_argument('--wsi_dataroot', type=str, default='/home/shared/spRNAseq/hest_data/wsis')
 parser.add_argument('--id_path', type=str, default=None)
-parser.add_argument('--slide_ext', type=str, default= '.svs')
+parser.add_argument('--slide_ext', type=str, default= '.tif')
 parser.add_argument('--level', type=int, default=1)
-parser.add_argument('--use_openslide', action='store_true', default=False)
+parser.add_argument('--use_openslide', action='store_true', default=True)
 parser.add_argument('--weights_root', type=str, default='fm_v1')
 
 ### GPU settings ###
