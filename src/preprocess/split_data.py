@@ -2,19 +2,24 @@ import argparse
 import os
 
 import pandas as pd
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, GroupKFold
 
 
-def split_data_cv(data, n_splits=5, shuffle=True, random_state=42):
+def split_data_cv(df, n_splits=5, shuffle=True, random_state=42):
     os.makedirs(f'{input_dir}/splits', exist_ok=True)
     
-    # Initialize KFold
-    kf = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+    if 'patient' in df.columns:
+        # Use GroupKFold for patient-based splitting
+        gkf = GroupKFold(n_splits=n_splits)
+        split_generator = gkf.split(df, groups=df['patient'])
+    else:
+        # Use KFold for sample-based splitting
+        kf = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+        split_generator = kf.split(df)
 
-    # Create splits and save files
-    for fold, (train_idx, test_idx) in enumerate(kf.split(ids_df)):
-        train_data = ids_df.iloc[train_idx]
-        test_data = ids_df.iloc[test_idx]
+    for fold, (train_idx, test_idx) in enumerate(split_generator):
+        train_data = df.iloc[train_idx]
+        test_data = df.iloc[test_idx]
         
         train_data.to_csv(f'{input_dir}/splits/train_{fold}.csv', index=False)
         test_data.to_csv(f'{input_dir}/splits/test_{fold}.csv', index=False)

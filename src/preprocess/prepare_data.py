@@ -123,18 +123,21 @@ if __name__ == "__main__":
         os.makedirs(f"{output_dir}/patches", exist_ok=True)
         os.makedirs(f"{output_dir}/adata", exist_ok=True)
         
-        ids = glob(f"{input_dir}/{prefix}*")
+        if not os.path.exists(f"{output_dir}/ids.csv"):
+            ids = glob(f"{input_dir}/{prefix}*")
+        else:
+            ids = pd.read_csv(f"{output_dir}/ids.csv")['sample_id'].tolist()
         
         sample_ids = []
         for input_path in tqdm(ids):
             name = os.path.basename(input_path)
-            
             st = save_patches(name, input_dir, output_dir, platform=platform)
             if st is not None:
                 sample_ids.append(name)
                 preprocess_st(name, st.adata, output_dir, normalize=True)
-            
-        pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
+        
+        if not os.path.exists(f"{output_dir}/ids.csv"):
+            pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
         
     elif mode == 'hest_bench':
         
