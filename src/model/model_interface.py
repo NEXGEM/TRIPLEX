@@ -47,12 +47,13 @@ class  ModelInterface(pl.LightningModule):
                                                 MeanAbsoluteError(num_outputs = num_outputs),
                                                 ExplainedVariance()
                                                 ])
+        self.test_metrics = metrics.clone(prefix = 'test_')        
+        
         metrics['target'] = metrics.pop(target)
         idx_target = {v[0]: k for k,v in metrics.compute_groups.items()}[target]
         metrics.compute_groups[idx_target] = ['target']
-        
         self.valid_metrics = metrics.clone(prefix = 'val_')
-        self.test_metrics = metrics.clone(prefix = 'test_')        
+        
 
     #---->remove v_num
     def get_progress_bar_dict(self):
@@ -124,22 +125,21 @@ class  ModelInterface(pl.LightningModule):
         batch = self._preprocess_inputs(batch)
         
         #---->Forward
+        if self.model_name == 'BLEEP':
+            dataset = self._trainer.test_dataloaders.dataset
+            batch['dataset'] = dataset
+            
         results_dict = self.model(**batch)
         
         #---->Loss
-        if 'logits' in results_dict:
-            logits = results_dict['logits']
-            label = batch['label']
-            
-            test_metric = self.test_metrics(logits, label)
-            # val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0 else k:v}
-            test_metric = {k: v.mean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
-            self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True)
-            outputs = {'logits': logits, 'label': label}
-        else:
-            loss = results_dict['loss']
-            self.log_dict({'test_target': loss}, on_epoch = True, logger = True, sync_dist=True)
-            outputs = {'loss': loss}
+        logits = results_dict['logits']
+        label = batch['label']
+        
+        test_metric = self.test_metrics(logits, label)
+        # val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0 else k:v}
+        test_metric = {k: v.mean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
+        self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True)
+        outputs = {'logits': logits, 'label': label}
         
         return outputs
 
@@ -161,7 +161,7 @@ class  ModelInterface(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.TRAINING.learning_rate)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, 
-            mode=self.config.TRAINING.lr_scheduler.mode,
+            mode=self.config.TRAINING.mode,
             factor=self.config.TRAINING.lr_scheduler.factor,
             patience=self.config.TRAINING.lr_scheduler.patience
         )
