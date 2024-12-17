@@ -7,7 +7,7 @@ PROCESSED_DIR=$2
 ## Prepare patches and st data
 python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
                                 --output_dir $PROCESSED_DIR \
-                                --mode hest
+                                --mode hest_bench
 
 ## Prepare geneset for training (Optional)
 # python src/preprocess/get_geneset.py \
