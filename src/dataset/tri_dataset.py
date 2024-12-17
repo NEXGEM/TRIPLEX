@@ -1,18 +1,12 @@
 
-from glob import glob
 import os
-import json
 
 import numpy as np
 from scipy import sparse
-import pandas as pd
 import h5py
-import scanpy as sc
 import torch
-import torchvision.transforms as transforms
 
 from dataset.base_dataset import STDataset
-from utils import normalize_adata
 
 
 class TriDataset(STDataset):
