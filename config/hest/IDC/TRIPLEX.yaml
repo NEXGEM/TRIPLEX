@@ -6,10 +6,7 @@ GENERAL:
   
 TRAINING:
   num_k: 4
-  batch_size: 128
-  loss: MSE
-  optimizer: adam
-  learning_rate: 1.0e-5
+  learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
   mode: max

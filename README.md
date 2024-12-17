@@ -172,7 +172,6 @@ GENERAL:
   
 TRAINING:
   num_k: 6
-  batch_size: 128
   loss: MSE
   optimizer: adam
   learning_rate: 1.0e-4

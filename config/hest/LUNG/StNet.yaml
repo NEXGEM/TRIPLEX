@@ -6,9 +6,6 @@ GENERAL:
   
 TRAINING:
   num_k: 2
-  batch_size: 128
-  loss: MSE
-  optimizer: adam
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
@@ -18,7 +15,7 @@ TRAINING:
   lr_scheduler:
     patience: 5
     factor: 0.1
-  
+    
 MODEL:
   model_name: st_net 
   num_outputs: 50
