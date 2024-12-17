@@ -9,35 +9,33 @@ TRAINING:
   batch_size: 128
   loss: MSE
   optimizer: adam
-  learning_rate: 1.0e-4
+  learning_rate: 1.0e-5
   num_epochs: 200
-  monitor: MeanSquaredError
+  monitor: PearsonCorrCoef
+  mode: max
   early_stopping:
-    patience: 20
-    mode: min
+    patience: 10
   lr_scheduler:
     patience: 5
     factor: 0.1
-    mode: min
   
 MODEL:
   model_name: TRIPLEX 
   num_outputs: 50
   emb_dim: 1024
   depth1: 1
-  depth2: 5
-  depth3: 4
+  depth2: 2
+  depth3: 1
   num_heads1: 8
   num_heads2: 8
   num_heads3: 8
-  mlp_ratio1: 4
-  mlp_ratio2: 4
-  mlp_ratio3: 4
-  dropout1: 0.4
-  dropout2: 0.3
-  dropout3: 0.3
+  mlp_ratio1: 2
+  mlp_ratio2: 2
+  mlp_ratio3: 2
+  dropout1: 0.15
+  dropout1: 0.15
+  dropout1: 0.15
   kernel_size: 3
-  learning_rate: 0.0001
 
 DATA:
   data_dir: input/hest/bench_data/IDC
@@ -50,11 +48,11 @@ DATA:
   train_dataloader:
         batch_size: 128
         num_workers: 4
-        pin_memory: True
+        pin_memory: False
         shuffle: True
 
   test_dataloader:
       batch_size: 1
       num_workers: 4
-      pin_memory: True
+      pin_memory: False
       shuffle: False

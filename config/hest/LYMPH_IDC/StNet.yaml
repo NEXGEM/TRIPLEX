@@ -6,19 +6,18 @@ GENERAL:
   
 TRAINING:
   num_k: 4
-  batch_size: 128
+  batch_size: 64
   loss: MSE
   optimizer: adam
   learning_rate: 1.0e-4
   num_epochs: 200
-  monitor: MeanSquaredError
+  monitor: PearsonCorrCoef
+  mode: max
   early_stopping:
-    patience: 20
-    mode: min
+    patience: 10
   lr_scheduler:
     patience: 5
     factor: 0.1
-    mode: min
   
 MODEL:
   model_name: st_net 
@@ -35,11 +34,11 @@ DATA:
   train_dataloader:
         batch_size: 128
         num_workers: 4
-        pin_memory: True
+        pin_memory: False
         shuffle: True
 
   test_dataloader:
       batch_size: 1
       num_workers: 4
-      pin_memory: True
+      pin_memory: False
       shuffle: False

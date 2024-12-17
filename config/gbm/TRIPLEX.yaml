@@ -46,6 +46,7 @@ DATA:
   gene_type: 'mean'
   num_genes: 1000
   num_outputs: 300
+  normalize: False
   
   train_dataloader:
         batch_size: 128
