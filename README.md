@@ -1,6 +1,8 @@
 # TRIPLEX
 
-TRIPLEX is a deep learning framework designed for predicting spatial transcriptomics from histology images by integrating multi-resolution features. It is now integrated with HEST for enhanced functionality.
+TRIPLEX is a deep learning framework designed for predicting spatial transcriptomics from histology images by integrating multi-resolution features. 
+
+It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) for enhanced functionality.
 
 ## Table of Contents
 - [Requirements](#requirements)
@@ -113,13 +115,19 @@ pip install -r requirements.txt
 Before training or inference, raw data must be preprocessed. Modify the paths in the respective shell scripts and run them:
 
 #### For Training:
+- HEST
 ```bash
-bash 01-preprocess_for_training.sh
+bash preprocess_for_hest.sh <input_path> <output_path>
+```
+
+- New data
+```bash
+bash preprocess_for_training.sh <input_path> <output_path> <extension>
 ```
 
 #### For Inference:
 ```bash
-bash 02-preprocess_for_inference.sh
+bash preprocess_for_inference.sh <input_path> <output_path> <patch_level> <extension>
 ```
 
 ### Training
@@ -127,7 +135,7 @@ bash 02-preprocess_for_inference.sh
 To train the model using cross-validation, run the following command:
 
 ```bash
-python src/main.py --config_name=<config_path> --mode=cv --gpu=0
+python src/main.py --config_name=<config_path> --mode=cv --gpu=1
 ```
 
 Replace `<config_path>` with the path to your configuration file.
@@ -137,10 +145,8 @@ Replace `<config_path>` with the path to your configuration file.
 To evaluate the model:
 
 ```bash
-python src/main.py --config_name=<config_path> --mode=eval --gpu=0 --model_path=<model_checkpoint_path>
+python src/main.py --config_name=<config_path> --mode=eval --gpu=1
 ```
-
-Replace `<model_checkpoint_path>` with the path to your trained model checkpoint.
 
 ### Inference
 
@@ -150,6 +156,8 @@ To run inference:
 python src/main.py --config_name=<config_path> --mode=inference --gpu=0 --model_path=<model_checkpoint_path>
 ```
 
+Replace `<model_checkpoint_path>` with the path to your trained model checkpoint.
+
 ---
 
 ## Configuration
@@ -157,60 +165,62 @@ python src/main.py --config_name=<config_path> --mode=inference --gpu=0 --model_
 Configurations are managed using YAML files located in the `config/` directory. Each configuration file specifies parameters for the dataset, model, training, and evaluation. Example configuration parameters include:
 
 ```yaml
+
 GENERAL:
   seed: 2021
   log_path: ./logs
   
 TRAINING:
-  num_k: 5
+  num_k: 6
   batch_size: 128
   loss: MSE
   optimizer: adam
   learning_rate: 1.0e-4
   num_epochs: 200
+  monitor: PearsonCorrCoef
+  mode: max
   early_stopping:
-    monitor: val_MeanSquaredError
-    patience: 20
-    mode: min
+    patience: 10
   lr_scheduler:
-    monitor: val_MeanSquaredError
     patience: 5
     factor: 0.1
-    mode: min
   
 MODEL:
   model_name: TRIPLEX 
-  num_outputs: 1000
+  num_outputs: 50
   emb_dim: 1024
   depth1: 1
-  depth2: 5
-  depth3: 4
+  depth2: 2
+  depth3: 1
   num_heads1: 8
   num_heads2: 8
   num_heads3: 8
-  mlp_ratio1: 4
-  mlp_ratio2: 4
-  mlp_ratio3: 4
-  dropout1: 0.4
-  dropout2: 0.3
-  dropout3: 0.3
+  mlp_ratio1: 2
+  mlp_ratio2: 2
+  mlp_ratio3: 2
+  dropout1: 0.15
+  dropout1: 0.15
+  dropout1: 0.15
   kernel_size: 3
-  learning_rate: 0.0001
 
 DATA:
-  data_dir: input/path/to/data
-  dataset_name: tri_dataset
+  data_dir: input/hest/bench_data/CCRCC
+  output_dir: output/hest/bench_data/CCRCC
+  dataset_name: TriDataset
+  gene_type: 'var'
+  num_genes: 50
+  num_outputs: 50
   
   train_dataloader:
-        batch_size: 128 
+        batch_size: 128
         num_workers: 4
-        pin_memory: True
+        pin_memory: False
         shuffle: True
 
   test_dataloader:
       batch_size: 1
       num_workers: 4
-      pin_memory: True
+      pin_memory: False
       shuffle: False
 ```
 
