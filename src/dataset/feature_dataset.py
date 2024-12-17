@@ -161,7 +161,8 @@ class H5TileDataset(Dataset):
             
         for i in range(n_patches):
             
-            y, x = coords[i]
+            x, y = coords[i]
+            # y, x = coords[i]
             wsi_shape = wsi.shape if hasattr(wsi, 'shape') else wsi.dimensions
             mask = self.make_masking_table(x, y, wsi_shape)
             mask_tb_i = mask.clone()
@@ -176,15 +177,18 @@ class H5TileDataset(Dataset):
                 for m in range(self.num_n):
                     n = k * self.num_n + m
                     if mask_tb_i[n] != 0:
-                        current_x = y_start + k_offsets[k]
-                        current_y = x_start + m_offsets[m]
+                        current_x = x_start + k_offsets[k]
+                        current_y = y_start + m_offsets[m]
+                        # current_x = y_start + k_offsets[k]
+                        # current_y = x_start + m_offsets[m]
                         if self.use_openslide:
                             # Read region using OpenSlide
                             tmp = wsi.read_region((current_x, current_y), wsi_level, (self.r * 2, self.r * 2)).convert('RGB')
                             tmp = self.img_transform(tmp)
                         else:
                             # Efficient slicing with NumPy
-                            tmp = wsi[current_y:current_y + self.r * 2, current_x:current_x + self.r * 2, :]
+                            # tmp = wsi[current_y:current_y + self.r * 2, current_x:current_x + self.r * 2, :]
+                            tmp = wsi[current_x:current_x + self.r * 2, current_y:current_y + self.r * 2, :]
                             tmp = self.img_transform(Image.fromarray(tmp))
                         # Assign transformed patch
                         neighbor_patch[:, k * 224:(k + 1) * 224, m * 224:(m + 1) * 224] = tmp
