@@ -21,7 +21,7 @@ from model.TRIPLEX.module import ( GlobalEncoder,
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-def load_model_weights(path: str):       
+def load_model_weights(ckpt: str):       
         """Load pretrained ResNet18 model without final fc layer.
 
         Args:
@@ -35,14 +35,14 @@ def load_model_weights(path: str):
         
         ckpt_dir = './weights'
         os.makedirs(ckpt_dir, exist_ok=True)
-        ckpt_path = f'{ckpt_dir}/tenpercent_resnet18.ckpt'
+        ckpt_path = f'{ckpt_dir}/{ckpt}'
         
         # prepare the checkpoint
         if not os.path.exists(ckpt_path):
             ckpt_url='https://github.com/ozanciga/self-supervised-histopathology/releases/download/tenpercent/tenpercent_resnet18.ckpt'
             wget.download(ckpt_url, out=ckpt_dir)
             
-        state = torch.load(path)
+        state = torch.load(ckpt_path)
         state_dict = state['state_dict']
         for key in list(state_dict.keys()):
             state_dict[key.replace('model.', '').replace('resnet.', '')] = state_dict.pop(key)
@@ -104,7 +104,7 @@ class TRIPLEX(nn.Module):
         self.emb_dim = emb_dim
     
         # Target Encoder
-        resnet18 = load_model_weights("weights/tenpercent_resnet18.ckpt")
+        resnet18 = load_model_weights("tenpercent_resnet18.ckpt")
         module=list(resnet18.children())[:-2]
         self.target_encoder = nn.Sequential(*module)
         self.fc_target = nn.Linear(emb_dim, num_outputs)
