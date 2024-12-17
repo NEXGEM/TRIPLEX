@@ -90,7 +90,7 @@ pip install -r requirements.txt
 .
 ├── config/                 # Configuration files for experiments
 ├── docker/                 # Docker-related setup files
-├── figures/                # Figures for results and documentation
+├── figures/                # Figures
 ├── src/                    # Source code
 │   ├── datasets/           # Dataset loading and preprocessing modules
 │   ├── models/             # Model architectures
@@ -102,7 +102,6 @@ pip install -r requirements.txt
 ├── 02-preprocess_for_inference.sh # Preprocessing script for inference
 ├── README.md               # Project documentation
 ├── requirements.txt        # Python dependencies
-├── run_extract_features.txt# Example feature extraction commands
 ```
 
 ---
