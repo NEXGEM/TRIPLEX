@@ -13,64 +13,7 @@ import torchvision.transforms as transforms
 from utils import normalize_adata
 
 
-class BaseDataset(torch.utils.data.Dataset):
-    """Some Information about baselines"""
-    def __init__(self):
-        super(BaseDataset, self).__init__()
-        
-        self.train_transforms = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-            transforms.RandomApply([transforms.RandomRotation((90, 90))]),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-        ])
-        
-        self.test_transforms = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-        ])
-
-    def load_img(self, name: str, idx: int = None):
-        """Load whole slide image of a sample.
-
-        Args:
-            name (str): name of a sample
-
-        Returns:
-            numpy.array: return whole slide image.
-        """
-        path = f"{self.img_dir}/{name}.h5"
-        
-        if idx is not None:
-            with h5py.File(path, 'r') as f:
-                img = f['img'][idx]
-        else:
-            with h5py.File(path, 'r') as f:
-                img = f['img'][:]
-            
-        return img
-    
-    def load_st(self, name: str, normalize: bool = True):
-        """Load gene expression data of a sample.
-
-        Args:
-            name (str): name of a sample
-
-        Returns:
-            annData: return adata of st data. 
-        """
-        path = f"{self.st_dir}/{name}.h5ad"
-        adata = sc.read_h5ad(path)
-        
-        if normalize:
-            adata = normalize_adata(adata)
-    
-        return adata
-    
-    
-class STDataset(BaseDataset):
+class STDataset(torch.utils.data.Dataset):
     def __init__(self, 
                 mode: str,
                 phase: str,
@@ -123,6 +66,21 @@ class STDataset(BaseDataset):
             
             self.lengths = [len(adata) for adata in self.adata_dict.values()]
             self.cumlen = np.cumsum(self.lengths)
+            
+            self.transforms = transforms.Compose([
+                transforms.ToPILImage(),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+                transforms.RandomApply([transforms.RandomRotation((90, 90))]),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+            ])
+            
+        else:
+            self.transforms = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+            ])
         
     def __getitem__(self, index):
         data = {}
@@ -137,7 +95,7 @@ class STDataset(BaseDataset):
 
             name = self.int2id[i]
             img = self.load_img(name, idx)
-            img = self.train_transforms(img)
+            img = self.transforms(img)
             
             adata = self.adata_dict[name]
             expression = adata[idx].X
@@ -150,7 +108,7 @@ class STDataset(BaseDataset):
         elif self.phase == 'test':
             name = self.int2id[index]
             img = self.load_img(name)
-            img = torch.stack([self.test_transforms(im) for im in img], dim=0)
+            img = torch.stack([self.transforms(im) for im in img], dim=0)
             
             if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
                 adata = self.load_st(name, self.normalize)[:,self.genes]
@@ -177,6 +135,43 @@ class STDataset(BaseDataset):
             ids = [f for f in os.listdir(f"{self.img_dir}") if f.endswith('.h5')]
             ids = [os.path.splitext(_id)[0] for _id in ids]
         return ids
+    
+    def load_img(self, name: str, idx: int = None):
+        """Load whole slide image of a sample.
+
+        Args:
+            name (str): name of a sample
+
+        Returns:
+            numpy.array: return whole slide image.
+        """
+        path = f"{self.img_dir}/{name}.h5"
+        
+        if idx is not None:
+            with h5py.File(path, 'r') as f:
+                img = f['img'][idx]
+        else:
+            with h5py.File(path, 'r') as f:
+                img = f['img'][:]
+            
+        return img
+    
+    def load_st(self, name: str, normalize: bool = True):
+        """Load gene expression data of a sample.
+
+        Args:
+            name (str): name of a sample
+
+        Returns:
+            annData: return adata of st data. 
+        """
+        path = f"{self.st_dir}/{name}.h5ad"
+        adata = sc.read_h5ad(path)
+        
+        if normalize:
+            adata = normalize_adata(adata)
+    
+        return adata
         
 
 class EGNDataset(STDataset):
@@ -213,7 +208,7 @@ class EGNDataset(STDataset):
 
             name = self.int2id[i]
             img = self.load_img(name, idx)
-            img = self.train_transforms(img)
+            img = self.transforms(img)
             
             adata = self.adata_dict[name]
             expression = adata[idx].X
@@ -227,7 +222,7 @@ class EGNDataset(STDataset):
         elif self.phase == 'test':
             name = self.int2id[index]
             img = self.load_img(name)
-            img = torch.stack([self.test_transforms(im) for im in img], dim=0)
+            img = torch.stack([self.transforms(im) for im in img], dim=0)
             
             if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
                 adata = self.load_st(name)[:,self.genes]

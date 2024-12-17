@@ -57,7 +57,7 @@ class TriDataset(STDataset):
 
             name = self.int2id[i]
             img = self.load_img(name, idx)
-            img = self.train_transforms(img)
+            img = self.transforms(img)
             
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor', idx=idx)
             adata = self.adata_dict[name]
@@ -76,7 +76,7 @@ class TriDataset(STDataset):
         elif self.phase == 'test':
             name = self.int2id[index]
             img = self.load_img(name)
-            img = torch.stack([self.test_transforms(im) for im in img], dim=0)
+            img = torch.stack([self.transforms(im) for im in img], dim=0)
             
             global_emb = self.load_emb(name, emb_name='global')
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
