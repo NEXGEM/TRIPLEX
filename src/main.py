@@ -2,10 +2,13 @@
 import os
 import argparse
 from datetime import datetime
+from glob import glob 
+from pathlib import Path
 
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.ddp import DDPStrategy
+from pytorch_lightning import loggers as pl_loggers
 
 from model import ModelInterface, CustomWriter
 from dataset import DataInterface
@@ -20,8 +23,8 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-    parser.add_argument('--config_name', type=str, default='hest/CCRCC/StNet', help='logger path.')
-    parser.add_argument('--mode', type=str, default='cv', help='cv / eval / inference')
+    parser.add_argument('--config_name', type=str, default='hest/COAD/BLEEP', help='logger path.')
+    parser.add_argument('--mode', type=str, default='eval', help='cv / eval / inference')
     # Acceleration 
     parser.add_argument('--gpu', type=int, default=1, help='gpu id')
     # Experiments
@@ -75,13 +78,25 @@ def main(cfg):
         trainer.fit(model, datamodule = dm)
         
     elif mode == 'eval':
+        log_path = cfg.GENERAL.log_path
+        
+        ckpt_dir = glob(f'{log_path}/{cfg.config}/*')[-1]
+        ckpt_path = glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt")[0]
+        
+        log_name = str(Path(cfg.config).parent)
+        version_name = Path(cfg.config).name
+        current_time = Path(ckpt_dir).name
+    
+        csv_logger = pl_loggers.CSVLogger(f"{log_path}/{log_name}",
+                                    name = f"{version_name}/{current_time}", version = f'fold{cfg.DATA.fold}/eval', )
+        
         trainer = pl.Trainer(accelerator="gpu", 
                             devices=gpus,
                             precision = '16-mixed',
-                            logger=False)
+                            logger=[csv_logger])
         
-        checkpoint = cfg.GENERAL.ckpt_path
-        model = ModelInterface.load_from_checkpoint(checkpoint, **ModelInterface_dict)
+        # checkpoint = cfg.GENERAL.ckpt_path
+        model = ModelInterface.load_from_checkpoint(ckpt_path, **ModelInterface_dict)
         
         trainer.test(model, datamodule = dm)
         
@@ -117,7 +132,7 @@ if __name__ == '__main__':
     cfg.MODEL.ckpt_path = args.ckpt_path
     cfg.DATA.mode = args.mode
     
-    if args.mode == 'cv':
+    if args.mode != 'inference':
         num_k = cfg.TRAINING.num_k     
         for fold in range(num_k):
             cfg.DATA.fold = fold
