@@ -117,7 +117,7 @@ if __name__ == "__main__":
     prefix = args.prefix
     step_size = args.step_size
     
-    assert mode in ['train', 'hest', 'inference'], "mode must be either 'train' or 'hest' or 'inference'"
+    assert mode in ['train', 'hest_bench', 'inference'], "mode must be either 'train' or 'hest_bench' or 'inference'"
     
     if mode == 'train':
         os.makedirs(f"{output_dir}/patches", exist_ok=True)
@@ -136,7 +136,7 @@ if __name__ == "__main__":
             
         pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
         
-    elif mode == 'hest':
+    elif mode == 'hest_bench':
         
         ids = glob(f"{output_dir}/patches/*.h5")
     
