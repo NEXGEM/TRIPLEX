@@ -180,7 +180,7 @@ python src/preprocess/extract_img_features.py  \
         --patch_dataroot $PROCESSED_DIR'/patches' \
         --embed_dataroot $PROCESSED_DIR'/emb/global' \
         --slide_ext $EXTENSION \
-        --num_n 1
+        --num_n 1 \
         --use_openslide 
 ```
 
