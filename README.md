@@ -1,6 +1,10 @@
-# TRIPLEX
+# TRIPLEX 🧬
 
 TRIPLEX is a deep learning framework designed for predicting spatial transcriptomics from histology images by integrating multi-resolution features. 
+
+[![PyTorch](https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
+![PyTorch Lightning](https://img.shields.io/badge/pytorch-lightning-blue.svg?logo=PyTorch%20Lightning)
+
 
 It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) for enhanced functionality.
 
@@ -97,11 +101,8 @@ pip install -r requirements.txt
 │   ├── datasets/           # Dataset loading and preprocessing modules
 │   ├── models/             # Model architectures
 │   ├── preprocess/         # Scripts for preprocessing data
-│   ├── __init__.py         # Package initialization
 │   ├── main.py             # Main script for training and inference
 │   ├── utils.py            # Utility functions
-├── 01-preprocess_for_training.sh  # Preprocessing script for training
-├── 02-preprocess_for_inference.sh # Preprocessing script for inference
 ├── README.md               # Project documentation
 ├── requirements.txt        # Python dependencies
 ```
@@ -114,23 +115,76 @@ pip install -r requirements.txt
 
 Before training or inference, raw data must be preprocessed. Modify the paths in the respective shell scripts and run them:
 
-#### For Training:
+#### **Create patches from WSI (Only for inference)**
+```bash
+python src/preprocess/CLAM/create_patches_fp.py \
+        --source $RAW_DIR \
+        --save_dir $PROCESSED_DIR \
+        --patch_size 256 \
+        --seg \
+        --patch \
+        --stitch \
+        --patch_level $PATCH_LEVEL 
+```
+
+#### **Prepare patches and st data**
+For training:
 - HEST
 ```bash
-bash preprocess_for_hest.sh <input_path> <output_path>
+python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
+                                --output_dir $PROCESSED_DIR \
+                                --mode hest
 ```
 
 - New data
 ```bash
-bash preprocess_for_training.sh <input_path> <output_path> <extension>
+python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
+                                --output_dir $PROCESSED_DIR \
+                                --mode train
 ```
 
-#### For Inference:
+For inference:
 ```bash
-bash preprocess_for_inference.sh <input_path> <output_path> <patch_level> <extension>
+python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
+                                --output_dir $PROCESSED_DIR \
+                                --mode inference \
+                                --patch_size 256 \
+                                --slide_level 0 \
+                                --slide_ext $EXTENSION
 ```
 
-### Training
+#### **Get geneset for training (no need for hest benchmark)**
+```bash
+python src/preprocess/get_geneset.py --st_dir $PROCESSED_DIR'/adata' \
+                                    --output_dir $PROCESSED_DIR
+```
+
+#### **Extract image features using foundation model (UNI)**
+- Gloabl features
+```bash
+### Global features
+python src/preprocess/extract_img_features.py  \
+        --wsi_dataroot $RAW_DIR \
+        --patch_dataroot $PROCESSED_DIR'/patches' \
+        --embed_dataroot $PROCESSED_DIR'/emb/global' \
+        --slide_ext $EXTENSION \
+        --use_openslide \
+        --num_n 1
+```
+
+- Neighbor features
+```bash
+### Global features
+python src/preprocess/extract_img_features.py  \
+        --wsi_dataroot $RAW_DIR \
+        --patch_dataroot $PROCESSED_DIR'/patches' \
+        --embed_dataroot $PROCESSED_DIR'/emb/neighbor' \
+        --slide_ext $EXTENSION \
+        --use_openslide \
+        --num_n 5
+```
+
+### 📈 Model Training
 
 To train the model using cross-validation, run the following command:
 
@@ -140,7 +194,7 @@ python src/main.py --config_name=<config_path> --mode=cv --gpu=1
 
 Replace `<config_path>` with the path to your configuration file.
 
-### Evaluation
+### 📊 Evaluation
 
 To evaluate the model:
 
@@ -148,7 +202,7 @@ To evaluate the model:
 python src/main.py --config_name=<config_path> --mode=eval --gpu=1
 ```
 
-### Inference
+### 🔍 Inference
 
 To run inference:
 
