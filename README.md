@@ -161,7 +161,18 @@ python src/preprocess/get_geneset.py --st_dir $PROCESSED_DIR'/adata' \
 ```
 
 #### **Extract image features using foundation model (UNI)**
-- Gloabl features
+Gloabl features:
+- training
+```bash
+### Global features
+python src/preprocess/extract_img_features.py  \
+        --patch_dataroot $PROCESSED_DIR'/patches' \
+        --embed_dataroot $PROCESSED_DIR'/emb/global' \
+        --num_n 1 \
+        --use_openslide
+```
+
+- inference
 ```bash
 ### Global features
 python src/preprocess/extract_img_features.py  \
@@ -169,11 +180,11 @@ python src/preprocess/extract_img_features.py  \
         --patch_dataroot $PROCESSED_DIR'/patches' \
         --embed_dataroot $PROCESSED_DIR'/emb/global' \
         --slide_ext $EXTENSION \
-        --use_openslide \
         --num_n 1
+        --use_openslide 
 ```
 
-- Neighbor features
+Neighbor features:
 ```bash
 ### Global features
 python src/preprocess/extract_img_features.py  \
