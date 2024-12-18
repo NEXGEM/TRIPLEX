@@ -5,6 +5,7 @@ TRIPLEX is a deep learning framework designed for predicting spatial transcripto
 [![PyTorch](https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
 ![PyTorch Lightning](https://img.shields.io/badge/pytorch-lightning-blue.svg?logo=PyTorch%20Lightning)
 
+<img src="./figures/TRIPLEX_main.jpg" title="TRIPLEX"/>
 
 It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) for enhanced functionality.
 
