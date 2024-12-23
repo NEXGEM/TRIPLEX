@@ -23,15 +23,15 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-    parser.add_argument('--config_name', type=str, default='hest/COAD/BLEEP', help='logger path.')
-    parser.add_argument('--mode', type=str, default='eval', help='cv / eval / inference')
+    parser.add_argument('--config_name', type=str, default='ST/andersson/TRIPLEX', help='Path to the configuration file for the experiment.')
+    parser.add_argument('--mode', type=str, default='cv', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
     # Acceleration 
-    parser.add_argument('--gpu', type=int, default=1, help='gpu id')
+    parser.add_argument('--gpu', type=int, default=1, help='Number of gpus to use')
     # Experiments
-    parser.add_argument('--exp_id', type=int, default=0, help='')
+    parser.add_argument('--exp_id', type=int, default=0, help='Experiment ID for tracking different runs')
     # Others
-    parser.add_argument('--fold', type=int, default=0, help='')
-    parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=23-val_MeanSquaredError=0.4032.ckpt', help='')
+    parser.add_argument('--fold', type=int, default=0, help='Fold number for cross-validation')
+    parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=23-val_MeanSquaredError=0.4032.ckpt', help='Path to the checkpoint file for model weights')
 
     args = parser.parse_args()
     
