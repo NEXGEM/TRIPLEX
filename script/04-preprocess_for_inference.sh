@@ -1,9 +1,8 @@
 
 RAW_DIR=$1
 PROCESSED_DIR=$2
-
-PATCH_LEVEL=$3
-EXTENSION=$4
+EXTENSION=$3
+PATCH_LEVEL=$4
 
 # Preprocess ST data for inference (only WSI)
 python src/preprocess/CLAM/create_patches_fp.py \
