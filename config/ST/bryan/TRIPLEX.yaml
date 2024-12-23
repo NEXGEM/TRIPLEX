@@ -18,7 +18,7 @@ TRAINING:
   
 MODEL:
   model_name: TRIPLEX 
-  num_outputs: 50
+  num_outputs: 250
   emb_dim: 1024
   depth1: 2
   depth2: 2
@@ -33,14 +33,16 @@ MODEL:
   dropout1: 0.15
   dropout1: 0.15
   kernel_size: 3
+  cpm: True
+  smooth: True
 
 DATA:
-  data_dir: input/hest/bench_data/IDC
-  output_dir: output/hest/bench_data/IDC
+  data_dir: input/ST/bryan
+  output_dir: output/ST/bryan
   dataset_name: TriDataset
-  gene_type: 'var'
-  num_genes: 50
-  num_outputs: 50
+  gene_type: 'mean'
+  num_genes: 1000
+  num_outputs: 250
   
   train_dataloader:
         batch_size: 128

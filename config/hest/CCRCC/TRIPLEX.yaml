@@ -20,12 +20,12 @@ MODEL:
   model_name: TRIPLEX 
   num_outputs: 50
   emb_dim: 1024
-  depth1: 1
+  depth1: 2
   depth2: 2
-  depth3: 1
+  depth3: 4
   num_heads1: 8
-  num_heads2: 8
-  num_heads3: 8
+  num_heads2: 16
+  num_heads3: 16
   mlp_ratio1: 2
   mlp_ratio2: 2
   mlp_ratio3: 2
