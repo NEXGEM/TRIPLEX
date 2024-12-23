@@ -255,14 +255,14 @@ Configurations are managed using YAML files located in the `config/` directory. 
 
 ```yaml
 
+
+
 GENERAL:
   seed: 2021
   log_path: ./logs
   
 TRAINING:
-  num_k: 6
-  loss: MSE
-  optimizer: adam
+  num_k: 5
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
@@ -275,14 +275,14 @@ TRAINING:
   
 MODEL:
   model_name: TRIPLEX 
-  num_outputs: 50
+  num_outputs: 250
   emb_dim: 1024
-  depth1: 1
+  depth1: 2
   depth2: 2
-  depth3: 1
+  depth3: 4
   num_heads1: 8
-  num_heads2: 8
-  num_heads3: 8
+  num_heads2: 16
+  num_heads3: 16
   mlp_ratio1: 2
   mlp_ratio2: 2
   mlp_ratio3: 2
@@ -292,12 +292,14 @@ MODEL:
   kernel_size: 3
 
 DATA:
-  data_dir: input/hest/bench_data/CCRCC
-  output_dir: output/hest/bench_data/CCRCC
+  data_dir: input/ST/andersson
+  output_dir: output/ST/andersson
   dataset_name: TriDataset
-  gene_type: 'var'
-  num_genes: 50
-  num_outputs: 50
+  gene_type: 'mean'
+  num_genes: 1000
+  num_outputs: 250
+  cpm: True
+  smooth: True
   
   train_dataloader:
         batch_size: 128
