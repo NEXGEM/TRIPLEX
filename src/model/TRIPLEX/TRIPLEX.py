@@ -108,6 +108,8 @@ class TRIPLEX(nn.Module):
         module=list(resnet18.children())[:-2]
         self.target_encoder = nn.Sequential(*module)
         self.fc_target = nn.Linear(emb_dim, num_outputs)
+        # self.fc_target = nn.Sequential(nn.Linear(emb_dim, num_outputs),
+        #                         nn.ReLU())
         self.target_linear = nn.Linear(512, emb_dim)
 
         # Neighbor Encoder
@@ -118,6 +120,8 @@ class TRIPLEX(nn.Module):
                                                 dropout = dropout3, 
                                                 resolution=res_neighbor)
         self.fc_neighbor = nn.Linear(emb_dim, num_outputs)
+        # self.fc_neighbor = nn.Sequential(nn.Linear(emb_dim, num_outputs),
+                                # nn.ReLU())
 
         # Global Encoder        
         self.global_encoder = GlobalEncoder(emb_dim, 
@@ -127,6 +131,8 @@ class TRIPLEX(nn.Module):
                                             dropout2, 
                                             kernel_size)
         self.fc_global = nn.Linear(emb_dim, num_outputs)
+        # self.fc_global = nn.Sequential(nn.Linear(emb_dim, num_outputs),
+                                # nn.ReLU())
     
         # Fusion Layer
         self.fusion_encoder = FusionEncoder(emb_dim, 
@@ -134,7 +140,10 @@ class TRIPLEX(nn.Module):
                                             num_heads1, 
                                             int(emb_dim*mlp_ratio1), 
                                             dropout1)    
+        # self.fc = nn.Sequential(nn.Linear(emb_dim, num_outputs),
+        #                         nn.ReLU())
         self.fc = nn.Linear(emb_dim, num_outputs)
+        
     
     def forward(self,
                 img, 
