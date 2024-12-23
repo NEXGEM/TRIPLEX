@@ -12,7 +12,7 @@ python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
 
 ## Prepare geneset for training
 python src/preprocess/get_geneset.py --st_dir $PROCESSED_DIR'/adata' \
-                                    --output_dir $PROCESSED_DIR
+                                --output_dir $PROCESSED_DIR
 
 ## Prepare geneset for training
 python src/preprocess/split_data.py --input_dir $PROCESSED_DIR
