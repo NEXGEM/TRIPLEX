@@ -18,9 +18,9 @@ class TriDataset(STDataset):
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
                 num_outputs: int = 300,
-                normalize: bool = False,
-                cpm=True,
-                smooth=True
+                normalize: bool = True,
+                cpm: bool = False,
+                smooth: bool = False
                 ):
         super(TriDataset, self).__init__(
                                 mode=mode,

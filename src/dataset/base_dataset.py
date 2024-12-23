@@ -22,9 +22,9 @@ class STDataset(torch.utils.data.Dataset):
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
                 num_outputs: int = 300,
-                normalize: bool = False,
-                cpm=True,
-                smooth=True
+                normalize: bool = True,
+                cpm: bool = False,
+                smooth: bool = False
                 ):
         super(STDataset, self).__init__()
         
@@ -189,9 +189,9 @@ class EGNDataset(STDataset):
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
                 num_outputs: int = 300,
-                normalize: bool = False,
-                cpm=True,
-                smooth=True
+                normalize: bool = True,
+                cpm: bool = False,
+                smooth: bool = False
                 ):
         super(EGNDataset, self).__init__(
                                 mode=mode,
@@ -261,9 +261,9 @@ class BleepDataset(STDataset):
                 gene_type: str = 'mean',
                 num_genes: int = 1000,
                 num_outputs: int = 300,
-                normalize: bool = False,
-                cpm=True,
-                smooth=True
+                normalize: bool = True,
+                cpm: bool = False,
+                smooth: bool = False
                 ):
         super(BleepDataset, self).__init__(
                                 mode=mode,
