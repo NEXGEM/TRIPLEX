@@ -1,14 +1,12 @@
 
 
 import itertools
-import math
 
 import torch
 from torch import nn
 from einops import rearrange
 
-from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
-
+from model.TRIPLEX.flash_attention import FlashTransformerEncoder
 
 class PreNorm(nn.Module):
     def __init__(self, emb_dim, fn):
@@ -19,7 +17,7 @@ class PreNorm(nn.Module):
         x = self.norm(x)
         if 'x_kv' in kwargs.keys():
             kwargs['x_kv'] = self.norm(kwargs['x_kv'])
-
+         
         return self.fn(x, **kwargs)
 
 
@@ -48,8 +46,8 @@ class MultiHeadAttention(nn.Module):
 
         self.heads = heads
         self.drop_p = dropout
-        # self.scale = dim_head ** -0.5
-        # self.attend = nn.Softmax(dim = -1)
+        self.scale = dim_head ** -0.5
+        self.attend = nn.Softmax(dim = -1)
         
         self.to_qkv = nn.Linear(emb_dim, emb_dim * 3, bias = False) 
 
@@ -58,67 +56,67 @@ class MultiHeadAttention(nn.Module):
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
         
-    #     self.attn_bias = attn_bias
-    #     if attn_bias:
-    #         points = list(itertools.product(
-    #             range(resolution[0]), range(resolution[1])))
-    #         N = len(points)
-    #         attention_offsets = {}
-    #         idxs = []
-    #         for p1 in points:
-    #             for p2 in points:
-    #                 offset = (abs(p1[0] - p2[0]), abs(p1[1] - p2[1]))
-    #                 if offset not in attention_offsets:
-    #                     attention_offsets[offset] = len(attention_offsets)
-    #                 idxs.append(attention_offsets[offset])
-    #         self.attention_biases = torch.nn.Parameter(
-    #             torch.zeros(heads, len(attention_offsets)))
-    #         self.register_buffer('attention_bias_idxs',
-    #                             torch.LongTensor(idxs).view(N, N),
-    #                             persistent=False)
+        self.attn_bias = attn_bias
+        if attn_bias:
+            points = list(itertools.product(
+                range(resolution[0]), range(resolution[1])))
+            N = len(points)
+            attention_offsets = {}
+            idxs = []
+            for p1 in points:
+                for p2 in points:
+                    offset = (abs(p1[0] - p2[0]), abs(p1[1] - p2[1]))
+                    if offset not in attention_offsets:
+                        attention_offsets[offset] = len(attention_offsets)
+                    idxs.append(attention_offsets[offset])
+            self.attention_biases = torch.nn.Parameter(
+                torch.zeros(heads, len(attention_offsets)))
+            self.register_buffer('attention_bias_idxs',
+                                torch.LongTensor(idxs).view(N, N),
+                                persistent=False)
 
-    # @torch.no_grad()
-    # def train(self, mode=True):
-    #     if self.attn_bias:
-    #         super().train(mode)
-    #         if mode and hasattr(self, 'ab'):
-    #             del self.ab
-    #         else:
-    #             self.ab = self.attention_biases[:, self.attention_bias_idxs]
+    @torch.no_grad()
+    def train(self, mode=True):
+        if self.attn_bias:
+            super().train(mode)
+            if mode and hasattr(self, 'ab'):
+                del self.ab
+            else:
+                self.ab = self.attention_biases[:, self.attention_bias_idxs]
         
     def forward(self, x, mask = None, return_attn=False):
-        qkv = self.to_qkv(x) # b x n x d*3
+        # qkv = self.to_qkv(x) # b x n x d*3
         
-        qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
-        out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
-        out = rearrange(out, 'b n h d -> b n (h d)')
+        # qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
+        # out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
+        # out = rearrange(out, 'b n h d -> b n (h d)')
         
-        return self.to_out(out)
+        # return self.to_out(out)
         
-        # qkv = self.to_qkv(x).chunk(3, dim = -1) 
-        # q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv) 
+        qkv = self.to_qkv(x).chunk(3, dim = -1) 
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv) 
 
-        # qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
-        # if self.attn_bias:
-        #     qk += (self.attention_biases[:, self.attention_bias_idxs]
-        #     if self.training else self.ab)
+        qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
+        if self.attn_bias:
+            qk += (self.attention_biases[:, self.attention_bias_idxs]
+            if self.training else self.ab)
         
-        # if mask is not None:
-        #     fill_value = torch.finfo(torch.float16).min
-        #     ind_mask = mask.shape[-1]
-        #     qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
+        if mask is not None:
+            fill_value = torch.finfo(torch.float16).min
+            ind_mask = mask.shape[-1]
+            qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
 
-        # attn_weights = self.attend(qk) # b h n n
-        # if return_attn:
-        #     attn_weights_averaged = attn_weights.mean(dim=1)
+        attn_weights = self.attend(qk) # b h n n
+        if return_attn:
+            attn_weights_averaged = attn_weights.mean(dim=1)
         
-        # out = torch.matmul(attn_weights, v) 
-        # out = rearrange(out, 'b h n d -> b n (h d)')
+        out = torch.matmul(attn_weights, v) 
+        out = rearrange(out, 'b h n d -> b n (h d)')
     
-        # if return_attn:
-        #     return self.to_out(out), attn_weights_averaged[:,0]
-        # else:
-        #     return self.to_out(out)
+        if return_attn:
+            return self.to_out(out), attn_weights_averaged[:,0]
+        else:
+            return self.to_out(out)
         
 
 class MultiHeadCrossAttention(nn.Module):
@@ -132,8 +130,8 @@ class MultiHeadCrossAttention(nn.Module):
 
         self.heads = heads
         self.drop_p = dropout
-        # self.scale = dim_head ** -0.5
-        # self.attend = nn.Softmax(dim = -1)
+        self.scale = dim_head ** -0.5
+        self.attend = nn.Softmax(dim = -1)
         
         self.to_q = nn.Linear(emb_dim, emb_dim, bias = False) 
         self.to_kv = nn.Linear(emb_dim, emb_dim * 2, bias = False) 
@@ -144,40 +142,37 @@ class MultiHeadCrossAttention(nn.Module):
         ) if project_out else nn.Identity()
         
     def forward(self, x_q, x_kv, mask = None, return_attn=False):
-        q = self.to_q(x_q)
-        k, v = self.to_kv(x_kv).chunk(2, dim=-1)
-        
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b n h d', h=self.heads), (q, k, v))
+        # qkv = self.to_qkv(x) # b x n x d*3
         
         # qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
-        out = flash_attn_func(q,k,v, self.drop_p, softmax_scale=None, causal=False)
-        out = rearrange(out, 'b n h d -> b n (h d)')
+        # out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
+        # out = rearrange(out, 'b n h d -> b n (h d)')
         
-        return self.to_out(out)
+        # return self.to_out(out)
         
-        # q = self.to_q(x_q)
-        # q = rearrange(q, 'b n (h d) -> b h n d', h = self.heads)
-        # kv = self.to_kv(x_kv).chunk(2, dim = -1) 
-        # k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), kv) 
+        q = self.to_q(x_q)
+        q = rearrange(q, 'b n (h d) -> b h n d', h = self.heads)
+        kv = self.to_kv(x_kv).chunk(2, dim = -1) 
+        k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), kv) 
 
-        # qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
+        qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
         
-        # if mask is not None:
-        #     fill_value = torch.finfo(torch.float16).min
-        #     ind_mask = mask.shape[-1]
-        #     qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
+        if mask is not None:
+            fill_value = torch.finfo(torch.float16).min
+            ind_mask = mask.shape[-1]
+            qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
 
-        # attn_weights = self.attend(qk) # b h n n
-        # if return_attn:
-        #     attn_weights_averaged = attn_weights.mean(dim=1)
+        attn_weights = self.attend(qk) # b h n n
+        if return_attn:
+            attn_weights_averaged = attn_weights.mean(dim=1)
         
-        # out = torch.matmul(attn_weights, v) 
-        # out = rearrange(out, 'b h n d -> b n (h d)')
+        out = torch.matmul(attn_weights, v) 
+        out = rearrange(out, 'b h n d -> b n (h d)')
     
-        # if return_attn:
-        #     return self.to_out(out), attn_weights_averaged[:,0]
-        # else:
-        #     return self.to_out(out)
+        if return_attn:
+            return self.to_out(out), attn_weights_averaged[:,0]
+        else:
+            return self.to_out(out)
 
 
 class TransformerEncoder(nn.Module):
@@ -257,7 +252,7 @@ class PEGH(nn.Module):
         x_out = x_out_sorted[:, original_order_indices]
         
         return x_out
-
+    
     
 class GlobalEncoder(nn.Module):
     def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., kernel_size=3):
@@ -265,8 +260,8 @@ class GlobalEncoder(nn.Module):
         
         self.pos_layer = PEGH(dim=emb_dim, kernel_size=kernel_size) 
         
-        self.layer1 = TransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout)
-        self.layer2 = TransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout)
+        self.layer1 = FlashTransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout)
+        self.layer2 = FlashTransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout)
         self.norm = nn.LayerNorm(emb_dim)
         
     def foward_features(self, x, pos):
@@ -288,61 +283,24 @@ class GlobalEncoder(nn.Module):
         return x
     
     
-# class NeighborEncoder(nn.Module):
-#     def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., resolution=(5,5)):
-#         super().__init__()      
-        
-#         self.layer = TransformerEncoder(emb_dim, depth, heads, mlp_dim, dropout, attn_bias=True, resolution=resolution)
-#         self.norm = nn.LayerNorm(emb_dim)
-
-#     def forward(self, x, mask=None):
-        
-#         if mask != None:
-#             mask = mask.unsqueeze(1).unsqueeze(1)
-            
-#         # Translayer
-#         x = self.layer(x, mask=mask) #[B, N, 512]
-#         x = self.norm(x)
-        
-#         return x
-
-
 class NeighborEncoder(nn.Module):
-    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout=0., resolution=(5,5)):
-        super().__init__()
-        
-        self.emb_dim = emb_dim
-        self.resolution = resolution
+    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., resolution=(5,5)):
+        super().__init__()      
         
         self.layer = TransformerEncoder(emb_dim, depth, heads, mlp_dim, dropout, attn_bias=True, resolution=resolution)
         self.norm = nn.LayerNorm(emb_dim)
-        
-        # Add position encoding
-        self.pos_encoding = self.create_sinusoidal_encoding()
-
-    def create_sinusoidal_encoding(self):
-        total_dims = self.resolution[0] * self.resolution[1]
-        position = torch.arange(total_dims).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, self.emb_dim, 2) * -(math.log(10000.0) / self.emb_dim))
-        pe = torch.zeros(1, total_dims, self.emb_dim)
-        pe[0, :, 0::2] = torch.sin(position * div_term)
-        pe[0, :, 1::2] = torch.cos(position * div_term)
-        return nn.Parameter(pe, requires_grad=False)
 
     def forward(self, x, mask=None):
-        B, N, _ = x.shape
         
-        # Add positional encoding
-        x = x + self.pos_encoding
-        
-        if mask is not None:
+        if mask != None:
             mask = mask.unsqueeze(1).unsqueeze(1)
-        
+            
         # Translayer
-        x = self.layer(x, mask=mask)  # [B, N, 512]
+        x = self.layer(x, mask=mask) #[B, N, 512]
         x = self.norm(x)
         
         return x
+
 
 class FusionEncoder(nn.Module):
     def __init__(self, emb_dim, depth, heads, mlp_dim, dropout):
