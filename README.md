@@ -155,29 +155,6 @@ python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
                                 --slide_ext $EXTENSION
 ```
 
-### Examples
-
-#### HEST bench data
-```bash
-bash script/01-preprocess_hest_bench.sh /path/to/hest/wsis ./input/bench_data/CCRCC 'tif'
-```
-
-#### Other HEST data
-```bash
-bash script/02-preprocess_hest.sh /path/to/hest/wsis ./input/ST/andersson 'tif'
-```
-
-#### Your own ST data
-```bash
-bash script/03-preprocess_new.sh /path/to/raw ./input/path/to/processed 'tif'
-```
-
-#### Only images (for inference)
-```bash
-bash script/04-preprocess_for_inference.sh /path/to/raw ./input/path/to/processed 'svs' 0
-```
-
-
 #### **Get geneset for training (no need for hest benchmark)**
 ```bash
 python src/preprocess/get_geneset.py --st_dir $PROCESSED_DIR'/adata' \
@@ -218,6 +195,28 @@ python src/preprocess/extract_img_features.py  \
         --slide_ext $EXTENSION \
         --use_openslide \
         --num_n 5
+```
+
+> Examples
+
+- HEST bench data
+```bash
+bash script/01-preprocess_hest_bench.sh /path/to/hest/wsis ./input/bench_data/CCRCC 'tif'
+```
+
+- Other HEST data
+```bash
+bash script/02-preprocess_hest.sh /path/to/hest/wsis ./input/ST/andersson 'tif'
+```
+
+- Your own ST data
+```bash
+bash script/03-preprocess_new.sh /path/to/raw ./input/path/to/processed 'tif'
+```
+
+- Only images (for inference)
+```bash
+bash script/04-preprocess_for_inference.sh /path/to/raw ./input/path/to/processed 'svs' 0
 ```
 
 ### 📈 Model Training
