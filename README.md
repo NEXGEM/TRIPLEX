@@ -19,8 +19,7 @@ It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) for enhance
   - [Evaluation](#evaluation)
   - [Inference](#inference)
 - [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
+- [Citation](#Citation)
 
 ---
 
