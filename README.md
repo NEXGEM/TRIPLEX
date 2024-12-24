@@ -242,7 +242,7 @@ python src/main.py --config_name=<config_path> --mode=eval --gpu=1
 To run inference:
 
 ```bash
-python src/main.py --config_name=<config_path> --mode=inference --gpu=0 --model_path=<model_checkpoint_path>
+python src/main.py --config_name=<config_path> --mode=inference --gpu=1 --model_path=<model_checkpoint_path>
 ```
 
 Replace `<model_checkpoint_path>` with the path to your trained model checkpoint.
