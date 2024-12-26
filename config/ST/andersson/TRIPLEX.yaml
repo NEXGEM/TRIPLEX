@@ -5,15 +5,15 @@ GENERAL:
   log_path: ./logs
   
 TRAINING:
-  num_k: 5
+  num_k: 8
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
   mode: max
   early_stopping:
-    patience: 10
+    patience: 20
   lr_scheduler:
-    patience: 5
+    patience: 10
     factor: 0.1
   
 MODEL:
