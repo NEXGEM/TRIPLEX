@@ -29,11 +29,13 @@ if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--input_dir", type=str, help="Path to the directory containing ST data")
     argparser.add_argument("--n_splits", type=int, default=5, help="Number of splits for cross-validation")
+    argparser.add_argument("--random_state", type=int, default=42, help="Random seed for splitting")
     
     args = argparser.parse_args()
     input_dir = args.input_dir
     n_splits = args.n_splits
+    random_state = args.random_state
 
     ids_df = pd.read_csv(f'{input_dir}/ids.csv')    
-    split_data_cv(ids_df, n_splits=n_splits)
+    split_data_cv(ids_df, n_splits=n_splits, random_state=random_state)
 
