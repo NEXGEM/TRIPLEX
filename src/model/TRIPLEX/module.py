@@ -6,7 +6,8 @@ import torch
 from torch import nn
 from einops import rearrange
 
-from model.TRIPLEX.flash_attention import FlashTransformerEncoder
+from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
+
 
 class PreNorm(nn.Module):
     def __init__(self, emb_dim, fn):
@@ -36,10 +37,12 @@ class FeedForward(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, emb_dim, heads = 4, dropout = 0., attn_bias=False, resolution=(5, 5)):
+    def __init__(self, emb_dim, heads = 4, dropout = 0., attn_bias=False, resolution=(5, 5), flash_attn=False):
         super().__init__()
         
         assert emb_dim % heads == 0, 'The dimension size must be a multiple of the number of heads.'
+        
+        self.flash_attn = flash_attn
         
         dim_head = emb_dim // heads 
         project_out = not (heads == 1) 
@@ -85,45 +88,48 @@ class MultiHeadAttention(nn.Module):
                 self.ab = self.attention_biases[:, self.attention_bias_idxs]
         
     def forward(self, x, mask = None, return_attn=False):
-        # qkv = self.to_qkv(x) # b x n x d*3
         
-        # qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
-        # out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
-        # out = rearrange(out, 'b n h d -> b n (h d)')
+        qkv = self.to_qkv(x) # b x n x d*3
         
-        # return self.to_out(out)
-        
-        qkv = self.to_qkv(x).chunk(3, dim = -1) 
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv) 
-
-        qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
-        if self.attn_bias:
-            qk += (self.attention_biases[:, self.attention_bias_idxs]
-            if self.training else self.ab)
-        
-        if mask is not None:
-            fill_value = torch.finfo(torch.float16).min
-            ind_mask = mask.shape[-1]
-            qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
-
-        attn_weights = self.attend(qk) # b h n n
-        if return_attn:
-            attn_weights_averaged = attn_weights.mean(dim=1)
-        
-        out = torch.matmul(attn_weights, v) 
-        out = rearrange(out, 'b h n d -> b n (h d)')
-    
-        if return_attn:
-            return self.to_out(out), attn_weights_averaged[:,0]
+        if self.flash_attn:
+            qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
+            out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
+            out = rearrange(out, 'b n h d -> b n (h d)')
+            
         else:
-            return self.to_out(out)
+            qkv = qkv.chunk(3, dim = -1) 
+            q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv) 
+
+            qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
+            if self.attn_bias:
+                qk += (self.attention_biases[:, self.attention_bias_idxs]
+                if self.training else self.ab)
+            
+            if mask is not None:
+                fill_value = torch.finfo(torch.float16).min
+                ind_mask = mask.shape[-1]
+                qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
+
+            attn_weights = self.attend(qk) # b h n n
+            if return_attn:
+                attn_weights_averaged = attn_weights.mean(dim=1)
+            
+            out = torch.matmul(attn_weights, v) 
+            out = rearrange(out, 'b h n d -> b n (h d)')
         
+            if return_attn:
+                return self.to_out(out), attn_weights_averaged[:,0]
+            
+        return self.to_out(out)
+
 
 class MultiHeadCrossAttention(nn.Module):
-    def __init__(self, emb_dim, heads = 4, dropout = 0., attn_bias=False):
+    def __init__(self, emb_dim, heads = 4, dropout = 0., flash_attn=False):
         super().__init__()
         
         assert emb_dim % heads == 0, 'The dimension size must be a multiple of the number of heads.'
+        
+        self.flash_attn = flash_attn
         
         dim_head = emb_dim // heads 
         project_out = not (heads == 1) 
@@ -142,46 +148,49 @@ class MultiHeadCrossAttention(nn.Module):
         ) if project_out else nn.Identity()
         
     def forward(self, x_q, x_kv, mask = None, return_attn=False):
-        # qkv = self.to_qkv(x) # b x n x d*3
-        
-        # qkv = rearrange(qkv, 'b n (h d a) -> b n a h d', h = self.heads, a=3)
-        # out = flash_attn_qkvpacked_func(qkv, self.drop_p, softmax_scale=None, causal=False)
-        # out = rearrange(out, 'b n h d -> b n (h d)')
-        
-        # return self.to_out(out)
-        
         q = self.to_q(x_q)
-        q = rearrange(q, 'b n (h d) -> b h n d', h = self.heads)
         kv = self.to_kv(x_kv).chunk(2, dim = -1) 
-        k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), kv) 
-
-        qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
         
-        if mask is not None:
-            fill_value = torch.finfo(torch.float16).min
-            ind_mask = mask.shape[-1]
-            qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
-
-        attn_weights = self.attend(qk) # b h n n
-        if return_attn:
-            attn_weights_averaged = attn_weights.mean(dim=1)
-        
-        out = torch.matmul(attn_weights, v) 
-        out = rearrange(out, 'b h n d -> b n (h d)')
-    
-        if return_attn:
-            return self.to_out(out), attn_weights_averaged[:,0]
+        if self.flash_attn:
+            q = rearrange(q, 'b n (h d) -> b n h d', h = self.heads)
+            k, v = map(lambda t: rearrange(t, 'b n (h d) -> b n h d', h = self.heads), kv) 
+            
+            out = flash_attn_func(q, k, v)
+            out = rearrange(out, 'b n h d -> b n (h d)')
+            
         else:
-            return self.to_out(out)
+            q = rearrange(q, 'b n (h d) -> b h n d', h = self.heads)
+            k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), kv) 
+
+            qk = torch.matmul(q, k.transpose(-1, -2)) * self.scale 
+            
+            if mask is not None:
+                fill_value = torch.finfo(torch.float16).min
+                ind_mask = mask.shape[-1]
+                qk[:,:,-ind_mask:,-ind_mask:] = qk[:,:,-ind_mask:,-ind_mask:].masked_fill(mask==0, fill_value)
+
+            attn_weights = self.attend(qk) # b h n n
+            if return_attn:
+                attn_weights_averaged = attn_weights.mean(dim=1)
+            
+            out = torch.matmul(attn_weights, v) 
+            out = rearrange(out, 'b h n d -> b n (h d)')
+        
+            if return_attn:
+                return self.to_out(out), attn_weights_averaged[:,0]
+            
+        return self.to_out(out)
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., attn_bias=False, resolution=(5,5)):
+    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., attn_bias=False, resolution=(5,5), flash_attn=False):
         super().__init__()
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                PreNorm(emb_dim, MultiHeadAttention(emb_dim, heads = heads, dropout = dropout, attn_bias=attn_bias, resolution=resolution)),
+                PreNorm(emb_dim, MultiHeadAttention(emb_dim, heads = heads, 
+                                                    dropout = dropout, attn_bias=attn_bias, 
+                                                    resolution=resolution, flash_attn=flash_attn)),
                 PreNorm(emb_dim, FeedForward(emb_dim, mlp_dim, dropout = dropout))
             ]))
     def forward(self, x, mask=None, return_attn=False):
@@ -202,12 +211,12 @@ class TransformerEncoder(nn.Module):
 
 
 class CrossEncoder(nn.Module):
-    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., attn_bias=False):
+    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0.):
         super().__init__()
         self.layers = nn.ModuleList([])
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                PreNorm(emb_dim, MultiHeadCrossAttention(emb_dim, heads = heads, dropout = dropout, attn_bias=attn_bias)),
+                PreNorm(emb_dim, MultiHeadCrossAttention(emb_dim, heads = heads, dropout = dropout)),
                 PreNorm(emb_dim, FeedForward(emb_dim, mlp_dim, dropout = dropout))
             ]))
     def forward(self, x_q, x_kv, mask=None, return_attn=False):
@@ -260,8 +269,8 @@ class GlobalEncoder(nn.Module):
         
         self.pos_layer = PEGH(dim=emb_dim, kernel_size=kernel_size) 
         
-        self.layer1 = FlashTransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout)
-        self.layer2 = FlashTransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout)
+        self.layer1 = TransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout, flash_attn=True)
+        self.layer2 = TransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout, flash_attn=True)
         self.norm = nn.LayerNorm(emb_dim)
         
     def foward_features(self, x, pos):
