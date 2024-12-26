@@ -210,7 +210,7 @@ bash script/02-preprocess_hest.sh /path/to/hest/wsis ./input/ST/andersson 'tif'
 
 - Your own ST data
 ```bash
-bash script/03-preprocess_new.sh /path/to/raw ./input/path/to/processed 'tif'
+bash script/03-preprocess_new.sh /path/to/raw ./input/path/to/processed 'tif' visium
 ```
 
 - Only images (for inference)

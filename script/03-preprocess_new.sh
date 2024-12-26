@@ -2,13 +2,15 @@
 RAW_DIR=$1
 PROCESSED_DIR=$2
 EXTENSION=$3
+PLATFORM=$4
 
 # Preprocess ST data for training
 
 ## Prepare patches and st data
 python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
                                 --output_dir $PROCESSED_DIR \
-                                --mode train
+                                --mode train \
+                                --platform $PLATFORM
 
 ## Prepare geneset for training
 python src/preprocess/get_geneset.py --st_dir $PROCESSED_DIR'/adata' \
