@@ -77,7 +77,8 @@ class TRIPLEX(nn.Module):
                 dropout2=0.1,
                 dropout3=0.1,
                 kernel_size=3,
-                res_neighbor=(5,5)):
+                res_neighbor=(5,5),
+                max_batch_size=1024):
         """TRIPLEX model 
 
         Args:
@@ -96,12 +97,15 @@ class TRIPLEX(nn.Module):
             dropout2 (float): Dropout rate for GlobalEncoder. Defaults to 0.1.
             dropout3 (float): Dropout rate for NeighborEncoder. Defaults to 0.1.
             kernel_size (int): Kernel size of convolution layer in PEGH. Defaults to 3.
+            res_neighbor (tuple): Resolution of neighbor embeddings. Defaults to (5,5).
+            max_batch_size (int): Maximum batch size for inference. Defaults to 1024.
         """
         
         super().__init__()
         
         self.alpha = 0.3
         self.emb_dim = emb_dim
+        self.max_batch_size = max_batch_size
     
         # Target Encoder
         resnet18 = load_model_weights("tenpercent_resnet18.ckpt")
@@ -157,25 +161,25 @@ class TRIPLEX(nn.Module):
         
         if 'dataset' in kwargs:
             # Training
-            return self._forward_train(img, mask, neighbor_emb, pid, sid, kwargs['dataset'], kwargs['label'])
+            return self._process_training_batch(img, mask, neighbor_emb, pid, sid, kwargs['dataset'], kwargs['label'])
         else:
             # Inference 
-            return self._forward_inference(img, mask, neighbor_emb, position, global_emb, sid)
+            return self._process_inference_batch(img, mask, neighbor_emb, position, global_emb, sid)
             
-    def _forward_train(self, img, mask, neighbor_emb, pid, sid, dataset, label):
+    def _process_training_batch(self, img, mask, neighbor_emb, pid, sid, dataset, label):
         global_emb, position = self.retrieve_global_emb(pid, dataset)
         
         fusion_token, target_token, neighbor_token, global_token = \
             self._encode_all(img, mask, neighbor_emb, position, global_emb, pid, sid)
         return self._get_outputs(fusion_token, target_token, neighbor_token, global_token, label)
 
-    def _forward_inference(self, img, mask, neighbor_emb, position, global_emb, sid=None):
-        if sid is None and img.shape[0] > 1024:
-            imgs = img.split(1024, dim=0)
-            neighbor_embs = neighbor_emb.split(1024, dim=0)
-            masks = mask.split(1024, dim=0)
+    def _process_inference_batch(self, img, mask, neighbor_emb, position, global_emb, sid=None):
+        if sid is None and img.shape[0] > self.max_batch_size:
+            imgs = img.split(self.max_batch_size, dim=0)
+            neighbor_embs = neighbor_emb.split(self.max_batch_size, dim=0)
+            masks = mask.split(self.max_batch_size, dim=0)
             sid = torch.arange(img.shape[0]).to(img.device)
-            sids = sid.split(1024, dim=0)
+            sids = sid.split(self.max_batch_size, dim=0)
             
             pred = [self.fc(self._encode_all(img, mask, neighbor_emb, position, global_emb, sid=sid)[0]) \
                 for img, neighbor_emb, mask, sid in zip(imgs, neighbor_embs, masks, sids)]
@@ -186,15 +190,15 @@ class TRIPLEX(nn.Module):
         return {'logits': logits}
     
     def _encode_all(self, img, mask, neighbor_emb, position, global_emb, pid=None, sid=None):
-        target_token = self._encode_target(img)
+        target_token = self.encode_target(img)
         neighbor_token = self.neighbor_encoder(neighbor_emb, mask)
-        global_token = self._encode_global(global_emb, position, pid, sid)
+        global_token = self.encode_global(global_emb, position, pid, sid)
         
         fusion_token = self.fusion_encoder(target_token, neighbor_token, global_token, mask=mask)
         
         return fusion_token, target_token, neighbor_token, global_token
     
-    def _encode_target(self, img):
+    def encode_target(self, img):
         # Target tokens
         target_token = self.target_encoder(img) # B x 512 x 7 x 7
         B, dim, w, h = target_token.shape
@@ -203,7 +207,7 @@ class TRIPLEX(nn.Module):
         
         return target_token
         
-    def _encode_global(self, global_emb, position, pid=None, sid=None):
+    def encode_global(self, global_emb, position, pid=None, sid=None):
         # Global tokens
         if isinstance(global_emb, dict):
             global_token = torch.zeros((sid.shape[0], self.emb_dim)).to(sid.device)
