@@ -13,7 +13,7 @@ TRAINING:
   early_stopping:
     patience: 20
   lr_scheduler:
-    patience: 10
+    patience: 20
     factor: 0.1
   
 MODEL:
@@ -33,8 +33,6 @@ MODEL:
   dropout1: 0.15
   dropout1: 0.15
   kernel_size: 3
-  cpm: True
-  smooth: True
 
 DATA:
   data_dir: input/ST/andrew
@@ -43,6 +41,8 @@ DATA:
   gene_type: 'mean'
   num_genes: 1000
   num_outputs: 250
+  cpm: True
+  smooth: True
   
   train_dataloader:
         batch_size: 128

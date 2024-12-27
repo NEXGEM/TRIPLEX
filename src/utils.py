@@ -101,7 +101,7 @@ def normalize_adata(adata: sc.AnnData, cpm=False, smooth=False) -> sc.AnnData:
     
     if cpm:
         # Normalize each spot
-        sc.pp.normalize_total(normed_adata)
+        sc.pp.normalize_total(normed_adata, target_sum=1e4)
 
     # Logarithm of the expression
     sc.pp.log1p(normed_adata)

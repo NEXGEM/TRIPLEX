@@ -13,7 +13,7 @@ TRAINING:
   early_stopping:
     patience: 20
   lr_scheduler:
-    patience: 10
+    patience: 20
     factor: 0.1
   
 MODEL:

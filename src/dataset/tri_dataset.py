@@ -80,7 +80,7 @@ class TriDataset(STDataset):
             neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
             
             if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
-                adata = self.load_st(name, **self.norm_param)[:,self.genes]
+                adata = self.load_st(name, self.genes, **self.norm_param)
                 pos = adata.obs[['array_row', 'array_col']].to_numpy()
                 
                 if self.mode != 'inference':

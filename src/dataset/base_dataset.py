@@ -63,7 +63,7 @@ class STDataset(torch.utils.data.Dataset):
             self.genes = self.genes[:num_outputs]
         
         if phase == 'train':
-            self.adata_dict = {_id: self.load_st(_id, **self.norm_param)[:,self.genes] \
+            self.adata_dict = {_id: self.load_st(_id, self.genes, **self.norm_param) \
                 for _id in self.ids}
             
             self.lengths = [len(adata) for adata in self.adata_dict.values()]
@@ -113,7 +113,7 @@ class STDataset(torch.utils.data.Dataset):
             img = torch.stack([self.transforms(im) for im in img], dim=0)
             
             if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
-                adata = self.load_st(name, **self.norm_param)[:,self.genes]
+                adata = self.load_st(name, self.genes, **self.norm_param)
                 
                 if self.mode != 'inference':
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
@@ -159,7 +159,7 @@ class STDataset(torch.utils.data.Dataset):
             
         return img
     
-    def load_st(self, name: str, normalize: bool = True, cpm=False, smooth=False):
+    def load_st(self, name: str, genes, normalize: bool = True, cpm=False, smooth=False):
         """Load gene expression data of a sample.
 
         Args:
@@ -174,11 +174,13 @@ class STDataset(torch.utils.data.Dataset):
         path = f"{self.st_dir}/{name}.h5ad"
         adata = sc.read_h5ad(path)
         
+        adata = adata[:, genes]
+        
         if normalize:
             adata = normalize_adata(adata, cpm=cpm, smooth=smooth)
     
         return adata
-        
+
 
 class EGNDataset(STDataset):
     def __init__(self, 
@@ -205,6 +207,18 @@ class EGNDataset(STDataset):
                                 cpm=cpm,
                                 smooth=smooth )
         
+        if phase == 'train':
+            self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
+                for _id in self.ids}
+        else:
+            data_path = f"{data_dir}/splits/train_{fold}.csv"
+            ids_ref = self._get_ids(data_path)
+            
+            self.adata_dict = {_id: self.load_st(_id, self.genes, **self.norm_param) \
+                for _id in ids_ref}
+            self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
+                for _id in ids_ref}
+        
     def __getitem__(self, index):
         data = {}
         
@@ -225,9 +239,8 @@ class EGNDataset(STDataset):
             expression = expression.toarray().squeeze(0) \
                 if sparse.issparse(expression) else expression.squeeze(0)
             
-                
             data['img'] = img
-            data['label'] = expression
+            data['label'] = torch.FloatTensor(expression) 
             
         elif self.phase == 'test':
             name = self.int2id[index]
@@ -235,11 +248,11 @@ class EGNDataset(STDataset):
             img = torch.stack([self.transforms(im) for im in img], dim=0)
             
             if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
-                adata = self.load_st(name)[:,self.genes]
+                adata = self.load_st(name, self.genes, **self.norm_param)
                 
                 if self.mode != 'inference':
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
-                    data['label'] = expression
+                    data['label'] = torch.FloatTensor(expression)
             
             data['img'] = img
             
@@ -250,6 +263,27 @@ class EGNDataset(STDataset):
             return self.cumlen[-1]
         else:
             return len(self.int2id)
+        
+    def load_emb(self, name: str, emb_name: str = 'global', idx: int = None):
+        if emb_name not in ['global', 'neighbor']:
+            raise ValueError(f"emb_name must be 'global' or 'neighbor', but got {emb_name}")
+        
+        path = f"{self.emb_dir}/{emb_name}/uni_v1/{name}.h5"
+        
+        with h5py.File(path, 'r') as f:
+            if 'embeddings'in f:
+                emb = f['embeddings'][idx] if idx is not None else f['embeddings'][:]
+            else:
+                emb = f['features'][idx] if idx is not None else f['features'][:]
+                
+            emb = torch.Tensor(emb)
+            
+            if emb_name == 'neighbor':
+                mask = f['mask_tb'][idx] if idx is not None else f['mask_tb'][:]
+                mask = torch.LongTensor(mask)
+                return emb, mask
+            
+        return emb
         
         
 class BleepDataset(STDataset):
@@ -283,7 +317,7 @@ class BleepDataset(STDataset):
             
             spot_expressions_ref = []
             for _id in ids_ref:
-                expression = self.load_st(_id, **self.norm_param)[:,self.genes].X
+                expression = self.load_st(_id, self.genes, **self.norm_param).X
                 expression = expression.toarray() if sparse.issparse(expression) else expression
                 expression = torch.FloatTensor(expression) 
                 spot_expressions_ref.append(expression)
