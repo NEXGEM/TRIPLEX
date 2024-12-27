@@ -44,7 +44,7 @@ class STDataset(torch.utils.data.Dataset):
         self.data_dir = data_dir
         self.img_dir = f"{data_dir}/patches"
         self.st_dir = f"{data_dir}/adata"
-    
+
         self.mode = mode
         self.phase = phase
         self.norm_param = {'normalize': normalize, 'cpm': cpm, 'smooth': smooth}
@@ -207,6 +207,8 @@ class EGNDataset(STDataset):
                                 cpm=cpm,
                                 smooth=smooth )
         
+        self.num_outputs = num_outputs
+        
         if phase == 'train':
             self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
                 for _id in self.ids}
@@ -214,10 +216,14 @@ class EGNDataset(STDataset):
             data_path = f"{data_dir}/splits/train_{fold}.csv"
             ids_ref = self._get_ids(data_path)
             
-            self.adata_dict = {_id: self.load_st(_id, self.genes, **self.norm_param) \
+            adata_dict = {_id: self.load_st(_id, self.genes, **self.norm_param) \
                 for _id in ids_ref}
-            self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
+            self.spot_expressions_ref = {_id: adata.X.toarray() if sparse.issparse(adata.X) else adata.X \
+                for _id, adata in adata_dict.items()}
+            self.global_embs_ref = {_id: self.load_emb(_id, emb_name='global') \
                 for _id in ids_ref}
+            
+        self.exemplar_dir = f"{data_dir}/exemplar/fold{fold}/{phase}"
         
     def __getitem__(self, index):
         data = {}
@@ -239,8 +245,21 @@ class EGNDataset(STDataset):
             expression = expression.toarray().squeeze(0) \
                 if sparse.issparse(expression) else expression.squeeze(0)
             
+            global_embs = self.global_embs[name]
+            
+            with h5py.File(f"{self.exemplar_dir}/{name}.h5", 'r') as f:
+                pid = f['pid'][:].astype('str')
+                sid = f['sid'][:]
+            
+            pid_i = pid[idx]
+            sid_i = sid[idx]
+            img_exemplars, exp_exemplars = self.get_exemplars(pid_i, sid_i)
+            
             data['img'] = img
             data['label'] = torch.FloatTensor(expression) 
+            data['ei'] = global_embs
+            data['ej'] = img_exemplars
+            data['yj'] = exp_exemplars
             
         elif self.phase == 'test':
             name = self.int2id[index]
@@ -254,7 +273,17 @@ class EGNDataset(STDataset):
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     data['label'] = torch.FloatTensor(expression)
             
+            global_embs = self.load_emb(name, emb_name='global')
+            
+            with h5py.File(f"{self.exemplar_dir}/{name}.h5", 'r') as f:
+                pid = f['pid'][:].astype('str')
+                sid = f['sid'][:]
+            img_exemplars, exp_exemplars = self.get_exemplars_batch(pid, sid)
+            
             data['img'] = img
+            data['ei'] = global_embs
+            data['ej'] = img_exemplars
+            data['yj'] = exp_exemplars
             
         return data
         
@@ -264,26 +293,61 @@ class EGNDataset(STDataset):
         else:
             return len(self.int2id)
         
-    def load_emb(self, name: str, emb_name: str = 'global', idx: int = None):
-        if emb_name not in ['global', 'neighbor']:
-            raise ValueError(f"emb_name must be 'global' or 'neighbor', but got {emb_name}")
+    def load_emb(self, name: str, idx: int = None):
         
-        path = f"{self.emb_dir}/{emb_name}/uni_v1/{name}.h5"
+        path = f"{self.emb_dir}/global_emb/uni_v1/{name}.h5"
         
         with h5py.File(path, 'r') as f:
             if 'embeddings'in f:
                 emb = f['embeddings'][idx] if idx is not None else f['embeddings'][:]
             else:
                 emb = f['features'][idx] if idx is not None else f['features'][:]
-                
             emb = torch.Tensor(emb)
             
-            if emb_name == 'neighbor':
-                mask = f['mask_tb'][idx] if idx is not None else f['mask_tb'][:]
-                mask = torch.LongTensor(mask)
-                return emb, mask
-            
         return emb
+    
+    def get_exemplars(self, pid_i, sid_i, num_exemplars=9):
+        
+        pid_i = pid_i[:num_exemplars]
+        sid_i = sid_i[:num_exemplars]
+        
+        # Retrieve and assign embeddings
+        img_exemplars = np.array([self.global_embs_ref[p][s] for p, s in zip(pid_i, sid_i)], dtype=np.float32)
+        exp_exemplars = np.array([self.spot_expressions_ref[p][s] for p, s in zip(pid_i, sid_i)], dtype=np.float32)
+
+        return img_exemplars, exp_exemplars
+    
+    def get_exemplars_batch(self, pid, sid, num_exemplars=9):
+        """
+        Optimized extraction of image and expression exemplars.
+
+        Parameters:
+        - pid (np.ndarray): Array of participant IDs with shape (batch_size, 100)
+        - sid (np.ndarray): Array of session IDs with shape (batch_size, 100)
+
+        Returns:
+        - img_exemplars (np.ndarray): Stacked image embeddings with shape (batch_size, 9, D_img)
+        - exp_exemplars (np.ndarray): Stacked expression embeddings with shape (batch_size, 9, D_exp)
+        """
+        batch_size = pid.shape[0] 
+
+        # Replace with actual embedding dimensions
+        D_img = 1024
+
+        # Preallocate arrays
+        img_exemplars = np.empty((batch_size, num_exemplars, D_img), dtype=np.float32)
+        exp_exemplars = np.empty((batch_size, num_exemplars, self.num_outputs), dtype=np.float32)
+
+        for i in range(batch_size):
+            pid_i = pid[i]
+            sid_i = sid[i]
+            
+            img_exemplar, exp_exemplar = self.get_exemplars(pid_i, sid_i, num_exemplars)
+            
+            img_exemplars[i] = img_exemplar
+            exp_exemplars[i] = exp_exemplar
+
+        return img_exemplars, exp_exemplars
         
         
 class BleepDataset(STDataset):

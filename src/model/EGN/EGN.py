@@ -267,11 +267,14 @@ class EGN(nn.Module):
         x = self.transformer(x, data, pos)
         x = self.to_latent(x)
         output = self.mlp_head(x)
-        loss = F.mse_loss(output, label)
         
         label = kwargs['label']
         if len(label.shape) == 3:
             label = label.squeeze(0)
+            
+        loss = F.mse_loss(output, label)
+        corrloss = self.correlationMetric(output, label)
+        loss += corrloss * 0.5
         
         return {'loss': loss, 'logits': output}
     
