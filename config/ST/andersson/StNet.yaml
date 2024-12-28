@@ -5,7 +5,7 @@ GENERAL:
   log_path: ./logs
   
 TRAINING:
-  num_k: 8
+  num_k: 6
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
@@ -17,27 +17,13 @@ TRAINING:
     factor: 0.1
   
 MODEL:
-  model_name: TRIPLEX 
-  num_genes: 250
-  emb_dim: 1024
-  depth1: 1
-  depth2: 5
-  depth3: 4
-  num_heads1: 4
-  num_heads2: 8
-  num_heads3: 4
-  mlp_ratio1: 4
-  mlp_ratio2: 4
-  mlp_ratio3: 4
-  dropout1: 0.4
-  dropout2: 0.3
-  dropout3: 0.3
-  kernel_size: 3
+  model_name: st_net 
+  num_outputs: 250
 
 DATA:
   data_dir: input/ST/andersson
   output_dir: output/ST/andersson
-  dataset_name: TriDataset
+  dataset_name: STDataset
   gene_type: 'mean'
   num_genes: 1000
   num_outputs: 250

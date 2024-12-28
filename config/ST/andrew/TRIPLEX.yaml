@@ -13,12 +13,12 @@ TRAINING:
   early_stopping:
     patience: 20
   lr_scheduler:
-    patience: 20
+    patience: 10
     factor: 0.1
   
 MODEL:
   model_name: TRIPLEX 
-  num_outputs: 250
+  num_genes: 250
   emb_dim: 1024
   depth1: 2
   depth2: 2
@@ -26,12 +26,12 @@ MODEL:
   num_heads1: 8
   num_heads2: 16
   num_heads3: 16
-  mlp_ratio1: 2
-  mlp_ratio2: 2
-  mlp_ratio3: 2
-  dropout1: 0.15
-  dropout1: 0.15
-  dropout1: 0.15
+  mlp_ratio1: 4
+  mlp_ratio2: 1
+  mlp_ratio3: 1
+  dropout1: 0.1
+  dropout2: 0.1
+  dropout3: 0.3
   kernel_size: 3
 
 DATA:
