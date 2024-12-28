@@ -208,23 +208,19 @@ class EGNDataset(STDataset):
                                 smooth=smooth )
         
         self.num_outputs = num_outputs
-        
-        if phase == 'train':
-            self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
-                for _id in self.ids}
-        else:
-            data_path = f"{data_dir}/splits/train_{fold}.csv"
-            ids_ref = self._get_ids(data_path)
-            
-            adata_dict = {_id: self.load_st(_id, self.genes, **self.norm_param) \
-                for _id in ids_ref}
-            self.spot_expressions_ref = {_id: adata.X.toarray() if sparse.issparse(adata.X) else adata.X \
-                for _id, adata in adata_dict.items()}
-            self.global_embs_ref = {_id: self.load_emb(_id, emb_name='global') \
-                for _id in ids_ref}
-            
+        self.emb_dir = f"{data_dir}/emb"            
         self.exemplar_dir = f"{data_dir}/exemplar/fold{fold}/{phase}"
         
+        data_path = f"{data_dir}/splits/train_{fold}.csv"
+        ids_ref = self._get_ids(data_path)
+        
+        adata_dict = {_id: self.load_st(_id, self.genes, **self.norm_param) \
+            for _id in ids_ref}
+        self.spot_expressions_ref = {_id: adata.X.toarray() if sparse.issparse(adata.X) else adata.X \
+            for _id, adata in adata_dict.items()}
+        self.global_embs_ref = {_id: self.load_emb(_id) \
+            for _id in ids_ref}
+    
     def __getitem__(self, index):
         data = {}
         
@@ -245,7 +241,8 @@ class EGNDataset(STDataset):
             expression = expression.toarray().squeeze(0) \
                 if sparse.issparse(expression) else expression.squeeze(0)
             
-            global_embs = self.global_embs[name]
+            # global_embs = self.global_embs[name]
+            global_emb = self.load_emb(name, idx)
             
             with h5py.File(f"{self.exemplar_dir}/{name}.h5", 'r') as f:
                 pid = f['pid'][:].astype('str')
@@ -257,7 +254,7 @@ class EGNDataset(STDataset):
             
             data['img'] = img
             data['label'] = torch.FloatTensor(expression) 
-            data['ei'] = global_embs
+            data['ei'] = global_emb.unsqueeze(0)
             data['ej'] = img_exemplars
             data['yj'] = exp_exemplars
             
@@ -273,7 +270,7 @@ class EGNDataset(STDataset):
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     data['label'] = torch.FloatTensor(expression)
             
-            global_embs = self.load_emb(name, emb_name='global')
+            global_embs = self.load_emb(name)
             
             with h5py.File(f"{self.exemplar_dir}/{name}.h5", 'r') as f:
                 pid = f['pid'][:].astype('str')
@@ -281,21 +278,15 @@ class EGNDataset(STDataset):
             img_exemplars, exp_exemplars = self.get_exemplars_batch(pid, sid)
             
             data['img'] = img
-            data['ei'] = global_embs
+            data['ei'] = global_embs.unsqueeze(1)
             data['ej'] = img_exemplars
             data['yj'] = exp_exemplars
             
         return data
         
-    def __len__(self):
-        if self.phase == 'train':
-            return self.cumlen[-1]
-        else:
-            return len(self.int2id)
-        
     def load_emb(self, name: str, idx: int = None):
         
-        path = f"{self.emb_dir}/global_emb/uni_v1/{name}.h5"
+        path = f"{self.emb_dir}/global/uni_v1/{name}.h5"
         
         with h5py.File(path, 'r') as f:
             if 'embeddings'in f:
@@ -388,8 +379,3 @@ class BleepDataset(STDataset):
                 
             self.spot_expressions_ref = torch.cat(spot_expressions_ref, dim=0) 
         
-    def __len__(self):
-        if self.phase == 'train':
-            return self.cumlen[-1]
-        else:
-            return len(self.int2id)

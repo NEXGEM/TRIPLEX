@@ -158,11 +158,11 @@ class Update(nn.Module):
             )
         
         self.value = nn.Linear(dim, dim)
-        self.norm = nn.LayerNorm(dim)        
+        # self.norm = nn.LayerNorm(dim)        
     def forward(self,q,k,v):
         value = self.value(v)
         query, key = self.query(torch.cat((q-k,k),2)).chunk(2,2)        
-        return (query.sigmoid() * value).mean(1,True) + q, self.norm(key.sigmoid() * value + k)
+        return (query.sigmoid() * value).mean(1,True) + q, key.sigmoid() * value + k
     
 class EB(nn.Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
@@ -199,8 +199,6 @@ class EB(nn.Module):
             nn.Linear(inner_dim, dim, bias = False)
             )
 
-        self.to_out = nn.Linear(inner_dim, dim) 
-
     def forward(self, x, q,oq,oq_v):
         new_q, new_k = self.update(q,oq,oq_v)
         key = self.to_k(new_q)
@@ -223,15 +221,11 @@ def pearson_R(x, y):
 
 class EGN(nn.Module):
     def __init__(self, bhead=16, bdim=128, bfre=2, mdim=1024, player=2, linear_projection=True,
-                image_size = 224, patch_size = 32, num_genes = 300, dim = 1024, 
-                depth = 16, heads = 16, mlp_dim = 2048, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.,
-                learning_rate=1e-4, eval_all=False, norm_ori=False):
+                image_size = 224, patch_size = 32, num_outputs = 300, dim = 1024, 
+                depth = 16, heads = 16, mlp_dim = 2048, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
         
-        self.num_classes = num_genes
         self.dim = dim
-        self.eval_all = eval_all
-        self.norm_ori = norm_ori
 
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -249,16 +243,16 @@ class EGN(nn.Module):
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
-        self.transformer = Transformer(mdim,dim, player, depth,linear_projection, heads, dim_head, mlp_dim, dropout,bhead,bdim,bfre, num_genes)
+        self.transformer = Transformer(mdim,dim, player, depth,linear_projection, heads, dim_head, mlp_dim, dropout,bhead,bdim,bfre, num_outputs)
         self.to_latent = nn.Identity()
 
         self.mlp_head = nn.Sequential(
                 nn.LayerNorm(dim * 2),
-                nn.Linear(dim * 2, num_genes)
+                nn.Linear(dim * 2, num_outputs)
             )
             
     def forward(self, img, ei, ej, yj, **kwargs):
-        data = {'img': img, 'p_feature':ei.unsqueeze(1),'op_feature':ej, 'op_count':yj}
+        data = {'img': img, 'p_feature':ei,'op_feature':ej, 'op_count':yj}
 
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
@@ -274,7 +268,7 @@ class EGN(nn.Module):
             
         loss = F.mse_loss(output, label)
         corrloss = self.correlationMetric(output, label)
-        loss += corrloss * 0.5
+        loss = loss + corrloss * 0.5
         
         return {'loss': loss, 'logits': output}
     
