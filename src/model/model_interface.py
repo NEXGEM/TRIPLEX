@@ -77,6 +77,12 @@ class  ModelInterface(pl.LightningModule):
             inputs['pid'] = inputs['pid'].view(-1)
         if 'sid' in inputs and len(inputs['sid'].shape) == 2:
             inputs['sid'] = inputs['sid'].view(-1)
+        if 'ei' in inputs and len(inputs['ei'].shape) == 4:
+            inputs['ei'] = inputs['ei'].squeeze(0)
+        if 'ej' in inputs and len(inputs['ej'].shape) == 4:
+            inputs['ej'] = inputs['ej'].squeeze(0)
+        if 'yj' in inputs and len(inputs['yj'].shape) == 4:
+            inputs['yj'] = inputs['yj'].squeeze(0)
         return inputs
 
     def training_step(self, batch, batch_idx):
@@ -86,14 +92,13 @@ class  ModelInterface(pl.LightningModule):
         if self.model_name == 'TRIPLEX':
             dataset = self._trainer.train_dataloader.dataset
             batch['dataset'] = dataset
-            
+                
         results_dict = self.model(**batch)
         
         #---->Loss
-        loss = results_dict['loss']
-        
+        loss = results_dict['loss']        
         self.log("train_loss", loss)
-
+        
         return {'loss': loss} 
 
     def validation_step(self, batch, batch_idx):
@@ -109,7 +114,7 @@ class  ModelInterface(pl.LightningModule):
             
             val_metric = self.valid_metrics(logits, label)
             # val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0 else k:v}
-            val_metric = {k: v.mean() if len(v.shape) > 0 else v for k, v in val_metric.items()}
+            val_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in val_metric.items()}
             self.log_dict(val_metric, on_epoch = True, logger = True, sync_dist=True)
             outputs = {'logits': logits, 'label': label}
         else:
@@ -137,7 +142,7 @@ class  ModelInterface(pl.LightningModule):
         
         test_metric = self.test_metrics(logits, label)
         # val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0 else k:v}
-        test_metric = {k: v.mean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
+        test_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
         self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True)
         outputs = {'logits': logits, 'label': label}
         
