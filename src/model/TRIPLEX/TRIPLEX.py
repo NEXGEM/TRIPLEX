@@ -148,7 +148,6 @@ class TRIPLEX(nn.Module):
         #                         nn.ReLU())
         self.fc = nn.Linear(emb_dim, num_outputs)
         
-    
     def forward(self,
                 img, 
                 mask, 
