@@ -237,6 +237,8 @@ To evaluate the model:
 python src/main.py --config_name=<config_path> --mode=eval --gpu=1
 ```
 
+**The most recent folder inside the log folder is used for evaluation.**
+
 ### 🔍 Inference
 
 To run inference:
