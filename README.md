@@ -231,13 +231,28 @@ Replace `<config_path>` with the path to your configuration file.
 
 ### 📊 Evaluation
 
-To evaluate the model:
+To evaluate the model, run the following command:
 
 ```bash
 python src/main.py --config_name=<config_path> --mode=eval --gpu=1
 ```
 
-**The most recent folder inside the log folder is used for evaluation.**
+The most recent folder inside the log directory will be used for evaluation. The file `pcc_rank.npy` will be saved in the output directory.
+
+To identify highly predictive genes (HPGs), use the following command:
+
+```bash
+python src/experiment/get_HPG.py --dataset ST --model TRIPLEX
+```
+
+The file `idx_top.npy` will be saved in the output directory.
+
+To evaluate the model including HPGs, run the evaluation command again:
+
+```bash
+python src/main.py --config_name=<config_path> --mode=eval --gpu=1
+```
+
 
 ### 🔍 Inference
 
@@ -256,46 +271,43 @@ Replace `<model_checkpoint_path>` with the path to your trained model checkpoint
 Configurations are managed using YAML files located in the `config/` directory. Each configuration file specifies parameters for the dataset, model, training, and evaluation. Example configuration parameters include:
 
 ```yaml
-
-
-
 GENERAL:
   seed: 2021
   log_path: ./logs
   
 TRAINING:
-  num_k: 5
+  num_k: 8
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
   mode: max
   early_stopping:
-    patience: 10
+    patience: 20
   lr_scheduler:
-    patience: 5
+    patience: 10
     factor: 0.1
   
 MODEL:
   model_name: TRIPLEX 
-  num_outputs: 250
+  num_genes: 250
   emb_dim: 1024
-  depth1: 2
-  depth2: 2
+  depth1: 1
+  depth2: 5
   depth3: 4
-  num_heads1: 8
-  num_heads2: 16
-  num_heads3: 16
-  mlp_ratio1: 2
-  mlp_ratio2: 2
-  mlp_ratio3: 2
-  dropout1: 0.15
-  dropout1: 0.15
-  dropout1: 0.15
+  num_heads1: 4
+  num_heads2: 8
+  num_heads3: 4
+  mlp_ratio1: 4
+  mlp_ratio2: 4
+  mlp_ratio3: 4
+  dropout1: 0.4
+  dropout2: 0.3
+  dropout3: 0.3
   kernel_size: 3
 
 DATA:
   data_dir: input/ST/andersson
-  output_dir: output/ST/andersson
+  output_dir: output/pred/ST/andersson
   dataset_name: TriDataset
   gene_type: 'mean'
   num_genes: 1000
