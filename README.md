@@ -15,9 +15,9 @@ It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) and [CLAM](
 - [Project Structure](#project-structure)
 - [Usage](#usage)
   - [Preprocessing](#preprocessing)
-  - [Training](#training)
-  - [Evaluation](#evaluation)
-  - [Inference](#inference)
+  - [Training](#-training)
+  - [Evaluation](#-evaluation)
+  - [Inference](#-inference)
 - [Configuration](#configuration)
 - [Citation](#Citation)
 
@@ -219,7 +219,7 @@ bash script/03-preprocess_new.sh /path/to/raw ./input/path/to/processed 'tif' vi
 bash script/04-preprocess_for_inference.sh /path/to/raw ./input/path/to/processed 'svs' 0
 ```
 
-### 📈 Model Training
+### 📈 Training
 
 To train the model using cross-validation, run the following command:
 
@@ -242,7 +242,7 @@ The most recent folder inside the log directory will be used for evaluation. The
 To identify highly predictive genes (HPGs), use the following command:
 
 ```bash
-python src/experiment/get_HPG.py --dataset ST --model TRIPLEX
+python src/experiment/get_HPG.py --dataset=<dataset_name> --model=<model_name>
 ```
 
 The file `idx_top.npy` will be saved in the output directory.
