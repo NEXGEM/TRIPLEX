@@ -5,7 +5,7 @@ GENERAL:
   log_path: ./logs
   
 TRAINING:
-  num_k: 6
+  num_k: 4
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef

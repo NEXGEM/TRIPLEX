@@ -5,7 +5,7 @@ GENERAL:
   log_path: ./logs
   
 TRAINING:
-  num_k: 6
+  num_k: 4
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
@@ -28,7 +28,7 @@ MODEL:
 DATA:
   data_dir: input/ST/andrew
   output_dir: output/ST/andrew
-  dataset_name: EGNDataset
+  dataset_name: BleepDataset
   gene_type: 'mean'
   num_genes: 1000
   num_outputs: 250
