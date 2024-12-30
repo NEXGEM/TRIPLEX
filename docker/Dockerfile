@@ -47,7 +47,8 @@ RUN git clone https://github.com/mahmoodlab/HEST.git && \
 RUN python3.11 -m pip install \
     addict \
     openslide-bin \
-    wget
+    wget \
+    wandb
 
 RUN python3.11 -m pip install flash-attn --no-build-isolation
 

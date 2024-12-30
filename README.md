@@ -98,10 +98,11 @@ pip install -r requirements.txt
 ├── docker/                 # Docker-related setup files
 ├── figures/                # Figures
 ├── src/                    # Source code
-│   ├── datasets/           # Dataset loading and preprocessing modules
-│   ├── models/             # Model architectures
-│   ├── preprocess/         # Scripts for preprocessing data
-│   ├── main.py             # Main script for training and inference
+│   ├── dataset/            # Dataset loading and preprocessing modules
+│   ├── model/              # Model architectures
+│   ├── preprocess/         # Codes for preprocessing data
+│   ├── experiment/         # Codes for organizing experiment results
+│   ├── main.py             # Main script for training, evaluation, and inference
 │   ├── utils.py            # Utility functions
 ├── script/                 # Example scripts for runs 
 ├── README.md               # Project documentation
