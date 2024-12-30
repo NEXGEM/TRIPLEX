@@ -22,7 +22,7 @@ MODEL:
 
 DATA:
   data_dir: input/hest/bench_data/READ
-  output_dir: output/hest/bench_data/READ
+  output_dir: output/pred/hest/bench_data/READ
   dataset_name: STDataset
   gene_type: 'var'
   num_genes: 50

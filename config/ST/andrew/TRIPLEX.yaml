@@ -36,7 +36,7 @@ MODEL:
 
 DATA:
   data_dir: input/ST/andrew
-  output_dir: output/ST/andrew
+  output_dir: output/pred/ST/andrew
   dataset_name: TriDataset
   gene_type: 'mean'
   num_genes: 1000

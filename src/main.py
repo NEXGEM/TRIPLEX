@@ -83,11 +83,15 @@ def main(cfg):
         ckpt_path = glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt")[0]
         
         log_name = str(Path(cfg.config).parent)
-        version_name = Path(cfg.config).name
+        model_name = Path(cfg.config).name
         current_time = Path(ckpt_dir).name
+        
+        output_path = f"{cfg.DATA.output_dir}/{model_name}"
+        os.makedirs(f"{output_path}/fold{cfg.DATA.fold}", exist_ok=True)
+        cfg.DATA.output_path = output_path
     
         csv_logger = pl_loggers.CSVLogger(f"{log_path}/{log_name}",
-                                    name = f"{version_name}/{current_time}", version = f'fold{cfg.DATA.fold}/eval', )
+                                    name = f"{model_name}/{current_time}", version = f'fold{cfg.DATA.fold}/eval', )
         
         trainer = pl.Trainer(accelerator="gpu", 
                             devices=gpus,
@@ -100,7 +104,9 @@ def main(cfg):
         trainer.test(model, datamodule = dm)
         
     elif mode == 'inference':
-        pred_path = f"{cfg.DATA.output_dir}/pred/fold{cfg.DATA.fold}"
+        model_name = Path(cfg.config).name
+        
+        pred_path = f"{cfg.DATA.output_dir}/{model_name}/fold{cfg.DATA.fold}"
         os.makedirs(pred_path, exist_ok=True)
         
         pred_writer = CustomWriter(pred_dir=pred_path, write_interval="epoch")

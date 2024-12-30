@@ -34,7 +34,7 @@ MODEL:
 
 DATA:
   data_dir: input/TCGA/GBM
-  output_dir: output/TCGA/GBM
+  output_dir: output/pred/TCGA/GBM
   dataset_name: TriDataset
   gene_type: 'mean'
   num_genes: 1000

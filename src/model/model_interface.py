@@ -4,6 +4,7 @@ import inspect
 import importlib
 
 #---->
+import numpy as np
 import torch
 import torchmetrics
 from torchmetrics.regression import ( PearsonCorrCoef, 
@@ -48,7 +49,17 @@ class  ModelInterface(pl.LightningModule):
         metrics.compute_groups[idx_target] = ['target']
         self.valid_metrics = metrics.clone(prefix = 'val_')
         
-
+        if os.path.exists(f"{self.config.DATA.output_path}/idx_top.npy"):
+            num_hpg = np.load(f"{self.config.DATA.output_path}/idx_top.npy").shape[0]
+            self.test_metrics_hpg = torchmetrics.MetricCollection([PearsonCorrCoef(num_outputs = num_hpg),
+                                                    ConcordanceCorrCoef(num_outputs = num_hpg),
+                                                    MeanSquaredError(num_outputs = num_hpg),
+                                                    MeanAbsoluteError(num_outputs = num_hpg),
+                                                    ExplainedVariance()
+                                                    ]).clone(prefix = 'test_', postfix='_hpg')
+        
+        self.avg_pcc = torch.zeros(num_outputs)
+        
     #---->remove v_num
     def get_progress_bar_dict(self):
         # don't show the version number
@@ -107,7 +118,6 @@ class  ModelInterface(pl.LightningModule):
             label = batch['label']
             
             val_metric = self.valid_metrics(logits, label)
-            # val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0 else k:v}
             val_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in val_metric.items()}
             self.log_dict(val_metric, on_epoch = True, logger = True, sync_dist=True)
             outputs = {'logits': logits, 'label': label}
@@ -115,8 +125,6 @@ class  ModelInterface(pl.LightningModule):
             loss = results_dict['loss']
             self.log_dict({'val_target': loss}, on_epoch = True, logger = True, sync_dist=True)
             outputs = {'loss': loss}
-        
-        # self.validation_step_outputs.append(outputs)
         
         return outputs
 
@@ -135,13 +143,27 @@ class  ModelInterface(pl.LightningModule):
         label = batch['label']
         
         test_metric = self.test_metrics(logits, label)
-        # val_metric = {k:v.mean() for k,v in val_metric.items() if len(v.shape) > 0 else k:v}
+        if os.path.exists(f"{self.config.DATA.output_path}/idx_top.npy"):
+            idx_top = np.load(f"{self.config.DATA.output_path}/idx_top.npy")
+            idx_top = torch.tensor(idx_top).to(logits.device)
+            test_metric_hpg = self.test_metrics_hpg(logits[:, idx_top], label[:, idx_top])
+            test_metric_hpg = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric_hpg.items()}
+            self.log_dict(test_metric_hpg, on_epoch = True, logger = True, sync_dist=True)
+        else:
+            self.avg_pcc += test_metric['test_PearsonCorrCoef'].cpu()
+            
         test_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
         self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True)
+        
         outputs = {'logits': logits, 'label': label}
         
         return outputs
-
+    
+    def on_test_epoch_end(self):
+        if not os.path.exists(f"{self.config.DATA.output_path}/idx_top.npy"):
+            pcc_rank = torch.argsort(torch.argsort(self.avg_pcc, dim=-1), dim=-1) + 1
+            np.save(f"{self.config.DATA.output_path}/fold{self.config.DATA.fold}/pcc_rank.npy", pcc_rank.numpy())
+    
     def predict_step(self, batch, batch_idx):
         batch = self._preprocess_inputs(**batch)
         
@@ -186,7 +208,6 @@ class  ModelInterface(pl.LightningModule):
         except:
             raise ValueError('Invalid Module File Name or Invalid Class Name!')
         self.model = self.instancialize(Model)
-        pass
 
     def instancialize(self, Model, **other_args):
         """ Instancialize a model using the corresponding parameters

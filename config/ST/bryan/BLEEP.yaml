@@ -27,7 +27,7 @@ MODEL:
 
 DATA:
   data_dir: input/ST/bryan
-  output_dir: output/ST/bryan
+  output_dir: output/pred/ST/bryan
   dataset_name: BleepDataset
   gene_type: 'mean'
   num_genes: 1000

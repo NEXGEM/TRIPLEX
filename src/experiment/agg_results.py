@@ -53,7 +53,7 @@ def main(args):
     results_df.loc[len(results_df)] = ['Average'] + list(means)
     print(results_df.to_string(index=False))
     
-    output_path = f"{args.output_dir}/{args.dataset}/res/{args.model}/results.csv"
+    output_path = f"{args.output_dir}/{args.dataset}/{args.model}/results.csv"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     results_df.to_csv(output_path, index=False)
     
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     argparser.add_argument('--model', type=str, default='TRIPLEX')
     argparser.add_argument('--log_dir', type=str, default='./logs')
     argparser.add_argument('--dataset', type=str, default='hest')
-    argparser.add_argument('--output_dir', type=str, default='./output')
+    argparser.add_argument('--output_dir', type=str, default='./output/res')
     args = argparser.parse_args()
     
     main(args)
