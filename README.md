@@ -7,7 +7,7 @@ TRIPLEX is a deep learning framework designed for predicting spatial transcripto
 
 <img src="./figures/TRIPLEX_main.jpg" title="TRIPLEX"/>
 
-It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) for enhanced functionality.
+It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) and [CLAM](https://github.com/mahmoodlab/CLAM) for data preparation.
 
 ## Table of Contents
 - [Requirements](#requirements)
