@@ -12,7 +12,6 @@ def main(args):
     for dataset in glob(f"{args.log_dir}/{args.dataset}/*"):
         dataset_name = dataset.split('/')[-1]
         path = glob(f"{dataset}/{args.model}/*")[-1]
-        pccs, mses, cccs, evs, maes = [], [], [], [], []
         
         for fold_path in glob(f"{path}/*"):
             if not os.path.exists(f"{fold_path}/eval/metrics.csv"):
@@ -21,31 +20,23 @@ def main(args):
                 continue
             metrics = pd.read_csv(f"{fold_path}/eval/metrics.csv")
             idx = metrics.test_PearsonCorrCoef.argmax()
-            best_metrics = metrics.iloc[idx,:]
-            best_pcc = best_metrics.test_PearsonCorrCoef
-            best_ccc = best_metrics.test_ConcordanceCorrCoef
-            best_mse = best_metrics.test_MeanSquaredError
-            best_mae = best_metrics.test_MeanAbsoluteError
-            best_ev = best_metrics.test_ExplainedVariance
             
-            pccs.append(best_pcc)
-            mses.append(best_mse)
-            cccs.append(best_ccc)
-            evs.append(best_ev)
-            maes.append(best_mae)
+            # Get test metric columns dynamically
+            test_cols = [col for col in metrics.columns if col.startswith('test_')]
+            
+            idx = metrics.test_PearsonCorrCoef.argmax()
+            best_metrics = metrics.iloc[idx,:]
+            
+            if not 'metric_lists' in locals():
+                metric_lists = {col: [] for col in test_cols}
+            
+            for col in test_cols:
+                metric_lists[col].append(best_metrics[col])
             
         results.append({
             'Dataset': dataset_name,
-            'PCC_mean': np.mean(pccs),
-            'PCC_std': np.std(pccs),
-            'MSE_mean': np.mean(mses),
-            'MSE_std': np.std(mses),
-            'CCC_mean': np.mean(cccs),
-            'CCC_std': np.std(cccs),
-            'EV_mean': np.mean(evs),
-            'EV_std': np.std(evs),
-            'MAE_mean': np.mean(maes),
-            'MAE_std': np.std(maes)
+            **{f"{col.replace('test_', '')}_mean": np.mean(metric_lists[col]) for col in test_cols},
+            **{f"{col.replace('test_', '')}_std": np.std(metric_lists[col]) for col in test_cols}
         })
 
     results_df = pd.DataFrame(results)
