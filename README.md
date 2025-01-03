@@ -211,8 +211,10 @@ bash script/02-preprocess_hest.sh /path/to/hest/wsis ./input/ST/andersson 'tif'
 
 > [!NOTE]
 >
-> **Preprocess of ST dataset (Reproducing our experiments)**
->
+> **Reproducing our experiments:**
+> The ST datasets we used in our experiments are already included in HEST data.
+> You can run the scripts below to automatically download and pre-process the data.
+> 
 > BC1 dataset (Andersson et al.):
 > ```bash
 > bash script/02.1-preprocess_BC1.sh
@@ -225,8 +227,6 @@ bash script/02-preprocess_hest.sh /path/to/hest/wsis ./input/ST/andersson 'tif'
 > ```bash
 > bash script/02.3-preprocess_SCC.sh
 > ```
-
-
 
 
 - Your own ST data
