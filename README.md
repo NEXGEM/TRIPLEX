@@ -197,7 +197,7 @@ python src/preprocess/extract_img_features.py  \
         --num_n 5
 ```
 
-> Examples
+#### **One-step preprocessing**
 
 - HEST bench data
 ```bash
@@ -209,18 +209,22 @@ bash script/01-preprocess_hest_bench.sh /path/to/hest/wsis ./input/bench_data/CC
 bash script/02-preprocess_hest.sh /path/to/hest/wsis ./input/ST/andersson 'tif'
 ```
 
-BC1 dataset (Andersson et al.):
-```bash
-bash script/02.1-preprocess_BC1.sh
-```
-BC2 dataset (Bryan et al.):
-```bash
-bash script/02.2-preprocess_BC2.sh
-```
-SCC dataset (Andrew et al.):
-```bash
-bash script/02.3-preprocess_SCC.sh
-```
+> [!NOTE]
+>
+> **Preprocess of ST dataset (Reproducing our experiments)**
+>
+> BC1 dataset (Andersson et al.):
+> ```bash
+> bash script/02.1-preprocess_BC1.sh
+> ```
+> BC2 dataset (Bryan et al.):
+> ```bash
+> bash script/02.2-preprocess_BC2.sh
+> ```
+> SCC dataset (Andrew et al.):
+> ```bash
+> bash script/02.3-preprocess_SCC.sh
+> ```
 
 
 
