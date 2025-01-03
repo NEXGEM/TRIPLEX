@@ -209,6 +209,22 @@ bash script/01-preprocess_hest_bench.sh /path/to/hest/wsis ./input/bench_data/CC
 bash script/02-preprocess_hest.sh /path/to/hest/wsis ./input/ST/andersson 'tif'
 ```
 
+BC1 dataset (Andersson et al.):
+```bash
+bash script/02.1-preprocess_BC1.sh
+```
+BC2 dataset (Bryan et al.):
+```bash
+bash script/02.2-preprocess_BC2.sh
+```
+SCC dataset (Andrew et al.):
+```bash
+bash script/02.3-preprocess_SCC.sh
+```
+
+
+
+
 - Your own ST data
 ```bash
 bash script/03-preprocess_new.sh /path/to/raw ./input/path/to/processed 'tif' visium
