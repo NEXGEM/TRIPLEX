@@ -1,6 +1,7 @@
 # TRIPLEX 🧬
 
-TRIPLEX is a deep learning framework designed for predicting spatial transcriptomics from histology images by integrating multi-resolution features. 
+Accurate Spatial Gene Expression Prediction by integrating Multi-resolution features, CVPR 2024. [[arXiv]](https://arxiv.org/abs/2403.07592) \
+Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 
 [![PyTorch](https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![PyTorch Lightning](https://img.shields.io/badge/pytorch-lightning-blue.svg?logo=PyTorch%20Lightning)](https://lightning.ai/docs/pytorch/stable/)
