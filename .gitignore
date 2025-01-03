@@ -22,6 +22,9 @@ test.ipynb
 __pycache__
 
 input/*
+!input/ST/
+input/ST/*/*
+!input/ST/*/ids.csv
 output/*
 
 *test.R

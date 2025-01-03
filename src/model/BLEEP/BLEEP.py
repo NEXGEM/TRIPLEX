@@ -239,7 +239,8 @@ class BLEEP(nn.Module):
         trainable=True,
         dropout=0.1,
         weight="weights/tenpercent_resnet18.ckpt",
-        infer_method='average'
+        infer_method='average',
+        max_batch_size=1024
     ):
         super().__init__()
         
@@ -253,47 +254,55 @@ class BLEEP(nn.Module):
         
         self.infer_method = infer_method
         self.num_k = 1 if infer_method == 'simple' else 50
+        self.max_batch_size = max_batch_size
         
     def forward(self, img, label, **kwargs):
-        # Getting Image and spot Features
-        if img.shape[0] > 1024:
-            imgs = img.split(1024, dim=0)
+            
+        if 'dataset' in kwargs:
+            return self._process_inference_batch(img, kwargs['dataset'])
+        else:    
+            return self._process_training_batch(img, label)
+        
+    def _process_training_batch(self, img, spot_features):
+        image_features = self.image_encoder(img)
+        
+        # spot_embeddings = self.spot_projection(spot_features)
+        spot_embeddings = self.get_spot_embeddings(spot_features)
+        loss = self.calculate_loss(image_features, spot_embeddings)
+            
+        loss = self.calculate_loss(image_features, spot_embeddings)
+        
+        return {'loss': loss}
+        
+    def _process_inference_batch(self, img, dataset):
+        if img.shape[0] > self.max_batch_size:
+            imgs = img.split(self.max_batch_size, dim=0)
             image_features = [self.image_encoder(img) for img in imgs]
             image_features = torch.cat(image_features, dim=0)
         else:
             image_features = self.image_encoder(img)
             
-        if 'dataset' in kwargs:
-            device = img.device
-            spot_expressions_ref = kwargs['dataset'].spot_expressions_ref.clone().to(device)
-            spot_embeddings_ref = self.get_spot_embeddings(spot_expressions_ref)
-            indices = self.find_matches(spot_embeddings_ref, image_features, top_k=self.num_k)
+        device = img.device
+        spot_expressions_ref = dataset.spot_expressions_ref.clone().to(device)
+        spot_embeddings_ref = self.get_spot_embeddings(spot_expressions_ref)
+        indices = self.find_matches(spot_embeddings_ref, image_features, top_k=self.num_k)
+        
+        if self.infer_method == 'simple':    
+            matched_spot_expression_pred = spot_expressions_ref[indices[:,0],:]
             
-            if self.infer_method == 'simple':    
-                matched_spot_expression_pred = spot_expressions_ref[indices[:,0],:]
+        elif self.infer_method == 'average':
+            matched_spot_expression_pred = torch.zeros((indices.shape[0], spot_expressions_ref.shape[1])).to(device)
+            for i in range(indices.shape[0]):
+                matched_spot_expression_pred[i,:] = torch.mean(spot_expressions_ref[indices[i,:],:], dim=0)
                 
-            elif self.infer_method == 'average':
-                matched_spot_expression_pred = torch.zeros((indices.shape[0], spot_expressions_ref.shape[1])).to(device)
-                for i in range(indices.shape[0]):
-                    matched_spot_expression_pred[i,:] = torch.mean(spot_expressions_ref[indices[i,:],:], dim=0)
-                    
-            elif self.infer_method == 'weighted_average':
-                matched_spot_expression_pred = torch.zeros((indices.shape[0], spot_expressions_ref.shape[1])).to(device)
-                for i in range(indices.shape[0]):
-                    a = torch.sum((spot_embeddings_ref[indices[i,0],:] - image_features[i,:])**2) #the smallest MSE 
-                    weights = torch.exp(-(torch.sum((spot_embeddings_ref[indices[i,:],:] - image_features[i,:])**2, dim=1)-a+1))
-                    matched_spot_expression_pred[i,:] = torch.sum(spot_expressions_ref[indices[i,:],:] * weights.unsqueeze(1), dim=0) / weights.sum()
+        elif self.infer_method == 'weighted_average':
+            matched_spot_expression_pred = torch.zeros((indices.shape[0], spot_expressions_ref.shape[1])).to(device)
+            for i in range(indices.shape[0]):
+                a = torch.sum((spot_embeddings_ref[indices[i,0],:] - image_features[i,:])**2) #the smallest MSE 
+                weights = torch.exp(-(torch.sum((spot_embeddings_ref[indices[i,:],:] - image_features[i,:])**2, dim=1)-a+1))
+                matched_spot_expression_pred[i,:] = torch.sum(spot_expressions_ref[indices[i,:],:] * weights.unsqueeze(1), dim=0) / weights.sum()
 
-            return {'logits': matched_spot_expression_pred}
-        else:    
-            spot_features = label
-            # spot_embeddings = self.spot_projection(spot_features)
-            spot_embeddings = self.get_spot_embeddings(spot_features)
-            loss = self.calculate_loss(image_features, spot_embeddings)
-                
-            loss = self.calculate_loss(image_features, spot_embeddings)
-            
-            return {'loss': loss}
+        return {'logits': matched_spot_expression_pred}    
     
     def calculate_loss(self, image_features, spot_embeddings):
         # Getting Image and Spot Embeddings (with same dimension) 
@@ -332,8 +341,8 @@ class BLEEP(nn.Module):
         #     spot_embedding_keys.append(spot_embedding_key)
         
         # spot_embedding_keys = torch.stack(spot_embedding_keys, dim=0)
-        if spot_expression.shape[0] > 1024:
-            spot_expressions = spot_expression.split(1024, dim=0)
+        if spot_expression.shape[0] > self.max_batch_size:
+            spot_expressions = spot_expression.split(self.max_batch_size, dim=0)
             spot_embeddings = [self.spot_projection(spot_expression) for spot_expression in spot_expressions]
             spot_embeddings = torch.cat(spot_embeddings, dim=0)
         else:
