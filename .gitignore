@@ -27,6 +27,8 @@ input/ST/*/*
 !input/ST/*/ids.csv
 output/*
 
+src/preprocess/*.ipynb
+
 *test.R
 *test.ipynb
 pp*

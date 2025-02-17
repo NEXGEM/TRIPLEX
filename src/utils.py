@@ -18,6 +18,7 @@ from hest import ( STReader,
                 VisiumReader, 
                 VisiumHDReader, 
                 XeniumReader )
+from hest.HESTData import read_HESTData
 
 
 def load_st(path, platform):
@@ -33,8 +34,17 @@ def load_st(path, platform):
         st = VisiumHDReader().auto_read(path)
         
     if platform == 'xenium':
-        st = XeniumReader().auto_read(path)
-        
+        # st = XeniumReader().auto_read(path)
+        st = read_HESTData(
+            adata_path = os.path.join(path, 'aligned_adata.h5ad'),
+            img = os.path.join(path, 'aligned_fullres_HE.tif'),
+            metrics_path = os.path.join(path, 'metrics.json'),
+            # cellvit_path,
+            # tissue_contours_path,
+            xenium_cell_path = os.path.join(path, 'he_cell_seg.parquet'),
+            xenium_nucleus_path = os.path.join(path, 'he_nucleus_seg.parquet'),
+            transcripts_path = os.path.join(path, 'aligned_transcripts.parquet')
+        )
     return st
 
 def map_values(arr, step_size=256):
