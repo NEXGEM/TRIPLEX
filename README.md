@@ -77,7 +77,7 @@ cd HEST
 pip install -e .
 ```
 
-Instann FlashAttention
+Install [FlashAttention](https://github.com/Dao-AILab/flash-attention)
 
 ```bash
 pip install flash-attn --no-build-isolation
