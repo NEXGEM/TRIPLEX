@@ -23,13 +23,8 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-<<<<<<< HEAD
-    parser.add_argument('--config_name', type=str, default='ST/andrew/EGN', help='Path to the configuration file for the experiment.')
-    parser.add_argument('--mode', type=str, default='eval', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
-=======
     parser.add_argument('--config_name', type=str, default='takano/xenium/TRIPLEX', help='Path to the configuration file for the experiment.')
     parser.add_argument('--mode', type=str, default='cv', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
->>>>>>> d4ace21 (feat: Training for takano)
     # Acceleration 
     parser.add_argument('--gpu', type=int, default=1, help='Number of gpus to use')
     # Experiments
