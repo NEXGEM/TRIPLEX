@@ -7,7 +7,7 @@ TRAINING:
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
-  mode: max
+  mode: min
   early_stopping:
     patience: 10
   lr_scheduler:
@@ -15,27 +15,18 @@ TRAINING:
     factor: 0.1
   
 MODEL:
-  model_name: TRIPLEX 
-  num_outputs: 300
-  emb_dim: 1024
-  depth1: 2
-  depth2: 2
-  depth3: 4
-  num_heads1: 8
-  num_heads2: 16
-  num_heads3: 16
-  mlp_ratio1: 2
-  mlp_ratio2: 2
-  mlp_ratio3: 2
-  dropout1: 0.15
-  dropout1: 0.15
-  dropout1: 0.15
-  kernel_size: 3
+  model_name: BLEEP
+  temperature: 1.0
+  image_embedding: 512
+  spot_embedding: 300
+  projection_dim: 512
+  trainable: True
+  dropout: 0.1
 
 DATA:
   data_dir: input/takano/xenium
   output_dir: output/pred/takano/xenium
-  dataset_name: TriDataset
+  dataset_name: BleepDataset
   gene_type: 'mean'
   num_genes: 1000
   num_outputs: 300
