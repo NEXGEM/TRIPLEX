@@ -133,9 +133,11 @@ class STDataset(torch.utils.data.Dataset):
         if os.path.isfile(data_path):
             data = pd.read_csv(data_path)
             ids = data['sample_id'].to_list()
-        else:
+        elif self.mode == 'inference':    
             ids = [f for f in os.listdir(f"{self.img_dir}") if f.endswith('.h5')]
             ids = [os.path.splitext(_id)[0] for _id in ids]
+        else:
+            print(f"{data_path} is not found.")
         return ids
     
     def load_img(self, name: str, idx: int = None):
