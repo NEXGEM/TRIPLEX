@@ -43,10 +43,10 @@ class  ModelInterface(pl.LightningModule):
                                                 ExplainedVariance()
                                                 ])
         self.test_metrics = metrics.clone(prefix = 'test_')        
-        
-        metrics['target'] = metrics.pop(target)
-        idx_target = {v[0]: k for k,v in metrics.compute_groups.items()}[target]
-        metrics.compute_groups[idx_target] = ['target']
+        if target:
+            metrics['target'] = metrics.pop(target)
+            idx_target = {v[0]: k for k,v in metrics.compute_groups.items()}[target]
+            metrics.compute_groups[idx_target] = ['target']
         self.valid_metrics = metrics.clone(prefix = 'val_')
         
         if os.path.exists(f"{self.config.DATA.output_path}/idx_top.npy"):
