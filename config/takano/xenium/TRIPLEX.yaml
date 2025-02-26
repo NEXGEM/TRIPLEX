@@ -16,11 +16,11 @@ TRAINING:
   
 MODEL:
   model_name: TRIPLEX 
-  num_outputs: 300
+  num_outputs: 302
   emb_dim: 1024
-  depth1: 2
+  depth1: 1
   depth2: 2
-  depth3: 4
+  depth3: 2
   num_heads1: 8
   num_heads2: 16
   num_heads3: 16
@@ -36,9 +36,9 @@ DATA:
   data_dir: input/takano/xenium
   output_dir: output/pred/takano/xenium
   dataset_name: TriDataset
-  gene_type: 'mean'
-  num_genes: 1000
-  num_outputs: 300
+  gene_type: 'all'
+  num_genes: 302
+  num_outputs: 302
   cpm: False
   smooth: False
   

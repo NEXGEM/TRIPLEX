@@ -18,7 +18,7 @@ MODEL:
   model_name: BLEEP
   temperature: 1.0
   image_embedding: 512
-  spot_embedding: 300
+  spot_embedding: 302
   projection_dim: 512
   trainable: True
   dropout: 0.1
@@ -27,14 +27,14 @@ DATA:
   data_dir: input/takano/xenium
   output_dir: output/pred/takano/xenium
   dataset_name: BleepDataset
-  gene_type: 'mean'
-  num_genes: 1000
-  num_outputs: 300
+  gene_type: 'all'
+  num_genes: 302
+  num_outputs: 302
   cpm: False
   smooth: False
   
   train_dataloader:
-        batch_size: 128
+        batch_size: 64
         num_workers: 4
         pin_memory: True
         shuffle: True

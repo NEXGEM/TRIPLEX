@@ -16,15 +16,15 @@ TRAINING:
   
 MODEL:
   model_name: EGN 
-  num_outputs: 300
+  num_outputs: 302
 
 DATA:
   data_dir: input/takano/xenium
   output_dir: output/pred/takano/xenium
   dataset_name: EGNDataset
-  gene_type: 'mean'
-  num_genes: 1000
-  num_outputs: 300
+  gene_type: 'all'
+  num_genes: 302
+  num_outputs: 302
   cpm: False
   smooth: False
   
