@@ -38,8 +38,8 @@ class STDataset(torch.utils.data.Dataset):
             print(f"mode is {mode} but phase is 'train', so phase is changed to 'test'")
             phase = 'test'
             
-        if gene_type not in ['var', 'mean']:
-            raise ValueError(f"gene_type must be 'var' or 'mean', but got {gene_type}")
+        if gene_type not in ['var', 'mean', 'all']:
+            raise ValueError(f"gene_type must be 'var' or 'mean' or 'all', but got {gene_type}")
         
         self.data_dir = data_dir
         self.img_dir = f"{data_dir}/patches"
