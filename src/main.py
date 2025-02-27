@@ -3,6 +3,7 @@ import os
 import argparse
 from datetime import datetime
 from glob import glob 
+from tqdm import tqdm
 from pathlib import Path
 
 import torch
@@ -31,8 +32,8 @@ def get_parse():
     parser.add_argument('--exp_id', type=int, default=0, help='Experiment ID for tracking different runs')
     # Others
     parser.add_argument('--fold', type=int, default=0, help='Fold number for cross-validation')
-    parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=19-val_target=0.5444.ckpt', help='Path to the checkpoint file for model weights')
-    parser.add_argument('--log_dir', type=str, default='2025-02-20-18-07', help='Directory name for the loggers')
+    parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=25-val_target=0.5430.ckpt', help='Path to the checkpoint file for model weights')
+    parser.add_argument('--log_name', type=str, default='2025-02-20-18-07', help='Directory name for the loggers')
 
     args = parser.parse_args()
     
@@ -47,10 +48,11 @@ def main(cfg):
     gpus = cfg.GENERAL.gpu
     
     # Define Data 
-    DataInterface_dict = {'dataset_name': cfg.DATA.dataset_name,
-                        'data_config': cfg.DATA}
-    dm = DataInterface(**DataInterface_dict)
-    
+    if mode != 'inference':
+        DataInterface_dict = {'dataset_name': cfg.DATA.dataset_name,
+                            'data_config': cfg.DATA}
+        dm = DataInterface(**DataInterface_dict)
+        
     # Define model
     ModelInterface_dict = {'model_name': cfg.MODEL.model_name,
                             'config': cfg}
@@ -81,7 +83,7 @@ def main(cfg):
         log_path = cfg.GENERAL.log_path
         
         # ckpt_dir = glob(f'{log_path}/{cfg.config}/*')[-1]
-        ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.log_dir}'
+        ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.log_name}'
         ckpt_path = glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt")[0]
         
         log_name = str(Path(cfg.config).parent)
@@ -120,7 +122,20 @@ def main(cfg):
 
         model = ModelInterface.load_from_checkpoint(cfg.MODEL.ckpt_path, **ModelInterface_dict)
         
-        trainer.predict(model, datamodule = dm, return_predictions=False)
+        ids = os.listdir(f"{cfg.DATA.data_dir}/patches")
+        ids = [_id.split('.')[0] for _id in ids if _id.endswith('.h5')]
+        for _id in tqdm(ids):
+            if os.path.isfile(f"{pred_path}/{_id}.pt"):
+                print("Already predicted", _id)
+                continue
+            
+            print("Predicting", _id)
+            cfg.DATA.data_id = _id
+            DataInterface_dict = {'dataset_name': cfg.DATA.dataset_name,
+                            'data_config': cfg.DATA}
+            dm = DataInterface(**DataInterface_dict)
+        
+            trainer.predict(model, datamodule = dm, return_predictions=False)
         
     else:
         raise Exception("Invalid mode")
@@ -138,7 +153,7 @@ if __name__ == '__main__':
     cfg.GENERAL.gpu = args.gpu
     cfg.MODEL.ckpt_path = args.ckpt_path
     cfg.DATA.mode = args.mode
-    cfg.GENERAL.log_dir = args.log_dir
+    cfg.GENERAL.log_name = args.log_name
     
     if args.mode != 'inference':
         num_k = cfg.TRAINING.num_k     
