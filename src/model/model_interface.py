@@ -70,7 +70,7 @@ class  ModelInterface(pl.LightningModule):
     def _preprocess_inputs(self, inputs):
         if len(inputs['img'].shape) == 5:
             inputs['img'] = inputs['img'].squeeze(0)
-        if len(inputs['label'].shape) == 3:
+        if 'label' in inputs and len(inputs['label'].shape) == 3:
             inputs['label'] = inputs['label'].squeeze(0)
         if 'mask' in inputs and len(inputs['mask'].shape) == 3:
             inputs['mask'] = inputs['mask'].squeeze(0)
@@ -165,13 +165,17 @@ class  ModelInterface(pl.LightningModule):
             np.save(f"{self.config.DATA.output_path}/fold{self.config.DATA.fold}/pcc_rank.npy", pcc_rank.numpy())
     
     def predict_step(self, batch, batch_idx):
-        batch = self._preprocess_inputs(**batch)
+        dataset = self._trainer.predict_dataloaders.dataset
+        # _id = dataset.int2id[batch_idx]
+        _id = dataset.name
+        
+        batch = self._preprocess_inputs(batch)
+        if self.model_name == 'TRIPLEX':
+            batch['position'] = dataset.position.clone().to(batch['img'].device)
+            batch['global_emb'] = dataset.global_emb.clone().to(batch['img'].device).unsqueeze(0)
         
         #---->Forward
         results_dict = self.model(**batch)
-        
-        dataset = self._trainer.predict_dataloaders.dataset
-        _id = dataset.int2id[batch_idx]
         
         #---->Loss
         preds = results_dict['logits']

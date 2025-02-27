@@ -24,7 +24,8 @@ class STDataset(torch.utils.data.Dataset):
                 num_outputs: int = 300,
                 normalize: bool = True,
                 cpm: bool = False,
-                smooth: bool = False
+                smooth: bool = False,
+                data_id: str = None
                 ):
         super(STDataset, self).__init__()
         
@@ -49,18 +50,23 @@ class STDataset(torch.utils.data.Dataset):
         self.phase = phase
         self.norm_param = {'normalize': normalize, 'cpm': cpm, 'smooth': smooth}
         
-        data_path = f"{data_dir}/splits/{phase}_{fold}.csv"
-        self.ids = self._get_ids(data_path)
+        if mode != 'inference':
+            data_path = f"{data_dir}/splits/{phase}_{fold}.csv"
+            self.ids = self._get_ids(data_path)
+            self.int2id = dict(enumerate(self.ids))
+        else:
+            self.name = data_id
+            self.img = self.load_img(data_id)
+            self.length = len(self.img)
         
-        self.int2id = dict(enumerate(self.ids))
-        
-        if not os.path.isfile(f"{data_dir}/{gene_type}_{num_genes}genes.json"):
-            raise ValueError(f"{gene_type}_{num_genes}genes.json is not found in {data_dir}")
-        
-        with open(f"{data_dir}/{gene_type}_{num_genes}genes.json", 'r') as f:
-            self.genes = json.load(f)['genes']
-        if gene_type == 'mean':
-            self.genes = self.genes[:num_outputs]
+        if mode != 'inference':
+            if not os.path.isfile(f"{data_dir}/{gene_type}_{num_genes}genes.json"):
+                raise ValueError(f"{gene_type}_{num_genes}genes.json is not found in {data_dir}")
+            
+            with open(f"{data_dir}/{gene_type}_{num_genes}genes.json", 'r') as f:
+                self.genes = json.load(f)['genes']
+            if gene_type == 'mean':
+                self.genes = self.genes[:num_outputs]
         
         if phase == 'train':
             self.adata_dict = {_id: self.load_st(_id, self.genes, **self.norm_param) \
@@ -108,16 +114,23 @@ class STDataset(torch.utils.data.Dataset):
             data['label'] = torch.FloatTensor(expression) 
             
         elif self.phase == 'test':
-            name = self.int2id[index]
-            img = self.load_img(name)
-            img = torch.stack([self.transforms(im) for im in img], dim=0)
             
-            if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
-                adata = self.load_st(name, self.genes, **self.norm_param)
+            if self.mode == 'inference':
+                img = self.img[index]
+                img = self.transforms(img)
+            else:
+                name = self.int2id[index]
+                img = self.load_img(name)
+                img = torch.stack([self.transforms(im) for im in img], dim=0)
                 
-                if self.mode != 'inference':
+                if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
+                    adata = self.load_st(name, self.genes, **self.norm_param)
+                    
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     data['label'] = torch.FloatTensor(expression)
+                    # if self.mode != 'inference':
+                    #     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
+                    #     data['label'] = torch.FloatTensor(expression)
             
             data['img'] = img
             
@@ -127,15 +140,18 @@ class STDataset(torch.utils.data.Dataset):
         if self.phase == 'train':
             return self.cumlen[-1]
         else:
-            return len(self.int2id)
+            if self.mode == 'inference':
+                return self.length
+            else:
+                return len(self.int2id)
         
     def _get_ids(self, data_path):
         if os.path.isfile(data_path):
             data = pd.read_csv(data_path)
             ids = data['sample_id'].to_list()
-        elif self.mode == 'inference':    
-            ids = [f for f in os.listdir(f"{self.img_dir}") if f.endswith('.h5')]
-            ids = [os.path.splitext(_id)[0] for _id in ids]
+        # elif self.mode == 'inference':    
+        #     ids = [f for f in os.listdir(f"{self.img_dir}") if f.endswith('.h5')]
+        #     ids = [os.path.splitext(_id)[0] for _id in ids]
         else:
             print(f"{data_path} is not found.")
         return ids

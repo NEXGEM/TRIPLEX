@@ -20,7 +20,8 @@ class TriDataset(STDataset):
                 num_outputs: int = 300,
                 normalize: bool = True,
                 cpm: bool = False,
-                smooth: bool = False
+                smooth: bool = False,
+                data_id: str = None
                 ):
         super(TriDataset, self).__init__(
                                 mode=mode,
@@ -32,7 +33,8 @@ class TriDataset(STDataset):
                                 num_outputs=num_outputs,
                                 normalize=normalize,
                                 cpm=cpm,
-                                smooth=smooth)
+                                smooth=smooth,
+                                data_id=data_id)
     
         self.emb_dir = f"{data_dir}/emb"
         
@@ -41,6 +43,10 @@ class TriDataset(STDataset):
                 for _id, adata in self.adata_dict.items()}
             self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
                 for _id in self.ids}
+        
+        if mode == 'inference':
+            self.global_emb = self.load_emb(self.name, emb_name='global')
+            self.position = torch.LongTensor(np.load(f"{self.data_dir}/pos/{self.name}.npy")) 
         
     def __getitem__(self, index):
         data = {}
@@ -72,37 +78,42 @@ class TriDataset(STDataset):
             data['sid'] = torch.LongTensor([idx])
             
         elif self.phase == 'test':
-            name = self.int2id[index]
-            img = self.load_img(name)
-            img = torch.stack([self.transforms(im) for im in img], dim=0)
-            
-            global_emb = self.load_emb(name, emb_name='global')
-            neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
-            
-            if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
-                adata = self.load_st(name, self.genes, **self.norm_param)
-                pos = adata.obs[['array_row', 'array_col']].to_numpy()
+            if self.mode == 'inference':
+                img = self.img[index]
+                img = self.transforms(img)
+                neighbor_emb, mask = self.load_emb(self.name, emb_name='neighbor', idx=index)
+                # global_emb = self.load_emb(self.name, emb_name='global')
+                # pos = np.load(f"{self.data_dir}/pos/{self.name}.npy")
+                data['sid'] = torch.LongTensor([index])
+            else:
+                name = self.int2id[index]
+                img = self.load_img(name)
+                img = torch.stack([self.transforms(im) for im in img], dim=0)
                 
-                if self.mode != 'inference':
+                neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
+                global_emb = self.load_emb(name, emb_name='global')
+            
+                if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
+                    adata = self.load_st(name, self.genes, **self.norm_param)
+                    pos = adata.obs[['array_row', 'array_col']].to_numpy()
+                    
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     data['label'] = torch.FloatTensor(expression) 
-            
-            else:
-                pos = np.load(f"{self.data_dir}/pos/{name}.npy")
+                    # if self.mode != 'inference':
+                    #     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
+                    #     data['label'] = torch.FloatTensor(expression) 
+                else:
+                    pos = np.load(f"{self.data_dir}/pos/{name}.npy")
+                    
+                data['position'] = torch.LongTensor(pos)
+                data['global_emb'] = global_emb
+                    
             
             data['img'] = img
             data['mask'] = mask
             data['neighbor_emb'] = neighbor_emb
-            data['position'] = torch.LongTensor(pos)
-            data['global_emb'] = global_emb
             
         return data
-        
-    def __len__(self):
-        if self.phase == 'train':
-            return self.cumlen[-1]
-        else:
-            return len(self.int2id)
         
     def load_emb(self, name: str, emb_name: str = 'global', idx: int = None):
         if emb_name not in ['global', 'neighbor']:
