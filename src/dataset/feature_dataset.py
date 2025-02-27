@@ -29,7 +29,7 @@ class H5TileDataset(Dataset):
         self.level = level
         self.wsi_loaded = 0
         self.num_workers = num_workers
-        self.use_openslide = True if 'tif' not in ext else False
+        self.use_openslide = False if 'tif' in ext else False
         
         sample_id = os.path.basename(h5_path).split('.h5')[0]
         
@@ -160,7 +160,7 @@ class H5TileDataset(Dataset):
         for i in range(n_patches):
             x, y = coords[i]
 
-            wsi_shape = wsi.shape if hasattr(wsi, 'shape') else wsi.get_dimensions()
+            wsi_shape = wsi.shape if self.use_openslide else wsi.get_dimensions()
             mask = self.make_masking_table(x, y, wsi_shape)
             mask_tb_i = mask.clone()
 
