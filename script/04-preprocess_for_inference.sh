@@ -39,7 +39,6 @@ python src/preprocess/extract_img_features.py  \
         --patch_dataroot $PROCESSED_DIR'/patches' \
         --embed_dataroot $PROCESSED_DIR'/emb/neighbor' \
         --slide_ext $EXTENSION \
-        --use_openslide \
         --num_n 5 \
         --total_gpus $TOTAL_GPUS
         
