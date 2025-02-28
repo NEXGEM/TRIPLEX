@@ -113,9 +113,11 @@ def main(data_dir):
             save_path = f"{save_dir}/fold{fold}/{flag_}"
             os.makedirs(save_path, exist_ok=True)
             
+            max_length = max(len(value) for value in unique_name)
+
             with h5py.File(f"{save_path}/{n}.h5", "w") as f:
                 f.create_dataset("sid", data=ex_sid)
-                f.create_dataset("pid", data=ex_name.astype('S13'))
+                f.create_dataset("pid", data=ex_name.astype(f'S{max_length}'))
             
             result[n] = (ex_sid, ex_name)    
             
@@ -124,7 +126,7 @@ def main(data_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build exemplar dataset")
-    parser.add_argument("--data_dir", type=str, default="./input/smc/lung", help="Path to the data directory")
+    parser.add_argument("--data_dir", type=str, default="input/takano/xenium", help="Path to the data directory")
     
     args = parser.parse_args()
     data_dir = args.data_dir

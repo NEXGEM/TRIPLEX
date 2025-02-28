@@ -16,14 +16,16 @@ class StNet(nn.Module):
         in_features = self.model.classifier.in_features
         self.model.classifier = nn.Linear(in_features, num_outputs)
 
-    def forward(self, img, label):
+    def forward(self, img, label=None):
         if img.shape[0] > 1024:
             imgs = img.split(1024, dim=0)
             output = [self.model(img) for img in imgs]
             output = torch.cat(output, dim=0)
         else:
             output = self.model(img)
-            
-        loss = F.mse_loss(output, label)
-
-        return {'loss': loss, 'logits': output}
+        
+        if label is not None:
+            loss = F.mse_loss(output, label)
+            return {'loss': loss, 'logits': output}
+        else:
+            return {'logits': output}

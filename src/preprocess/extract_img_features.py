@@ -27,13 +27,12 @@ parser = argparse.ArgumentParser(description='Configurations for linear probing'
 
 ### data settings ###
 parser.add_argument('--overwrite', action='store_true', default=False, help='overwrite existing results')
-parser.add_argument('--patch_dataroot', type=str, default='input/hest/bench_data/SKCM/patches')
-parser.add_argument('--embed_dataroot', type=str, default='input/hest/bench_data/SKCM/emb/neighbor')
-parser.add_argument('--wsi_dataroot', type=str, default='/home/shared/spRNAseq/hest_data/wsis')
+parser.add_argument('--patch_dataroot', type=str, default='input/GSE240429/patches')
+parser.add_argument('--embed_dataroot', type=str, default='input/GSE240429/emb/neighbor')
+parser.add_argument('--wsi_dataroot', type=str, default='/home/shared/spRNAseq/public/GSE240429')
 parser.add_argument('--id_path', type=str, default=None)
 parser.add_argument('--slide_ext', type=str, default= '.tif')
 parser.add_argument('--level', type=int, default=1)
-parser.add_argument('--use_openslide', action='store_true', default=True)
 parser.add_argument('--weights_root', type=str, default='fm_v1')
 
 ### GPU settings ###
@@ -153,7 +152,7 @@ def main(args, device):
         start = time.time()
 
         if total_gpus > 1:
-            gpu_id = int(os.environ.get['CUDA_VISIBLE_DEVICES']) - min_gpu_id
+            gpu_id = int(os.environ.get('CUDA_VISIBLE_DEVICES')) - min_gpu_id
             if i % total_gpus != gpu_id:  # Only process items assigned to this GPU
                 continue
         
@@ -181,7 +180,8 @@ def main(args, device):
                                         num_n=args.num_n, 
                                         chunk_size=args.batch_size, 
                                         # num_workers=args.num_workers,
-                                        use_openslide=args.use_openslide)
+                                        # use_openslide=args.use_openslide
+                                        )
             
             tile_dataloader = torch.utils.data.DataLoader(tile_dataset,
                                                         batch_size=1,

@@ -43,10 +43,10 @@ class  ModelInterface(pl.LightningModule):
                                                 ExplainedVariance()
                                                 ])
         self.test_metrics = metrics.clone(prefix = 'test_')        
-        
-        metrics['target'] = metrics.pop(target)
-        idx_target = {v[0]: k for k,v in metrics.compute_groups.items()}[target]
-        metrics.compute_groups[idx_target] = ['target']
+        if target:
+            metrics['target'] = metrics.pop(target)
+            idx_target = {v[0]: k for k,v in metrics.compute_groups.items()}[target]
+            metrics.compute_groups[idx_target] = ['target']
         self.valid_metrics = metrics.clone(prefix = 'val_')
         
         if os.path.exists(f"{self.config.DATA.output_path}/idx_top.npy"):
@@ -70,7 +70,7 @@ class  ModelInterface(pl.LightningModule):
     def _preprocess_inputs(self, inputs):
         if len(inputs['img'].shape) == 5:
             inputs['img'] = inputs['img'].squeeze(0)
-        if len(inputs['label'].shape) == 3:
+        if 'label' in inputs and len(inputs['label'].shape) == 3:
             inputs['label'] = inputs['label'].squeeze(0)
         if 'mask' in inputs and len(inputs['mask'].shape) == 3:
             inputs['mask'] = inputs['mask'].squeeze(0)
@@ -165,18 +165,22 @@ class  ModelInterface(pl.LightningModule):
             np.save(f"{self.config.DATA.output_path}/fold{self.config.DATA.fold}/pcc_rank.npy", pcc_rank.numpy())
     
     def predict_step(self, batch, batch_idx):
-        batch = self._preprocess_inputs(**batch)
+        dataset = self._trainer.predict_dataloaders.dataset
+        # _id = dataset.int2id[batch_idx]
+        _id = dataset.name
+        
+        batch = self._preprocess_inputs(batch)
+        if self.model_name == 'TRIPLEX':
+            batch['position'] = dataset.position.clone().to(batch['img'].device)
+            batch['global_emb'] = dataset.global_emb.clone().to(batch['img'].device).unsqueeze(0)
         
         #---->Forward
         results_dict = self.model(**batch)
         
-        dataset = self._trainer.predict_dataloaders.dataset
-        _id = dataset.int2id[batch_idx]
-        
         #---->Loss
-        preds = results_dict['logits']
+        pred = results_dict['logits']
         
-        return preds, _id
+        return pred, _id
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.TRAINING.learning_rate)
@@ -231,9 +235,13 @@ class CustomWriter(BasePredictionWriter):
         
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         
+        preds = []
         for i, _ in enumerate(batch_indices[0]):
             pred = predictions[i][0]
+            preds.append(pred)
             name = predictions[i][1]
-            torch.save(pred, os.path.join(self.pred_dir, f"{name}.pt"))
+        
+        preds = torch.cat(preds, 0)
+        torch.save(preds, os.path.join(self.pred_dir, f"{name}.pt"))
 
 

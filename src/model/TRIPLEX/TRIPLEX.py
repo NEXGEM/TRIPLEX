@@ -184,7 +184,7 @@ class TRIPLEX(nn.Module):
                 for img, neighbor_emb, mask, sid in zip(imgs, neighbor_embs, masks, sids)]
             return {'logits': torch.cat(pred, dim=0)}    
         else:
-            fusion_token, _, _, _ = self._encode_all(img, mask, neighbor_emb, position, global_emb, sid)
+            fusion_token, _, _, _ = self._encode_all(img, mask, neighbor_emb, position, global_emb, sid=sid)
             logits = self.fc(fusion_token)
         return {'logits': logits}
     
