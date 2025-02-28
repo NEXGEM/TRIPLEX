@@ -178,9 +178,9 @@ class  ModelInterface(pl.LightningModule):
         results_dict = self.model(**batch)
         
         #---->Loss
-        preds = results_dict['logits']
+        pred = results_dict['logits']
         
-        return preds, _id
+        return pred, _id
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.TRAINING.learning_rate)
@@ -235,9 +235,13 @@ class CustomWriter(BasePredictionWriter):
         
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         
+        preds = []
         for i, _ in enumerate(batch_indices[0]):
             pred = predictions[i][0]
+            preds.append(pred)
             name = predictions[i][1]
-            torch.save(pred, os.path.join(self.pred_dir, f"{name}.pt"))
+        
+        preds = torch.cat(preds, 0)
+        torch.save(preds, os.path.join(self.pred_dir, f"{name}.pt"))
 
 
