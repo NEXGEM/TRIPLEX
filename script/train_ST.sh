@@ -1,32 +1,36 @@
+#!/bin/bash
 NUM_GPU=1
 MODE=cv
 
-MODEL=TRIPLEX
-datasets=( andersson andrew bryan )
-for dataset in  "${datasets[@]}"; do
-    echo Run training for 'ST/'$dataset'/'$MODEL
-    sbatch script/slurm.sh 'ST/'$dataset'/'$MODEL $NUM_GPU $MODE
-done
+run_training() {
+    local model=$1
+    shift
+    local datasets=("$@")
+    local sbatch_opts=""
 
-MODEL=BLEEP
-datasets=( andersson andrew bryan )
-for dataset in  "${datasets[@]}"; do
-    echo Run training for 'ST/'$dataset'/'$MODEL
-    sbatch --gres=gpu:$NUM_GPU script/slurm.sh 'ST/'$dataset'/'$MODEL $NUM_GPU $MODE
-done
+    # Use GPU option for all models except TRIPLEX
+    if [[ "$model" != "TRIPLEX" ]]; then
+        sbatch_opts="--gres=gpu:$NUM_GPU"
+    fi
 
-MODEL=StNet
-datasets=( andersson andrew bryan )
-for dataset in  "${datasets[@]}"; do
-    echo Run training for 'ST/'$dataset'/'$MODEL
-    sbatch --gres=gpu:$NUM_GPU script/slurm.sh 'ST/'$dataset'/'$MODEL $NUM_GPU $MODE
-done
+    for dataset in "${datasets[@]}"; do
+        echo "Run training for ST/${dataset}/${model}"
+        sbatch ${sbatch_opts} script/slurm.sh "ST/${dataset}/${model}" $NUM_GPU $MODE
+    done
+}
 
-MODEL=EGN
+# TRIPLEX (no --gres required)
+datasets=( andersson andrew bryan )
+run_training "TRIPLEX" "${datasets[@]}"
+
+# BLEEP
+datasets=( andersson andrew bryan )
+run_training "BLEEP" "${datasets[@]}"
+
+# StNet
+datasets=( andersson andrew bryan )
+run_training "StNet" "${datasets[@]}"
+
+# EGN (only andersson and andrew)
 datasets=( andersson andrew )
-# datasets=( andersson andrew bryan )
-# datasets=( bryan )
-for dataset in  "${datasets[@]}"; do
-    echo Run training for 'ST/'$dataset'/'$MODEL
-    sbatch --gres=gpu:$NUM_GPU script/slurm.sh 'ST/'$dataset'/'$MODEL $NUM_GPU $MODE
-done
+run_training "EGN" "${datasets[@]}"

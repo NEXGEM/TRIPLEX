@@ -16,11 +16,11 @@ TRAINING:
   
 MODEL:
   model_name: TRIPLEX 
-  num_outputs: 50
+  num_outputs: 300
   emb_dim: 1024
-  depth1: 2
+  depth1: 1
   depth2: 2
-  depth3: 4
+  depth3: 2
   num_heads1: 8
   num_heads2: 16
   num_heads3: 16
@@ -33,13 +33,15 @@ MODEL:
   kernel_size: 3
 
 DATA:
-  data_dir: input/TCGA/GBM
+  data_dir: /home/shared/project/TRIPLEX/input/TCGA/GBM
   output_dir: output/pred/TCGA/GBM
   dataset_name: TriDataset
   gene_type: 'mean'
   num_genes: 1000
   num_outputs: 300
-  normalize: False
+  cpm: False
+  smooth: False
+
   
   train_dataloader:
         batch_size: 128
