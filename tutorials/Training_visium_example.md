@@ -1,6 +1,6 @@
-# Training Visium Example
+# Training with Visium data
 
-This tutorial guides you through downloading and processing the GSE240429 Visium dataset and training multiple spatial transcriptomics models.
+This tutorial guides you through downloading and processing the GSE240429 Visium dataset and training multiple models.
 
 ## Download data from GEO dataset
 
