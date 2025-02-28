@@ -14,8 +14,8 @@ MODELS=("TRIPLEX" "StNet" "EGN" "BLEEP")
 # Submit jobs for each model
 for MODEL in "${MODELS[@]}"; do
     sbatch --gres=gpu:$NUM_GPU \
-           --ntasks-per-node=$NUM_GPU \
-           --mem-per-gpu=$MEM_PER_GPU \
-           --cpus-per-gpu=$CPUS_PER_GPU \
-           script/slurm.sh "$DATASET/$MODEL" $NUM_GPU $MODE
+        --ntasks-per-node=$NUM_GPU \
+        --mem-per-gpu=$MEM_PER_GPU \
+        --cpus-per-gpu=$CPUS_PER_GPU \
+        script/slurm.sh "$DATASET/$MODEL" $NUM_GPU $MODE
 done
