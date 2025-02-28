@@ -1,0 +1,3 @@
+[submodule "src/HEST"]
+	path = src/HEST
+	url = https://github.com/mahmoodlab/HEST.git
