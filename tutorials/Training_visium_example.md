@@ -7,19 +7,19 @@ This tutorial guides you through downloading and processing the GSE240429 Visium
 1. Navigate to the GEO dataset page:
     https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE240429
 
-2. Download and unzip all files *except* the following:
+2. Download and unzip all files (if necessary) *except* the following:
     - barcodes.tsv.gz
     - features.tsv.gz
     - matrix.mtx.gz
 
 ## Preprocess data
 
-### TRIPLEX preprocessing
+### Preprocessing for TRIPLEX
 ```bash
 bash script/03-preprocess_new.sh ./GSE240429 input/GSE240429 tiff visium
 ```
 
-### EGN preprocessing
+### Preprocessing for EGN
 ```bash
 python src/model/EGN/build_exemplar.py --data_dir input/GSE240429
 ```
@@ -32,8 +32,6 @@ Run the following script to train multiple models using cross-validation:
 NUM_GPU=2
 MODE=cv
 DATASET="GSE240429"
-MEM_PER_GPU="64G"
-CPUS_PER_GPU=6
 
 # Define models to train
 MODELS=("TRIPLEX" "StNet" "EGN" "BLEEP")
