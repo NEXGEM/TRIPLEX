@@ -1,27 +1,28 @@
-# Training with Visium data
+# Training with ST data
 
-This tutorial guides you through downloading and processing the GSE240429 Visium dataset and training multiple models.
-
-## Download data from GEO dataset
-
-1. Navigate to the GEO dataset page:
-    https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE240429
-
-2. Download and unzip all files (if necessary) *except* the following:
-    - barcodes.tsv.gz
-    - features.tsv.gz
-    - matrix.mtx.gz
+This tutorial guides you through downloading and processing the ST dataset and training multiple models.
 
 ## Preprocess data
 
 ### Data preparation & Preprocessing for TRIPLEX
+- BC1 dataset (Andersson et al.):
 ```bash
-bash script/03-preprocess_new.sh ./GSE240429 input/GSE240429 tiff visium
+bash script/02.1-preprocess_BC1.sh
+```
+- BC2 dataset (Bryan et al.):
+```bash
+bash script/02.2-preprocess_BC2.sh
+```
+- SCC dataset (Andrew et al.):
+```bash
+bash script/02.3-preprocess_SCC.sh
 ```
 
 ### Preprocessing for EGN
 ```bash
-python src/model/EGN/build_exemplar.py --data_dir input/GSE240429
+python src/model/EGN/build_exemplar.py --data_dir input/ST/andersson
+python src/model/EGN/build_exemplar.py --data_dir input/ST/bryan
+python src/model/EGN/build_exemplar.py --data_dir input/ST/andrew
 ```
 
 ## Model Training
