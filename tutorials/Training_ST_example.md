@@ -1,6 +1,6 @@
 # Training with ST data
 
-This tutorial guides you through downloading and processing the ST dataset and training multiple models.
+This tutorial guides you through processing the ST dataset and training multiple models.
 
 ## Preprocess data
 
@@ -27,12 +27,16 @@ python src/model/EGN/build_exemplar.py --data_dir input/ST/andrew
 
 ## Model Training
 
+Define a dataset to be used for training
+```bash
+DATASET="ST/andersson"
+```
+
 Run the following script to train multiple models using cross-validation:
 
 ```bash
 NUM_GPU=2
 MODE=cv
-DATASET="GSE240429"
 
 # Define models to train
 MODELS=("TRIPLEX" "StNet" "EGN" "BLEEP")
@@ -55,7 +59,6 @@ declare -A MODELS=(
      ["BLEEP"]="Log name for BLEEP"
 )
 
-DATASET="GSE240429"
 # Loop through each model
 for MODEL in "${!MODELS[@]}"; do
      LOG_NAME=${MODELS[$MODEL]}
