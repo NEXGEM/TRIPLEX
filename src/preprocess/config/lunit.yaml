@@ -1,0 +1,11 @@
+# Configuration for Lunit data processing
+
+input_dir: /home/shared/image/inhouse/lunit_ICI/images
+output_dir: ./input/lunit/lung
+mode: inference
+slide_ext: .mrxs
+patch_size: 224
+slide_level: 1
+total_gpus: 8
+batch_size: 1024
+num_workers: 4

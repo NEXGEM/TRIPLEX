@@ -1,0 +1,29 @@
+# Default configuration for TRIPLEX pipeline
+
+# Basic settings
+mode: train  # train, inference, or hest
+platform: visium  # visium, xenium, cosmx, etc.
+
+# Path settings
+input_dir: null  # Will be required from user
+output_dir: null  # Will be required from user
+
+# Slide settings
+slide_ext: .svs
+patch_size: 224
+slide_level: 0
+step_size: 160
+
+# Processing settings
+save_neighbors: false
+n_splits: 4
+n_top_hvg: 50
+n_top_heg: 1000
+
+# Feature extraction settings
+model_name: cigar
+num_n: 5
+batch_size: 1024
+num_workers: 4
+total_gpus: 1
+overwrite: false

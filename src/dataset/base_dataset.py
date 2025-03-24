@@ -211,7 +211,8 @@ class EGNDataset(STDataset):
                 num_outputs: int = 300,
                 normalize: bool = True,
                 cpm: bool = False,
-                smooth: bool = False
+                smooth: bool = False,
+                model_name: str = 'uni_v1'
                 ):
         super(EGNDataset, self).__init__(
                                 mode=mode,
@@ -228,6 +229,7 @@ class EGNDataset(STDataset):
         self.num_outputs = num_outputs
         self.emb_dir = f"{data_dir}/emb"            
         self.exemplar_dir = f"{data_dir}/exemplar/fold{fold}/{phase}"
+        self.model_name = model_name
         
         data_path = f"{data_dir}/splits/train_{fold}.csv"
         ids_ref = self._get_ids(data_path)
@@ -236,7 +238,7 @@ class EGNDataset(STDataset):
             for _id in ids_ref}
         self.spot_expressions_ref = {_id: adata.X.toarray() if sparse.issparse(adata.X) else adata.X \
             for _id, adata in adata_dict.items()}
-        self.global_embs_ref = {_id: self.load_emb(_id) \
+        self.global_embs_ref = {_id: self.load_emb(_id, model_name=self.model_name) \
             for _id in ids_ref}
     
     def __getitem__(self, index):
@@ -260,7 +262,7 @@ class EGNDataset(STDataset):
                 if sparse.issparse(expression) else expression.squeeze(0)
             
             # global_embs = self.global_embs[name]
-            global_emb = self.load_emb(name, idx)
+            global_emb = self.load_emb(name, idx, model_name=self.model_name)
             
             with h5py.File(f"{self.exemplar_dir}/{name}.h5", 'r') as f:
                 pid = f['pid'][:].astype('str')
@@ -288,7 +290,7 @@ class EGNDataset(STDataset):
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     data['label'] = torch.FloatTensor(expression)
             
-            global_embs = self.load_emb(name)
+            global_embs = self.load_emb(name, model_name=self.model_name)
             
             with h5py.File(f"{self.exemplar_dir}/{name}.h5", 'r') as f:
                 pid = f['pid'][:].astype('str')
@@ -302,7 +304,7 @@ class EGNDataset(STDataset):
             
         return data
         
-    def load_emb(self, name: str, idx: int = None):
+    def load_emb(self, name: str, idx: int = None, model_name: str = 'uni_v1'):
         
         path = f"{self.emb_dir}/global/uni_v1/{name}.h5"
         

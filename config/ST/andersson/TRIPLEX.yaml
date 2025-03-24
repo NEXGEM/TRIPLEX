@@ -43,6 +43,7 @@ DATA:
   num_outputs: 250
   cpm: True
   smooth: True
+  model_name: 'cigar'
   
   train_dataloader:
         batch_size: 128

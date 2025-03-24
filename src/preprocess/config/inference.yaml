@@ -1,0 +1,9 @@
+# Configuration for TRIPLEX inference
+
+mode: inference
+slide_level: 1
+total_gpus: 8
+batch_size: 2048
+num_workers: 8
+
+# Other settings inherit from default.yaml

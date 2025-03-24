@@ -21,7 +21,8 @@ class TriDataset(STDataset):
                 normalize: bool = True,
                 cpm: bool = False,
                 smooth: bool = False,
-                data_id: str = None
+                data_id: str = None,
+                model_name: str = 'uni_v1'
                 ):
         super(TriDataset, self).__init__(
                                 mode=mode,
@@ -41,7 +42,7 @@ class TriDataset(STDataset):
         if phase == 'train':
             self.pos_dict = {_id: torch.LongTensor(adata.obs[['array_row', 'array_col']].to_numpy()) \
                 for _id, adata in self.adata_dict.items()}
-            self.global_embs = {_id: self.load_emb(_id, emb_name='global') \
+            self.global_embs = {_id: self.load_emb(_id, emb_name='global', model_name=model_name) \
                 for _id in self.ids}
         
         if mode == 'inference':
@@ -115,11 +116,11 @@ class TriDataset(STDataset):
             
         return data
         
-    def load_emb(self, name: str, emb_name: str = 'global', idx: int = None):
+    def load_emb(self, name: str, emb_name: str = 'global', idx: int = None, model_name: str = 'uni_v1'):
         if emb_name not in ['global', 'neighbor']:
             raise ValueError(f"emb_name must be 'global' or 'neighbor', but got {emb_name}")
         
-        path = f"{self.emb_dir}/{emb_name}/uni_v1/{name}.h5"
+        path = f"{self.emb_dir}/{emb_name}/{model_name}/{name}.h5"
         
         with h5py.File(path, 'r') as f:
             if 'embeddings'in f:

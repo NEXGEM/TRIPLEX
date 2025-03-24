@@ -1,0 +1,11 @@
+# Configuration for BC1 dataset
+
+input_dir: input/ST/andersson
+output_dir: input/ST/andersson
+mode: hest
+platform: visium
+slide_ext: .tif
+model_name: cigar
+save_neighbors: true
+n_top_hvg: 50
+n_top_heg: 1000

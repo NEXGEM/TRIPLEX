@@ -1,0 +1,11 @@
+# Configuration for SCC dataset
+
+input_dir: input/ST/andrew
+output_dir: input/ST/andrew
+mode: hest
+platform: visium
+slide_ext: .tif
+model_name: cigar
+save_neighbors: true
+n_top_hvg: 50
+n_top_heg: 1000
