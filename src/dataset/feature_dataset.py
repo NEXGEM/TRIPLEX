@@ -9,7 +9,7 @@ import h5py
 import cv2
 import tifffile as tifi
 from openslide import OpenSlide
-from hest.utils import load_wsi
+from hestcore.wsi import wsi_factory, OpenSlideWSI
 
 
 class H5TileDataset(Dataset):
@@ -20,7 +20,7 @@ class H5TileDataset(Dataset):
                 level=1, 
                 img_transform=None, 
                 num_n=1, 
-                radius=128, 
+                radius=112, 
                 chunk_size=1000, 
                 num_workers=6):
 
@@ -42,6 +42,7 @@ class H5TileDataset(Dataset):
             self.wsi = self._load_wsi(wsi_path)
         
         self.img_transform = img_transform
+        self.transformed = False
         
         self.num_n = num_n
         assert num_n % 2 == 1, "num_n must be odd number"
@@ -66,45 +67,46 @@ class H5TileDataset(Dataset):
                 
             coords = f['coords'][start_idx:end_idx]
             
-            if self.num_n == 1:
-                if 'img' in f.keys():
-                    imgs = f['img'][start_idx:end_idx]
-                else:
-                    # raise NotImplementedError("Extract patches first")
-                    
-                    if self.use_openslide:
-                        imgs = [self.wsi.read_region(coord, self.level, (self.r*2, self.r*2)).convert('RGB') for coord in coords]
-                    else:
-                        imgs = [self.wsi.read_region(coord, self.level, (self.r*2, self.r*2)) for coord in coords]
-                        # raise NotImplementedError("Not implemented yet")
-                    
+            if 'img' in f.keys():
+                imgs = f['img'][start_idx:end_idx]
+                
+            else:
+                if self.num_n == 1:
+                    imgs = [self.wsi.read_region(coord, self.level, (self.r*2, self.r*2)) for coord in coords]
                     imgs = [np.array(img) for img in imgs]
                     imgs = np.stack(imgs)
-                    
-                    # wsi = self.load_wsi()
-                    # self.wsi_loaded = 1
-                    # tmp = wsi.read_region((x_start + k_start, y_start + m_start), 1, (self.r, self.r))
-                    
-                    # imgs = f['img'][start_idx:end_idx]
+                else:
+                    imgs, mask_tb = self.get_neighbor(coords, self.wsi) 
+                    self.transformed = True
+        
         
         if self.num_n == 1:
-            if self.img_transform:
+            if not self.transformed:
                 imgs = torch.stack([self.img_transform(Image.fromarray(img)) for img in imgs])
             return {'imgs': imgs, 'barcodes': barcodes, 'coords': coords}
         else:
-            imgs, mask_tb = self.get_neighbor(coords, self.wsi) 
+            if not self.transformed:
+                
+                imgs_transformed = torch.zeros((imgs.shape[0], imgs.shape[3], imgs.shape[1], imgs.shape[2]))
+                for i in range(imgs.shape[0]):
+                    img = imgs[i]
+                    for x in range(0, img.shape[0], self.r*2):
+                        for y in range(0, img.shape[1], self.r*2):
+                            imgs_transformed[i, :, x:x+self.r*2, y:y+self.r*2] = self.img_transform(Image.fromarray(img[x:x+self.r*2, y:y+self.r*2]))
+                imgs = imgs_transformed
+                
+                mask_tb = self.get_mask_tables(coords, self.wsi)
+                
+            # imgs = torch.stack([self.img_transform(Image.fromarray(img)) for img in imgs])
+            # imgs, mask_tb = self.get_neighbor(coords, self.wsi) 
             
             return {'imgs': imgs, 'barcodes': barcodes, 'coords': coords, 'mask_tb':mask_tb}
         
     def _load_wsi(self, wsi_path):
         if self.use_openslide:
-            wsi = OpenSlide(wsi_path)
+            wsi = OpenSlideWSI(OpenSlide(wsi_path))
         else:
-            try:
-                wsi, _ = load_wsi(wsi_path)
-            except:
-                wsi = OpenSlide(wsi_path)
-                self.use_openslide = True
+            wsi = wsi_factory(wsi_path)
         
         return wsi
     
@@ -149,10 +151,24 @@ class H5TileDataset(Dataset):
 
         return mask_tb
     
+    def get_mask_tables(self, coords, wsi):
+        n_patches = len(coords)
+        
+        mask_tb = torch.ones((n_patches, self.num_n**2))
+        
+        for i in range(n_patches):
+            x, y = coords[i]
+
+            wsi_shape = wsi.get_dimensions()
+            mask = self.make_masking_table(x, y, wsi_shape)
+            mask_tb[i] = mask
+
+        return mask_tb
+    
     def get_neighbor(self, coords, wsi):
         n_patches = len(coords)
         
-        patch_size = 224 * self.num_n
+        patch_size = self.r * 2 * self.num_n
         neighbor_patches = torch.zeros((n_patches, 3, patch_size, patch_size))
         mask_tb = torch.ones((n_patches, self.num_n**2))
         
@@ -164,7 +180,7 @@ class H5TileDataset(Dataset):
         for i in range(n_patches):
             x, y = coords[i]
 
-            wsi_shape = wsi.dimensions if self.use_openslide else wsi.get_dimensions()
+            wsi_shape = wsi.get_dimensions()
             mask = self.make_masking_table(x, y, wsi_shape)
             mask_tb_i = mask.clone()
 
@@ -181,23 +197,10 @@ class H5TileDataset(Dataset):
                         current_x = x_start + k_offsets[k]
                         current_y = y_start + m_offsets[m]
                         
-                        if self.use_openslide:
-                            tmp = wsi.read_region((current_x, current_y), self.level, (self.r * 2, self.r * 2)).convert('RGB')
-                            tmp = self.img_transform(tmp)
-                        else:
-                            tmp = wsi.read_region((current_x, current_y), self.level, (self.r * 2, self.r * 2))
-                            tmp = self.img_transform(Image.fromarray(tmp))
+                        tmp = wsi.read_region((current_x, current_y), self.level, (self.r * 2, self.r * 2))
+                        tmp = self.img_transform(Image.fromarray(tmp))
                         
-                        #     # Read region using OpenSlide
-                        #     tmp = wsi.read_region((current_x, current_y), self.level, (self.r * 2, self.r * 2)).convert('RGB')
-                        #     tmp = self.img_transform(tmp)
-                        # else:
-                        #     # Efficient slicing with NumPy
-                        #     # tmp = wsi[current_y:current_y + self.r * 2, current_x:current_x + self.r * 2, :]
-                        #     tmp = wsi[current_x:current_x + self.r * 2, current_y:current_y + self.r * 2, :]
-                        #     tmp = self.img_transform(Image.fromarray(tmp))
-                        # Assign transformed patch
-                        neighbor_patch[:, k * 224:(k + 1) * 224, m * 224:(m + 1) * 224] = tmp
+                        neighbor_patch[:, k * self.r * 2 : (k + 1) * self.r * 2, m * self.r * 2 : (m + 1) * self.r * 2] = tmp
                         
             neighbor_patches[i] = neighbor_patch
             mask_tb[i] = mask

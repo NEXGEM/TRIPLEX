@@ -3,6 +3,7 @@ import os
 import sys
 from glob import glob
 from tqdm import tqdm
+from pathlib import Path
 
 import argparse
 import numpy as np
@@ -15,6 +16,8 @@ import multiprocessing as mp
 import scanpy as sc
 
 import datasets
+from hest import iter_hest
+
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import load_st, pxl_to_array, normalize_adata, save_hdf5
@@ -37,29 +40,52 @@ def preprocess_st(name, adata, output_dir, normalize=False):
     
     return adata
 
-def save_patches(name, input_dir, output_dir, platform='visium'):
+def save_patches(name, input_dir, output_dir, platform='visium', save_targets=True, save_neighbors=False):
 
     print("Loading ST data...")
-    try:
-        st = load_st(f"{input_dir}/{name}", platform=platform)
-    except:
-        print("Failed to load ST data. Move to next sample.")
-        return None
+    if platform == 'hest':
+        st = [st for st in iter_hest(input_dir, id_list=[name])][0]
     
-    if os.path.exists(f"{output_dir}/patches/{name}.h5"):
-        print("Patches already exists. Skipping...")
     else:
-        # TODO: Add code to save result of segmentation & Resume
-        print("Segmenting tissue...")
-        st.segment_tissue(method='deep')
+        try:
+            st = load_st(f"{input_dir}/{name}", platform=platform)
+        except:
+            print("Failed to load ST data. Move to next sample.")
+            return None
     
-        print("Dumping patches...")
-        st.dump_patches(
-            f"{output_dir}/patches",
-            name=name,
-            target_patch_size=224, # target patch size in 224
-            target_pixel_size=0.5 # pixel size of the patches in um/px after rescaling
-        )
+    if save_targets:
+        if os.path.exists(f"{output_dir}/patches/{name}.h5"):
+            print("Target patches already exists. Skipping...")
+        else:
+            if st._tissue_contours is None:
+                print("Segmenting tissue...")
+                st.segment_tissue(method='deep')
+
+            print("Dumping target patches...")
+            st.dump_patches(
+                f"{output_dir}/patches",
+                name=name,
+                target_patch_size=224, # target patch size in 224
+                target_pixel_size=0.5, # pixel size of the patches in um/px after rescaling
+                dump_visualization=False
+            )
+        
+    if save_neighbors:
+        if os.path.exists(f"{output_dir}/patches/neighbor/{name}.h5"):
+            print("Neighbor patches already exists. Skipping...")
+        else:  
+            if st._tissue_contours is None:
+                print("Segmenting tissue...")
+                st.segment_tissue(method='deep')
+                
+            print("Dumping neighbor patches...")
+            st.dump_patches(
+                f"{output_dir}/patches/neighbor",
+                name=name,
+                target_patch_size=224*5, # neighbor patch size in 1120
+                target_pixel_size=0.5, # pixel size of the patches in um/px after rescaling
+                dump_visualization=False
+            )
     
     return st
         
@@ -110,6 +136,7 @@ if __name__ == "__main__":
     argparser.add_argument("--slide_level", type=int, default=0)
     argparser.add_argument("--slide_ext", type=str, default='.svs')
     argparser.add_argument("--patch_size", type=int, default=256)
+    argparser.add_argument("--save_neighbors", action='store_true', default=False)
     
     args = argparser.parse_args()
     
@@ -124,6 +151,8 @@ if __name__ == "__main__":
     
     if mode == 'train':
         os.makedirs(f"{output_dir}/patches", exist_ok=True)
+        if args.save_neighbors:
+            os.makedirs(f"{output_dir}/patches/neighbor", exist_ok=True)
         os.makedirs(f"{output_dir}/adata", exist_ok=True)
         
         if not os.path.exists(f"{output_dir}/ids.csv"):
@@ -134,7 +163,12 @@ if __name__ == "__main__":
         sample_ids = []
         for input_path in tqdm(ids):
             name = os.path.basename(input_path)
-            st = save_patches(name, input_dir, output_dir, platform=platform)
+            st = save_patches(name, 
+                            input_dir, 
+                            output_dir, 
+                            platform=platform, 
+                            save_neighbors=args.save_neighbors)
+            
             if st is not None:
                 sample_ids.append(name)
                 preprocess_st(name, st.adata, output_dir, normalize=False)
@@ -143,7 +177,9 @@ if __name__ == "__main__":
             pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
             
     elif mode == 'hest':
-        
+        if args.save_neighbors:
+            os.makedirs(f"{output_dir}/patches/neighbor", exist_ok=True)
+            
         if not os.path.exists(f"{output_dir}/ids.csv"):
             ids = glob(f"{output_dir}/patches/*.h5")
         else:
@@ -159,7 +195,16 @@ if __name__ == "__main__":
             
         for input_path in tqdm(ids):
             name = os.path.splitext(os.path.basename(input_path))[0]
-            st_path = f"{input_dir}/{name}.h5ad"
+            
+            if args.save_neighbors:
+                st = save_patches(name, 
+                                input_dir, 
+                                output_dir, 
+                                platform='hest', 
+                                save_targets=False,
+                                save_neighbors=args.save_neighbors)
+            
+            st_path = f"{input_dir}/st/{name}.h5ad"
             adata = sc.read_h5ad(st_path)
             preprocess_st(name, adata, output_dir, normalize=False)
             

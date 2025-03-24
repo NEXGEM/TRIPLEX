@@ -5,9 +5,10 @@ EXTENSION='.tif'
 # Preprocess ST data for training
 
 ## Prepare patches and st data
-python src/preprocess/prepare_data.py --input_dir $PROCESSED_DIR'/st' \
+python src/preprocess/prepare_data.py --input_dir $PROCESSED_DIR \
                                 --output_dir $PROCESSED_DIR \
-                                --mode hest
+                                --mode hest \
+                                --save_neighbors
 
 ## Prepare geneset for training
 python src/preprocess/get_geneset.py \

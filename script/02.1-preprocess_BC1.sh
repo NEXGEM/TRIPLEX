@@ -1,13 +1,14 @@
 
-PROCESSED_DIR=input/ST/andrew
+PROCESSED_DIR=input/ST/andersson
 EXTENSION='.tif'
 
 # Preprocess ST data for training
 
 ## Prepare patches and st data
-python src/preprocess/prepare_data.py --input_dir $PROCESSED_DIR'/st' \
+python src/preprocess/prepare_data.py --input_dir $PROCESSED_DIR \
                                 --output_dir $PROCESSED_DIR \
-                                --mode hest
+                                --mode hest \
+                                --save_neighbors
 
 ## Prepare geneset for training
 python src/preprocess/get_geneset.py \
@@ -16,8 +17,8 @@ python src/preprocess/get_geneset.py \
                         --n_top_hvg 50 \
                         --n_top_heg 1000
 
-# Extract features for TRIPLEX
-## Global features
+Extract features for TRIPLEX
+# Global features
 python src/preprocess/extract_img_features.py  \
         --wsi_dataroot $PROCESSED_DIR'/wsis' \
         --patch_dataroot $PROCESSED_DIR'/patches' \
@@ -29,7 +30,7 @@ python src/preprocess/extract_img_features.py  \
 ### Neighbor features
 python src/preprocess/extract_img_features.py \
         --wsi_dataroot $PROCESSED_DIR'/wsis' \
-        --patch_dataroot $PROCESSED_DIR'/patches' \
+        --patch_dataroot $PROCESSED_DIR'/patches/neighbor' \
         --embed_dataroot $PROCESSED_DIR'/emb/neighbor' \
         --slide_ext $EXTENSION \
         --num_n 5 \
