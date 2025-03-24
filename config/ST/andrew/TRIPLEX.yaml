@@ -19,7 +19,7 @@ TRAINING:
 MODEL:
   model_name: TRIPLEX 
   num_genes: 250
-  emb_dim: 1024
+  emb_dim: 512
   depth1: 2
   depth2: 2
   depth3: 4

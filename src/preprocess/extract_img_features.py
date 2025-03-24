@@ -4,11 +4,14 @@ import os
 import sys
 from tqdm import tqdm
 import time
+import wget
 
 import numpy as np
 import pandas as pd
 import torch
 import torch.multiprocessing
+import torch.nn as nn
+import torchvision
 from loguru import logger
 
 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -16,6 +19,8 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 from hest.bench.cpath_model_zoo.inference_models import ( InferenceEncoder, 
                                                         inf_encoder_factory )
 from hest.bench.utils.file_utils import save_hdf5
+from hest.bench.cpath_model_zoo.utils.transform_utils import \
+    get_eval_transforms
 from hestcore.segmentation import get_path_relative
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -27,9 +32,9 @@ parser = argparse.ArgumentParser(description='Configurations for linear probing'
 
 ### data settings ###
 parser.add_argument('--overwrite', action='store_true', default=False, help='overwrite existing results')
-parser.add_argument('--patch_dataroot', type=str, default='input/GSE240429/patches')
-parser.add_argument('--embed_dataroot', type=str, default='input/GSE240429/emb/neighbor')
-parser.add_argument('--wsi_dataroot', type=str, default='/home/shared/spRNAseq/public/GSE240429')
+parser.add_argument('--patch_dataroot', type=str, default='input/ST/andrew/patches')
+parser.add_argument('--embed_dataroot', type=str, default='input/ST/andrew/emb/global')
+parser.add_argument('--wsi_dataroot', type=str, default='input/ST/andrew/wsis')
 parser.add_argument('--id_path', type=str, default=None)
 parser.add_argument('--slide_ext', type=str, default= '.tif')
 parser.add_argument('--level', type=int, default=1)
@@ -45,8 +50,56 @@ parser.add_argument('--batch_size', type=int, default=1024, help='Batch size')
 parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for dataloader')
 
 ### specify dataset settings ###
-parser.add_argument('--model_name', nargs='+', help='', default='uni_v1')
-parser.add_argument('--num_n', type=int, default=5)
+parser.add_argument('--model_name', type=str, help='', default='cigar')
+parser.add_argument('--num_n', type=int, default=1)
+
+
+class CigarInferenceEncoder(InferenceEncoder):       
+    def __init__(self, weights_path):
+        super().__init__(weights_path=weights_path)    
+        
+    def _build(
+        self, 
+        weights_path
+    ):
+        import timm
+
+        model = torchvision.models.__dict__['resnet18'](weights=None)
+        
+        # ckpt_dir = './weights'
+        # os.makedirs(ckpt_dir, exist_ok=True)
+        # ckpt_path = f'{ckpt_dir}/tenpercent_resnet18.ckpt'
+        
+        # prepare the checkpoint
+        # if not os.path.exists(weights_path):
+        #     ckpt_url='https://github.com/ozanciga/self-supervised-histopathology/releases/download/tenpercent/tenpercent_resnet18.ckpt'
+        #     wget.download(ckpt_url, out=ckpt_dir)
+            
+        state = torch.load(weights_path)
+        state_dict = state['state_dict']
+        for key in list(state_dict.keys()):
+            state_dict[key.replace('model.', '').replace('resnet.', '')] = state_dict.pop(key)
+        
+        model_dict = model.state_dict()
+        state_dict = {k: v for k, v in state_dict.items() if k in model_dict}
+        if state_dict == {}:
+            print('No weight could be loaded..')
+        model_dict.update(state_dict)
+        model.load_state_dict(model_dict)
+        model.fc = nn.Identity()
+        
+        mean=(0.485, 0.456, 0.406)
+        std=(0.229, 0.224, 0.225)
+        
+        eval_transform = get_eval_transforms(mean, std, target_img_size=224)
+        precision = torch.float32
+        
+        return model, eval_transform, precision
+    
+    def forward(self, x):
+        out = self.model(x)
+        
+        return out
 
 
 def post_collate_fn(batch):
@@ -141,8 +194,12 @@ def main(args, device):
     
     # Embed patches
     logger.info(f"Embedding tiles using {args.model_name} encoder")
-    weights_path = get_bench_weights(args.weights_root, args.model_name)    
-    encoder: InferenceEncoder = inf_encoder_factory(args.model_name)(weights_path)
+    if args.model_name == 'cigar':
+        encoder = CigarInferenceEncoder(weights_path='./weights/tenpercent_resnet18.ckpt')
+    else:
+        weights_path = get_bench_weights(args.weights_root, args.model_name)    
+        encoder: InferenceEncoder = inf_encoder_factory(args.model_name)(weights_path)
+        
     precision = encoder.precision
     
     total_gpus = args.total_gpus
@@ -198,6 +255,8 @@ def main(args, device):
 if __name__ == '__main__':
     args = parser.parse_args()    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    print(args.model_name)
     
     main(args, device)
     

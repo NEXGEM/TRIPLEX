@@ -100,7 +100,11 @@ class H5TileDataset(Dataset):
         if self.use_openslide:
             wsi = OpenSlide(wsi_path)
         else:
-            wsi, _ = load_wsi(wsi_path)
+            try:
+                wsi, _ = load_wsi(wsi_path)
+            except:
+                wsi = OpenSlide(wsi_path)
+                self.use_openslide = True
         
         return wsi
     
@@ -160,7 +164,7 @@ class H5TileDataset(Dataset):
         for i in range(n_patches):
             x, y = coords[i]
 
-            wsi_shape = wsi.shape if self.use_openslide else wsi.get_dimensions()
+            wsi_shape = wsi.dimensions if self.use_openslide else wsi.get_dimensions()
             mask = self.make_masking_table(x, y, wsi_shape)
             mask_tb_i = mask.clone()
 

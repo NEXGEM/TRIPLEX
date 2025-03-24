@@ -19,9 +19,12 @@ python src/preprocess/get_geneset.py \
 ## Extract features for TRIPLEX
 ### Global features
 python src/preprocess/extract_img_features.py  \
+        --wsi_dataroot $PROCESSED_DIR'/wsis' \
         --patch_dataroot $PROCESSED_DIR'/patches' \
         --embed_dataroot $PROCESSED_DIR'/emb/global' \
-        --num_n 1 
+        --slide_ext $EXTENSION \
+        --num_n 1 \
+        --model_name 'cigar'
 
 ### Neighbor features
 python src/preprocess/extract_img_features.py \
@@ -29,4 +32,5 @@ python src/preprocess/extract_img_features.py \
         --patch_dataroot $PROCESSED_DIR'/patches' \
         --embed_dataroot $PROCESSED_DIR'/emb/neighbor' \
         --slide_ext $EXTENSION \
-        --num_n 5 
+        --num_n 5 \
+        --model_name 'cigar'
