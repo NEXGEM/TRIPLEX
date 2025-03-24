@@ -116,129 +116,16 @@ pip install -r requirements.txt
 
 ### Preprocessing
 
-Before training or inference, raw data must be preprocessed. Modify the paths in the respective shell scripts and run them:
-
-#### **Create patches from WSI (Only for inference)**
-```bash
-python src/preprocess/CLAM/create_patches_fp.py \
-        --source $RAW_DIR \
-        --save_dir $PROCESSED_DIR \
-        --patch_size 256 \
-        --seg \
-        --patch \
-        --stitch \
-        --patch_level $PATCH_LEVEL 
-```
-
-#### **Prepare patches and st data**
-For training:
-- HEST
-```bash
-python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
-                                --output_dir $PROCESSED_DIR \
-                                --mode hest
-```
-
-- New data
-```bash
-python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
-                                --output_dir $PROCESSED_DIR \
-                                --mode train
-```
-
-For inference:
-```bash
-python src/preprocess/prepare_data.py --input_dir $RAW_DIR \
-                                --output_dir $PROCESSED_DIR \
-                                --mode inference \
-                                --patch_size 256 \
-                                --slide_level 0 \
-                                --slide_ext $EXTENSION
-```
-
-#### **Get geneset for training (no need for hest benchmark)**
-```bash
-python src/preprocess/get_geneset.py --st_dir $PROCESSED_DIR'/adata' \
-                                    --output_dir $PROCESSED_DIR
-```
-
-#### **Extract image features using foundation model (UNI)**
-Gloabl features:
-- training
-```bash
-### Global features
-python src/preprocess/extract_img_features.py  \
-        --patch_dataroot $PROCESSED_DIR'/patches' \
-        --embed_dataroot $PROCESSED_DIR'/emb/global' \
-        --num_n 1 \
-        --use_openslide
-```
-
-- inference
-```bash
-### Global features
-python src/preprocess/extract_img_features.py  \
-        --wsi_dataroot $RAW_DIR \
-        --patch_dataroot $PROCESSED_DIR'/patches' \
-        --embed_dataroot $PROCESSED_DIR'/emb/global' \
-        --slide_ext $EXTENSION \
-        --num_n 1 \
-        --use_openslide 
-```
-
-Neighbor features:
-```bash
-### Global features
-python src/preprocess/extract_img_features.py  \
-        --wsi_dataroot $RAW_DIR \
-        --patch_dataroot $PROCESSED_DIR'/patches' \
-        --embed_dataroot $PROCESSED_DIR'/emb/neighbor' \
-        --slide_ext $EXTENSION \
-        --use_openslide \
-        --num_n 5
-```
-
-#### **One-step preprocessing**
-
-- HEST bench data
-```bash
-bash script/01-preprocess_hest_bench.sh /path/to/hest/wsis ./input/bench_data/CCRCC 'tif'
-```
-
-- Other HEST data
-```bash
-bash script/02-preprocess_hest.sh /path/to/hest/wsis ./input/ST/andersson 'tif'
-```
+Before training or inference, raw data must be preprocessed. \
+Due to the complexity of data preprocessing, we've updated the data pipeline module. \
+See the following tutorial: [data_processing.ipynb](tutorials/data_processing.ipynb)
 
 > [!NOTE]
 >
 > **Reproducing our experiments:**
 > The ST datasets we used in our experiments are already included in HEST data.
-> You can run the scripts below to automatically download and pre-process the data.
-> 
-> BC1 dataset (Andersson et al.):
-> ```bash
-> bash script/02.1-preprocess_BC1.sh
-> ```
-> BC2 dataset (Bryan et al.):
-> ```bash
-> bash script/02.2-preprocess_BC2.sh
-> ```
-> SCC dataset (Andrew et al.):
-> ```bash
-> bash script/02.3-preprocess_SCC.sh
-> ```
+> Use 'hest' mode in data pipeline to pre-process ST datasets.
 
-
-- Your own ST data
-```bash
-bash script/03-preprocess_new.sh /path/to/raw ./input/path/to/processed 'tif' visium
-```
-
-- Only images (for inference)
-```bash
-bash script/04-preprocess_for_inference.sh /path/to/raw ./input/path/to/processed 'svs' 0
-```
 
 ### 📈 Training
 
