@@ -55,27 +55,26 @@ parser.add_argument('--num_n', type=int, default=1)
 
 
 class CigarInferenceEncoder(InferenceEncoder):       
-    def __init__(self, weights_path):
-        super().__init__(weights_path=weights_path)    
+    def __init__(self):
+        super().__init__()    
         
     def _build(
-        self, 
-        weights_path
+        self, _
     ):
         import timm
 
         model = torchvision.models.__dict__['resnet18'](weights=None)
         
-        # ckpt_dir = './weights'
-        # os.makedirs(ckpt_dir, exist_ok=True)
-        # ckpt_path = f'{ckpt_dir}/tenpercent_resnet18.ckpt'
+        ckpt_dir = './weights'
+        os.makedirs(ckpt_dir, exist_ok=True)
+        ckpt_path = f'{ckpt_dir}/tenpercent_resnet18.ckpt'
         
         # prepare the checkpoint
-        # if not os.path.exists(weights_path):
-        #     ckpt_url='https://github.com/ozanciga/self-supervised-histopathology/releases/download/tenpercent/tenpercent_resnet18.ckpt'
-        #     wget.download(ckpt_url, out=ckpt_dir)
+        if not os.path.exists(ckpt_path):
+            ckpt_url='https://github.com/ozanciga/self-supervised-histopathology/releases/download/tenpercent/tenpercent_resnet18.ckpt'
+            wget.download(ckpt_url, out=ckpt_dir)
             
-        state = torch.load(weights_path)
+        state = torch.load(ckpt_path)
         state_dict = state['state_dict']
         for key in list(state_dict.keys()):
             state_dict[key.replace('model.', '').replace('resnet.', '')] = state_dict.pop(key)
