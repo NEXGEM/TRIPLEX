@@ -17,6 +17,7 @@ from pipeline.utils import run_command
 def preprocess_data(
     input_dir: str,
     output_dir: str,
+    hest_dir: str = None,
     mode: str = 'train',
     platform: str = 'visium',
     slide_ext: str = '.svs',
@@ -50,6 +51,9 @@ def preprocess_data(
         "--slide_level", str(slide_level),
         "--step_size", str(step_size)
     ]
+    
+    if hest_dir is not None:
+        cmd.extend(["--hest_dir", hest_dir])
     
     if save_neighbors:
         cmd.append("--save_neighbors")

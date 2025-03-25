@@ -1,9 +1,9 @@
-
 import os
 import sys
 from glob import glob
 from tqdm import tqdm
 from pathlib import Path
+import shutil
 
 import argparse
 import numpy as np
@@ -128,6 +128,7 @@ if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--input_dir", type=str, default=None)
     argparser.add_argument("--output_dir", type=str, required=True)
+    argparser.add_argument("--hest_dir", type=str, default=None)
     argparser.add_argument("--platform", type=str, default='visium')
     argparser.add_argument("--prefix", type=str, default='')
     argparser.add_argument("--mode", type=str, default='train')
@@ -143,6 +144,7 @@ if __name__ == "__main__":
     mode = args.mode
     input_dir = args.input_dir
     output_dir = args.output_dir
+    hest_dir = args.hest_dir
     platform = args.platform
     prefix = args.prefix
     step_size = args.step_size
@@ -181,24 +183,47 @@ if __name__ == "__main__":
         if os.path.exists(f"{output_dir}/ids.csv"):
             ids = pd.read_csv(f"{output_dir}/ids.csv")['sample_id'].tolist()
 
-            if not os.path.exists(f"{output_dir}/patches"):    
+            if hest_dir is not None:
+                # Create output patches directory if it doesn't exist
+                output_patches_dir = f"{output_dir}/patches"
+                os.makedirs(output_patches_dir, exist_ok=True)
+                
+                # Copy only the specific h5 files for the ids in the list
+                hest_patches_dir = f"{hest_dir}/patches"
+                if os.path.exists(hest_patches_dir):
+                    print(f"Copying specific patch files from {hest_patches_dir} to {output_patches_dir}...")
+                    for id_name in tqdm(ids):
+                        src_file = f"{hest_patches_dir}/{id_name}.h5"
+                        dst_file = f"{output_patches_dir}/{id_name}.h5"
+                        if os.path.exists(src_file):
+                            if not os.path.exists(dst_file):
+                                shutil.copy2(src_file, dst_file)
+                            else:
+                                print(f"File {dst_file} already exists. Skipping.")
+                        else:
+                            print(f"Source file {src_file} does not exist. Skipping.")
+                else:
+                    print(f"Source directory {hest_patches_dir} does not exist. Nothing to copy.")
+            
+            elif not os.path.exists(f"{output_dir}/patches"):
                 list_patterns = [f"*{id}[_.]**" for id in ids]
                 datasets.load_dataset(
                     'MahmoodLab/hest', 
                     cache_dir=output_dir,
                     patterns=list_patterns
-                )
+                )   
+                
         else:
             ids = glob(f"{output_dir}/patches/*.h5")
             
-            
+        input_dir = input_dir if hest_dir is None else hest_dir
         for input_path in tqdm(ids):
             name = os.path.splitext(os.path.basename(input_path))[0]
             
             if args.save_neighbors:
                 os.makedirs(f"{output_dir}/patches/neighbor", exist_ok=True)
                 st = save_patches(name, 
-                                input_dir, 
+                                input_dir,
                                 output_dir, 
                                 platform='hest', 
                                 save_targets=False,

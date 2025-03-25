@@ -72,8 +72,19 @@ class TriplexPipeline:
         """Setup directory structure"""
         # Extract directory settings from config
         self.input_dir = self.config.get('input_dir')
-        self.wsi_dataroot = f"{self.input_dir}/wsis" if self.config['mode'] == 'hest' else self.input_dir
         self.output_dir = self.config.get('output_dir')
+        
+        mode = self.config['mode']
+        hest_dir = self.config.get('hest_dir')
+        if mode == 'hest':
+            if hest_dir is None:
+                self.wsi_dataroot = f"{self.input_dir}/wsis"
+            else:
+                self.wsi_dataroot = f"{hest_dir}/wsis"
+        else:
+            self.wsi_dataroot = self.input_dir
+        
+        # self.wsi_dataroot = f"{self.input_dir}/wsis" if self.config['mode'] == 'hest' else self.input_dir
         
         if not self.output_dir:
             raise ValueError("Output directory must be specified")
@@ -90,6 +101,7 @@ class TriplexPipeline:
         preprocess_data(
             input_dir=self.input_dir,
             output_dir=self.output_dir,
+            hest_dir=self.config.get('hest_dir'),
             mode=mode,
             platform=self.config['platform'],
             slide_ext=self.config['slide_ext'],
@@ -139,6 +151,7 @@ class TriplexPipeline:
         assert feature_type in ['global', 'neighbor', 'both'], \
             "feature_type must be 'global', 'neighbor', or 'both'"
         
+        
         # Extract global features
         if feature_type in ['global', 'both']:
             print("Extracting global features...")
@@ -159,7 +172,7 @@ class TriplexPipeline:
             print("Extracting neighbor features...")
             extract_features_single(
                 wsi_dataroot=self.wsi_dataroot,
-                patch_dataroot=f"{self.output_dir}/patches",
+                patch_dataroot=f"{self.output_dir}/patches/neighbor",
                 embed_dataroot=f"{self.output_dir}/emb/neighbor",
                 slide_ext=self.config['slide_ext'],
                 model_name=self.config['model_name'],
@@ -207,7 +220,7 @@ class TriplexPipeline:
             print("Extracting neighbor features...")
             extract_features_parallel(
                 wsi_dataroot=self.wsi_dataroot,
-                patch_dataroot=f"{self.output_dir}/patches",
+                patch_dataroot=f"{self.output_dir}/patches/neighbor",
                 embed_dataroot=f"{self.output_dir}/emb/neighbor",
                 slide_ext=self.config['slide_ext'],
                 model_name=self.config['model_name'],
