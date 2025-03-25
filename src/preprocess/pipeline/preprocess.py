@@ -91,7 +91,6 @@ def extract_features_single(
         num_n: Number of neighbors (1 for global, >1 for neighbor features)
         batch_size: Batch size for processing
         num_workers: Number of workers for data loading
-        total_gpus: Total number of GPUs to use
         overwrite: Whether to overwrite existing embeddings
         id_path: Optional path to CSV file with sample IDs to process
     """
