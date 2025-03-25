@@ -178,9 +178,7 @@ if __name__ == "__main__":
             
     elif mode == 'hest':
             
-        if not os.path.exists(f"{output_dir}/ids.csv"):
-            ids = glob(f"{output_dir}/patches/*.h5")
-        else:
+        if os.path.exists(f"{output_dir}/ids.csv"):
             ids = pd.read_csv(f"{output_dir}/ids.csv")['sample_id'].tolist()
 
             if not os.path.exists(f"{output_dir}/patches"):    
@@ -190,6 +188,9 @@ if __name__ == "__main__":
                     cache_dir=output_dir,
                     patterns=list_patterns
                 )
+        else:
+            ids = glob(f"{output_dir}/patches/*.h5")
+            
             
         for input_path in tqdm(ids):
             name = os.path.splitext(os.path.basename(input_path))[0]

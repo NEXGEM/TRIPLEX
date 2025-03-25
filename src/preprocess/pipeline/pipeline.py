@@ -14,7 +14,9 @@ from tqdm import tqdm
 # Ensure pipeline module can import from parent directory
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline.utils import setup_paths, get_available_gpus
-from pipeline.preprocess import preprocess_data, extract_features
+from pipeline.preprocess import (
+    preprocess_data, extract_features_single, extract_features_parallel
+    )
 
 
 class TriplexPipeline:
@@ -70,6 +72,7 @@ class TriplexPipeline:
         """Setup directory structure"""
         # Extract directory settings from config
         self.input_dir = self.config.get('input_dir')
+        self.wsi_dataroot = f"{self.input_dir}/wsis" if self.config['mode'] == 'hest' else self.input_dir
         self.output_dir = self.config.get('output_dir')
         
         if not self.output_dir:
@@ -126,7 +129,7 @@ class TriplexPipeline:
         ]
         subprocess.run(cmd)
     
-    def extract_features(self, feature_type: str = 'both'):
+    def run_extraction(self, feature_type: str = 'both'):
         """
         Extract image features
         
@@ -139,8 +142,8 @@ class TriplexPipeline:
         # Extract global features
         if feature_type in ['global', 'both']:
             print("Extracting global features...")
-            extract_features(
-                wsi_dataroot=self.config.get('wsi_dataroot', self.input_dir),
+            extract_features_single(
+                wsi_dataroot=self.wsi_dataroot,
                 patch_dataroot=f"{self.output_dir}/patches",
                 embed_dataroot=f"{self.output_dir}/emb/global",
                 slide_ext=self.config['slide_ext'],
@@ -148,15 +151,14 @@ class TriplexPipeline:
                 num_n=1,
                 batch_size=self.config['batch_size'],
                 num_workers=self.config['num_workers'],
-                total_gpus=self.config['total_gpus'],
                 overwrite=self.config['overwrite']
             )
         
         # Extract neighbor features
         if feature_type in ['neighbor', 'both']:
             print("Extracting neighbor features...")
-            extract_features(
-                wsi_dataroot=self.config.get('wsi_dataroot', self.input_dir),
+            extract_features_single(
+                wsi_dataroot=self.wsi_dataroot,
                 patch_dataroot=f"{self.output_dir}/patches",
                 embed_dataroot=f"{self.output_dir}/emb/neighbor",
                 slide_ext=self.config['slide_ext'],
@@ -164,12 +166,15 @@ class TriplexPipeline:
                 num_n=self.config['num_n'],
                 batch_size=self.config['batch_size'],
                 num_workers=self.config['num_workers'],
-                total_gpus=self.config['total_gpus'],
                 overwrite=self.config['overwrite']
             )
     
-    def run_parallel_extraction(self):
+    def run_parallel_extraction(self, feature_type: str = 'both'):
         """Run feature extraction in parallel using multiple GPUs"""
+        
+        assert feature_type in ['global', 'neighbor', 'both'], \
+            "feature_type must be 'global', 'neighbor', or 'both'"
+            
         gpus = self.gpus
         if not gpus:
             print("No GPUs available. Running on CPU.")
@@ -178,56 +183,43 @@ class TriplexPipeline:
         
         # Get list of samples
         sample_ids = self._get_sample_ids()
-        num_gpus = min(len(gpus), self.config['total_gpus'])
         
-        # Split samples across GPUs
-        gpu_samples = {i: [] for i in range(num_gpus)}
-        for i, sample_id in enumerate(sample_ids):
-            gpu_idx = i % num_gpus
-            gpu_samples[gpu_idx].append(sample_id)
+        # Extract global features
+        if feature_type in ['global', 'both']:
+            print("Extracting global features...")
+            extract_features_parallel(
+                wsi_dataroot=self.wsi_dataroot,
+                patch_dataroot=f"{self.output_dir}/patches",
+                embed_dataroot=f"{self.output_dir}/emb/global",
+                slide_ext=self.config['slide_ext'],
+                model_name=self.config['model_name'],
+                num_n=1,
+                batch_size=self.config['batch_size'],
+                num_workers=self.config['num_workers'],
+                total_gpus=self.config['total_gpus'],
+                overwrite=self.config['overwrite'],
+                gpus=gpus,
+                sample_ids=sample_ids
+            )
         
-        processes = []
-        for gpu_idx, samples in gpu_samples.items():
-            if not samples:
-                continue
-                
-            # Create ID file for this GPU
-            id_file = f"{self.output_dir}/gpu_{gpu_idx}_ids.csv"
-            pd.DataFrame({'sample_id': samples}).to_csv(id_file, index=False)
-            
-            # Prepare command
-            cmd = [
-                "CUDA_VISIBLE_DEVICES=" + str(gpus[gpu_idx]),
-                "python", "src/preprocess/extract_img_features.py",
-                "--wsi_dataroot", self.config.get('wsi_dataroot', self.input_dir),
-                "--patch_dataroot", f"{self.output_dir}/patches",
-                "--embed_dataroot", f"{self.output_dir}/emb/global",
-                "--id_path", id_file,
-                "--slide_ext", self.config['slide_ext'],
-                "--model_name", self.config['model_name'],
-                "--num_n", "1",
-                "--batch_size", str(self.config['batch_size']),
-                "--num_workers", str(self.config['num_workers']),
-                "--total_gpus", "1"  # Each process uses 1 GPU
-            ]
-            
-            if self.config['overwrite']:
-                cmd.append("--overwrite")
-            
-            # Start process
-            process = subprocess.Popen(" ".join(cmd), shell=True)
-            processes.append(process)
+        # Extract neighbor features
+        if feature_type in ['neighbor', 'both']:
+            print("Extracting neighbor features...")
+            extract_features_parallel(
+                wsi_dataroot=self.wsi_dataroot,
+                patch_dataroot=f"{self.output_dir}/patches",
+                embed_dataroot=f"{self.output_dir}/emb/neighbor",
+                slide_ext=self.config['slide_ext'],
+                model_name=self.config['model_name'],
+                num_n=self.config['num_n'],
+                batch_size=self.config['batch_size'],
+                num_workers=self.config['num_workers'],
+                total_gpus=self.config['total_gpus'],
+                overwrite=self.config['overwrite'],
+                gpus=gpus,
+                sample_ids=sample_ids
+            )
         
-        # Wait for all processes to complete
-        for process in processes:
-            process.wait()
-            
-        # Clean up ID files
-        for gpu_idx in gpu_samples:
-            id_file = f"{self.output_dir}/gpu_{gpu_idx}_ids.csv"
-            if os.path.exists(id_file):
-                os.remove(id_file)
-    
     def _get_sample_ids(self):
         """Get list of sample IDs from patches directory"""
         id_file = f"{self.output_dir}/ids.csv"
@@ -246,9 +238,9 @@ class TriplexPipeline:
         
         # Step 2: Feature extraction
         if self.config['total_gpus'] > 1:
-            self.run_parallel_extraction()
+            self.run_parallel_extraction('both')
         else:
-            self.extract_features('both')
+            self.run_extraction('both')
             
         print("Pipeline complete!")
 

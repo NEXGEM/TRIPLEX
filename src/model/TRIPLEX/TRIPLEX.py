@@ -33,7 +33,7 @@ def load_model_weights(ckpt: str):
         
         resnet = torchvision.models.__dict__['resnet18'](weights=None)
         
-        ckpt_dir = './weights'
+        ckpt_dir = './weights/cigar'
         os.makedirs(ckpt_dir, exist_ok=True)
         ckpt_path = f'{ckpt_dir}/{ckpt}'
         

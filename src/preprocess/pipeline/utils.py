@@ -28,8 +28,9 @@ def setup_paths(output_dir: str) -> Dict[str, str]:
     }
     
     # Create directories
-    for path in paths.values():
-        os.makedirs(path, exist_ok=True)
+    for name, path in paths.items():
+        if name in ['emb_global', 'emb_neighbor']:
+            os.makedirs(path, exist_ok=True)
     
     return paths
 

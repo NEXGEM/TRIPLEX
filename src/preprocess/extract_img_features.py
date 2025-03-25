@@ -50,7 +50,7 @@ parser.add_argument('--batch_size', type=int, default=1024, help='Batch size')
 parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for dataloader')
 
 ### specify dataset settings ###
-parser.add_argument('--model_name', type=str, help='', default='cigar')
+parser.add_argument('--model_name', type=str, help='', default='uni_v1')
 parser.add_argument('--num_n', type=int, default=1)
 
 
@@ -65,7 +65,7 @@ class CigarInferenceEncoder(InferenceEncoder):
 
         model = torchvision.models.__dict__['resnet18'](weights=None)
         
-        ckpt_dir = './weights'
+        ckpt_dir = './weights/cigar'
         os.makedirs(ckpt_dir, exist_ok=True)
         ckpt_path = f'{ckpt_dir}/tenpercent_resnet18.ckpt'
         
@@ -194,7 +194,7 @@ def main(args, device):
     # Embed patches
     logger.info(f"Embedding tiles using {args.model_name} encoder")
     if args.model_name == 'cigar':
-        encoder = CigarInferenceEncoder(weights_path='./weights/tenpercent_resnet18.ckpt')
+        encoder = CigarInferenceEncoder()
     else:
         weights_path = get_bench_weights(args.weights_root, args.model_name)    
         encoder: InferenceEncoder = inf_encoder_factory(args.model_name)(weights_path)
