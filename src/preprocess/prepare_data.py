@@ -177,8 +177,6 @@ if __name__ == "__main__":
             pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
             
     elif mode == 'hest':
-        if args.save_neighbors:
-            os.makedirs(f"{output_dir}/patches/neighbor", exist_ok=True)
             
         if not os.path.exists(f"{output_dir}/ids.csv"):
             ids = glob(f"{output_dir}/patches/*.h5")
@@ -197,6 +195,7 @@ if __name__ == "__main__":
             name = os.path.splitext(os.path.basename(input_path))[0]
             
             if args.save_neighbors:
+                os.makedirs(f"{output_dir}/patches/neighbor", exist_ok=True)
                 st = save_patches(name, 
                                 input_dir, 
                                 output_dir, 
