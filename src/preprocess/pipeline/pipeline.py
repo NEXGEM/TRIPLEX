@@ -111,7 +111,8 @@ class TriplexPipeline:
             patch_size=self.config['patch_size'],
             slide_level=self.config['slide_level'],
             step_size=self.config['step_size'],
-            save_neighbors=self.config['save_neighbors']
+            save_neighbors=self.config['save_neighbors'],
+            num_n=self.config['num_n']
         )
         
         # Prepare gene sets if in training mode
@@ -141,13 +142,14 @@ class TriplexPipeline:
         ]
         subprocess.run(cmd)
     
-    def run_extraction(self, feature_type: str = 'both'):
+    def run_extraction(self, transform_type: str = 'eval'):
         """
         Extract image features
         
         Args:
             feature_type: Type of features to extract ('global', 'neighbor', or 'both')
         """
+        feature_type = self.config['feature_type']
         assert feature_type in ['global', 'neighbor', 'both'], \
             "feature_type must be 'global', 'neighbor', or 'both'"
         
@@ -182,9 +184,9 @@ class TriplexPipeline:
                 overwrite=self.config['overwrite']
             )
     
-    def run_parallel_extraction(self, feature_type: str = 'both'):
+    def run_parallel_extraction(self, transform_type: str = 'eval'):
         """Run feature extraction in parallel using multiple GPUs"""
-        
+        feature_type = self.config['feature_type']
         assert feature_type in ['global', 'neighbor', 'both'], \
             "feature_type must be 'global', 'neighbor', or 'both'"
             
@@ -209,7 +211,6 @@ class TriplexPipeline:
                 num_n=1,
                 batch_size=self.config['batch_size'],
                 num_workers=self.config['num_workers'],
-                total_gpus=self.config['total_gpus'],
                 overwrite=self.config['overwrite'],
                 gpus=gpus,
                 sample_ids=sample_ids
@@ -227,7 +228,6 @@ class TriplexPipeline:
                 num_n=self.config['num_n'],
                 batch_size=self.config['batch_size'],
                 num_workers=self.config['num_workers'],
-                total_gpus=self.config['total_gpus'],
                 overwrite=self.config['overwrite'],
                 gpus=gpus,
                 sample_ids=sample_ids
@@ -253,7 +253,7 @@ class TriplexPipeline:
         if self.total_gpus > 1:
             self.run_parallel_extraction()
         else:
-            self.run_extraction('both')
+            self.run_extraction()
             
         print("Pipeline complete!")
 

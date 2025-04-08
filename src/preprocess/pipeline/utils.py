@@ -72,8 +72,9 @@ def get_available_gpus() -> List[int]:
     if not torch.cuda.is_available():
         return []
     
-    gpu_count = torch.cuda.device_count()
-    return list(range(gpu_count))
+    # gpu_count = torch.cuda.device_count()
+    gpus = os.environ['CUDA_VISIBLE_DEVICES'].split(',')
+    return [int(gpu) for gpu in gpus]
 
 
 def split_list_for_gpus(items: List, num_gpus: int) -> List[List]:

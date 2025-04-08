@@ -42,8 +42,9 @@ parser.add_argument('--level', type=int, default=1)
 parser.add_argument('--weights_root', type=str, default='fm_v1')
 
 ### GPU settings ###
-parser.add_argument('--total_gpus', type=int, default=1)
-parser.add_argument('--min_gpu_id', type=int, default=0)
+# parser.add_argument('--total_gpus', type=int, default=1)
+# parser.add_argument('--min_gpu_id', type=int, default=0)
+# parser.add_argument('--gpu_id', type=str, help='')
 
 ### specify encoder settings ###
 parser.add_argument('--img_resize', type=int, default=224, help='Image resizing (-1 to not resize)')
@@ -51,7 +52,7 @@ parser.add_argument('--batch_size', type=int, default=1024, help='Batch size')
 parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for dataloader')
 
 ### specify dataset settings ###
-parser.add_argument('--model_name', type=str, help='', default='uni_v1')
+parser.add_argument('--model_name', type=str, help='', default='conch_v1')
 parser.add_argument('--num_n', type=int, default=1)
 
 
@@ -131,7 +132,7 @@ def embed_tiles(dataloader,
     for batch_idx, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
         batch = post_collate_fn(batch)
         imgs = batch['imgs']
-        if imgs.shape[2] == 224:
+        if 'global' in embedding_save_path:
             # status = 'global'
             with torch.inference_mode(), torch.cuda.amp.autocast(dtype=precision):
                 imgs = imgs.to(device)
@@ -151,7 +152,7 @@ def embed_tiles(dataloader,
                 
             embeddings = torch.stack(embeddings, dim=1)
             
-        if batch_idx == 0:
+        if (batch_idx == 0):
             mode = 'w'
         else:
             mode = 'a'
@@ -179,6 +180,8 @@ def get_bench_weights(weights_root, name):
 def main(args, device):
 
     embedding_dir = os.path.join(args.embed_dataroot, args.model_name)
+    if args.transform_type != 'eval':
+        embedding_dir = os.path.join(embedding_dir, args.transform_type)
     os.makedirs(embedding_dir, exist_ok=True)
     
     if args.id_path is not None:
@@ -202,16 +205,17 @@ def main(args, device):
         
     precision = encoder.precision
     
-    total_gpus = args.total_gpus
-    min_gpu_id = args.min_gpu_id
+    # total_gpus = args.total_gpus
+    # min_gpu_id = args.min_gpu_id
     
     for i, sample_id in tqdm(enumerate(ids)):
         start = time.time()
 
-        if total_gpus > 1:
-            gpu_id = int(os.environ.get('CUDA_VISIBLE_DEVICES')) - min_gpu_id
-            if i % total_gpus != gpu_id:  # Only process items assigned to this GPU
-                continue
+        # if total_gpus > 1:
+        #     # gpu_id = int(os.environ.get('CUDA_VISIBLE_DEVICES')) - min_gpu_id
+        #     gpu_id = args.gpu_id
+        #     if i % total_gpus != gpu_id:  # Only process items assigned to this GPU
+        #         continue
         
         print(f"Extracting features for {sample_id}...")
         # if sample_id == 'IOSMC_896_E_0':

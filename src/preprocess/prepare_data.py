@@ -8,6 +8,8 @@ import shutil
 import argparse
 import numpy as np
 import pandas as pd
+from scipy.spatial.distance import cdist
+
 import h5py
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -96,7 +98,7 @@ def preprocess_st(name, adata, output_dir):
     
     return adata
 
-def save_patches(name, input_dir, output_dir, platform='visium', save_targets=True, save_neighbors=False):
+def save_patches(name, input_dir, output_dir, platform='visium', save_targets=True, save_neighbors=False, num_n=5):
 
     print("Loading ST data...")
     if platform == 'hest':
@@ -108,6 +110,8 @@ def save_patches(name, input_dir, output_dir, platform='visium', save_targets=Tr
         except:
             print("Failed to load ST data. Move to next sample.")
             return None
+    
+    dst_pixel_size = 0.5
     
     if save_targets:
         if os.path.exists(f"{output_dir}/patches/{name}.h5"):
@@ -122,7 +126,7 @@ def save_patches(name, input_dir, output_dir, platform='visium', save_targets=Tr
                 f"{output_dir}/patches",
                 name=name,
                 target_patch_size=224, # target patch size in 224
-                target_pixel_size=0.5, # pixel size of the patches in um/px after rescaling
+                target_pixel_size=dst_pixel_size, # pixel size of the patches in um/px after rescaling
                 dump_visualization=False
             )
         
@@ -138,8 +142,9 @@ def save_patches(name, input_dir, output_dir, platform='visium', save_targets=Tr
             st.dump_patches(
                 f"{output_dir}/patches/neighbor",
                 name=name,
-                target_patch_size=224*5, # neighbor patch size in 1120
-                target_pixel_size=0.5, # pixel size of the patches in um/px after rescaling
+                target_patch_size=224*num_n, # neighbor patch size in 1120
+                target_pixel_size=dst_pixel_size, # pixel size of the patches in um/px after rescaling,
+                threshold=int(0.15 // num_n),
                 dump_visualization=False
             )
     
@@ -173,6 +178,7 @@ if __name__ == "__main__":
     argparser.add_argument("--slide_level", type=int, default=0)
     argparser.add_argument("--slide_ext", type=str, default='.svs')
     argparser.add_argument("--patch_size", type=int, default=256)
+    argparser.add_argument("--num_n", type=int, default=5)
     argparser.add_argument("--save_neighbors", action='store_true', default=False)
     
     args = argparser.parse_args()
@@ -264,7 +270,8 @@ if __name__ == "__main__":
                                 output_dir, 
                                 platform='hest', 
                                 save_targets=False,
-                                save_neighbors=args.save_neighbors)
+                                save_neighbors=args.save_neighbors,
+                                num_n=args.num_n)
             
             st_path = f"{input_dir}/st/{name}.h5ad"
             adata = sc.read_h5ad(st_path)

@@ -24,7 +24,8 @@ def preprocess_data(
     patch_size: int = 224,
     slide_level: int = 0,
     step_size: int = 160,
-    save_neighbors: bool = False
+    save_neighbors: bool = False,
+    num_n: int = 5
 ) -> None:
     """
     Run data preprocessing
@@ -39,6 +40,7 @@ def preprocess_data(
         slide_level: Slide pyramid level for extraction
         step_size: Step size for patch sampling
         save_neighbors: Whether to save neighbor patches
+        num_n: Number of neighbors to extract
     """
     cmd = [
         "python", "src/preprocess/prepare_data.py",
@@ -49,7 +51,8 @@ def preprocess_data(
         "--slide_ext", slide_ext,
         "--patch_size", str(patch_size),
         "--slide_level", str(slide_level),
-        "--step_size", str(step_size)
+        "--step_size", str(step_size),
+        "--num_n", str(num_n)
     ]
     
     if hest_dir is not None:
@@ -131,7 +134,6 @@ def extract_features_parallel(
     num_n: int = 1,
     batch_size: int = 1024,
     num_workers: int = 4,
-    total_gpus: int = 1,
     overwrite: bool = False,
     gpus: List[int] = [0,1],
     sample_ids: List[str] = []
@@ -152,7 +154,7 @@ def extract_features_parallel(
         overwrite: Whether to overwrite existing embeddings
         id_path: Optional path to CSV file with sample IDs to process
     """
-    num_gpus = min(len(gpus), total_gpus)
+    num_gpus = len(gpus)
     
     # Split samples across GPUs
     gpu_samples = {i: [] for i in range(num_gpus)}
