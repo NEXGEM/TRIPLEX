@@ -27,6 +27,7 @@ input/ST/*/*
 !input/ST/*/ids.csv
 output/*
 
+data_processing.ipynb
 src/preprocess/*.ipynb
 src/DRP
 
