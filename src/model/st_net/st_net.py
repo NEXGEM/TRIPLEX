@@ -16,7 +16,7 @@ class StNet(nn.Module):
         in_features = self.model.classifier.in_features
         self.model.classifier = nn.Linear(in_features, num_outputs)
 
-    def forward(self, img, label=None):
+    def forward(self, img, label=None, **kwargs):
         if img.shape[0] > 1024:
             imgs = img.split(1024, dim=0)
             output = [self.model(img) for img in imgs]
