@@ -24,8 +24,8 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-    parser.add_argument('--config_name', type=str, default='lunit/lung/TRIPLEX', help='Path to the configuration file for the experiment.')
-    parser.add_argument('--mode', type=str, default='inference', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
+    parser.add_argument('--config_name', type=str, default='ST/andersson/TRIPLEX', help='Path to the configuration file for the experiment.')
+    parser.add_argument('--mode', type=str, default='cv', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
     # Acceleration 
     parser.add_argument('--gpu', type=int, default=1, help='Number of gpus to use')
     # Experiments

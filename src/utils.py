@@ -10,9 +10,11 @@ import h5py
 import pandas as pd
 import scanpy as sc
 import torch
+from torchvision import transforms
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+import wandb
 
 from hest import ( STReader, 
                 VisiumReader, 
@@ -171,6 +173,7 @@ def load_loggers(cfg: Dict):
     log_path = cfg.GENERAL.log_path
     current_time = cfg.GENERAL.timestamp
     
+    
     Path(log_path).mkdir(exist_ok=True, parents=True)
     log_name = str(Path(cfg.config).parent)
     version_name = Path(cfg.config).name
@@ -179,10 +182,23 @@ def load_loggers(cfg: Dict):
     cfg.log_path = f"{log_path}/{log_name}/{version_name}/{current_time}/fold{cfg.DATA.fold}"
     print(f'---->Log dir: {cfg.log_path}')
     
+
     # #---->Wandb
+    # log_path = os.path.abspath(cfg.log_path)
+    os.environ["WANDB_DIR"] = cfg.log_path
+    # os.environ["WANDB_DISABLE_SERVICE"] = "True"
+    # os.environ["WANDB_DIR"] = os.path.expanduser("~/.wandb")
+    os.makedirs(f'{cfg.log_path}/wandb', exist_ok=True)
     wandb_logger = pl_loggers.WandbLogger(save_dir=cfg.log_path,
                                         name=f'{log_name}-{version_name}-{current_time}-fold{cfg.DATA.fold}', 
                                         project='ST_prediction')
+    
+    # wandb.init(
+    #     dir=cfg.log_path,  # 로그 저장 경로 지정
+    #     name=f'{log_name}-{version_name}-{current_time}-fold{cfg.DATA.fold}',
+    #     project='ST_prediction'
+    # )
+    # wandb_logger = pl_loggers.WandbLogger(experiment=wandb.run)
     # tb_logger = pl_loggers.TensorBoardLogger(log_path+log_name,
     #                                         name = f"{version_name}/{current_time}_{cfg.exp_id}", version = f'fold{cfg.Data.fold}',
     #                                         log_graph = True, default_hp_metric = False)
@@ -299,3 +315,116 @@ def save_hdf5(output_fpath,
         #                 dset[key].attrs[attr_key] = attr_val
                 
     return output_fpath
+
+
+
+def get_transforms(mean, std, target_img_size = -1, center_crop = False, transform_type = 'eval'):
+    trsforms = []
+    
+    # Apply specific transformation based on transform_type
+    if transform_type == 'hori':
+        # Horizontal flip
+        trsforms.append(transforms.RandomHorizontalFlip(p=1.0))
+    elif transform_type == 'vert':
+        # Vertical flip
+        trsforms.append(transforms.RandomVerticalFlip(p=1.0))
+    elif transform_type == 'rot_90':
+        # 90-degree rotation
+        trsforms.append(transforms.RandomRotation((90, 90)))
+    elif transform_type == 'rot_180':
+        # 180-degree rotation
+        trsforms.append(transforms.RandomRotation((180, 180)))
+    elif transform_type == 'rot_270':
+        # 270-degree rotation
+        trsforms.append(transforms.RandomRotation((270, 270)))
+    elif transform_type == 'tp':
+        # Transpose (90-degree rotation + horizontal flip)
+        class Transpose(object):
+            def __call__(self, img):
+                return transforms.functional.hflip(transforms.functional.rotate(img, 90))
+        trsforms.append(Transpose())
+    elif transform_type == 'tv':
+        # Transverse (90-degree rotation + vertical flip)
+        class Transverse(object):
+            def __call__(self, img):
+                return transforms.functional.vflip(transforms.functional.rotate(img, 90))
+        trsforms.append(Transverse())
+        
+    elif transform_type == 'eval':
+        # Default 'eval' mode has no augmentations
+        pass
+    else:
+        raise ValueError(f"Unknown transform type: {transform_type}")
+    
+    if target_img_size > 0:
+        trsforms.append(transforms.Resize(target_img_size))
+    if center_crop:
+        assert target_img_size > 0, "target_img_size must be set if center_crop is True"
+        trsforms.append(transforms.CenterCrop(target_img_size))
+        
+    trsforms.append(transforms.ToTensor())
+    if mean is not None and std is not None:
+        trsforms.append(transforms.Normalize(mean, std))
+    trsforms = transforms.Compose(trsforms)
+
+    return trsforms
+
+
+
+def add_augmentation_to_transform(existing_transform, transform_type='eval'):
+    """
+    Adds the specified augmentation to an existing transform pipeline.
+    
+    Args:
+        existing_transform (transforms.Compose): Existing transformation pipeline
+        transform_type (str): Type of augmentation to add ('hori', 'vert', 'rot_90', 
+                            'rot_180', 'rot_270', 'tp', 'tv', or 'eval')
+    
+    Returns:
+        transforms.Compose: New transformation pipeline with added augmentation
+    """
+    from torchvision import transforms
+    
+    # Create augmentation based on transform_type
+    augmentation = None
+    if transform_type == 'hori':
+        # Horizontal flip
+        augmentation = transforms.RandomHorizontalFlip(p=1.0)
+    elif transform_type == 'vert':
+        # Vertical flip
+        augmentation = transforms.RandomVerticalFlip(p=1.0)
+    elif transform_type == 'rot_90':
+        # 90-degree rotation
+        augmentation = transforms.RandomRotation((90, 90))
+    elif transform_type == 'rot_180':
+        # 180-degree rotation
+        augmentation = transforms.RandomRotation((180, 180))
+    elif transform_type == 'rot_270':
+        # 270-degree rotation
+        augmentation = transforms.RandomRotation((270, 270))
+    elif transform_type == 'tp':
+        # Transpose (90-degree rotation + horizontal flip)
+        class Transpose(object):
+            def __call__(self, img):
+                return transforms.functional.hflip(transforms.functional.rotate(img, 90))
+        augmentation = Transpose()
+    elif transform_type == 'tv':
+        # Transverse (90-degree rotation + vertical flip)
+        class Transverse(object):
+            def __call__(self, img):
+                return transforms.functional.vflip(transforms.functional.rotate(img, 90))
+        augmentation = Transverse()
+    elif transform_type == 'eval':
+        # No augmentation in eval mode
+        return existing_transform
+    else:
+        raise ValueError(f"Unknown transform type: {transform_type}")
+    
+    # Extract transforms from the existing pipeline
+    transform_list = list(existing_transform.transforms)
+    
+    # Insert the augmentation at the beginning of the pipeline
+    transform_list.insert(0, augmentation)
+    
+    # Return new transform pipeline
+    return transforms.Compose(transform_list)
