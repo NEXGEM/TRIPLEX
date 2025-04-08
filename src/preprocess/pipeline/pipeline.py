@@ -37,10 +37,11 @@ class TriplexPipeline:
             config: Configuration dictionary with processing parameters
         """
         self.config = config or {}
+        
         self._setup_defaults()
         self._setup_dirs()
         
-        self.gpus = get_available_gpus()
+        self.total_gpus = len(self.config['gpus'])
         
     def _setup_defaults(self):
         """Set default configuration values if not provided"""
@@ -59,14 +60,16 @@ class TriplexPipeline:
             'num_n': 5,                 # Number of neighbors for feature extraction
             'batch_size': 1024,         # Batch size for feature extraction
             'num_workers': 4,           # Number of workers for data loading
-            'total_gpus': len(self.gpus) if hasattr(self, 'gpus') else 1,
-            'overwrite': False,         # Whether to overwrite existing results
+            'gpus': [0],               # List of available GPUs
+            'feature_type': 'both',      # Type of features to extract ('global', 'neighbor', or 'both')
+            'overwrite': False         # Whether to overwrite existing results
         }
         
         # Update defaults with provided config
         for key, value in defaults.items():
             if key not in self.config:
                 self.config[key] = value
+                
     
     def _setup_dirs(self):
         """Setup directory structure"""
@@ -114,9 +117,6 @@ class TriplexPipeline:
         # Prepare gene sets if in training mode
         if mode in ['train', 'hest']:
             self._prepare_genesets()
-            
-        # Split data if in training mode
-        if mode == 'train':
             self._split_data()
     
     def _prepare_genesets(self):
@@ -188,7 +188,7 @@ class TriplexPipeline:
         assert feature_type in ['global', 'neighbor', 'both'], \
             "feature_type must be 'global', 'neighbor', or 'both'"
             
-        gpus = self.gpus
+        gpus = self.config['gpus']
         if not gpus:
             print("No GPUs available. Running on CPU.")
             self.extract_features()
@@ -250,8 +250,8 @@ class TriplexPipeline:
         self.preprocess()
         
         # Step 2: Feature extraction
-        if self.config['total_gpus'] > 1:
-            self.run_parallel_extraction('both')
+        if self.total_gpus > 1:
+            self.run_parallel_extraction()
         else:
             self.run_extraction('both')
             
