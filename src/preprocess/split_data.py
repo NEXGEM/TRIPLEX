@@ -6,23 +6,27 @@ from sklearn.model_selection import KFold, GroupKFold
 
 
 def split_data_cv(df, n_splits=5, shuffle=True, random_state=42):
-    os.makedirs(f'{input_dir}/splits', exist_ok=True)
-    
-    if 'patient' in df.columns:
-        # Use GroupKFold for patient-based splitting
-        gkf = GroupKFold(n_splits=n_splits)
-        split_generator = gkf.split(df, groups=df['patient'])
+    if os.path.exists(f'{input_dir}/splits'):
+        print(f"Splits already exist in {input_dir}/splits. Exiting.")
+        return
     else:
-        # Use KFold for sample-based splitting
-        kf = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
-        split_generator = kf.split(df)
-
-    for fold, (train_idx, test_idx) in enumerate(split_generator):
-        train_data = df.iloc[train_idx]
-        test_data = df.iloc[test_idx]
+        os.makedirs(f'{input_dir}/splits', exist_ok=True)
         
-        train_data.to_csv(f'{input_dir}/splits/train_{fold}.csv', index=False)
-        test_data.to_csv(f'{input_dir}/splits/test_{fold}.csv', index=False)
+        if 'patient' in df.columns:
+            # Use GroupKFold for patient-based splitting
+            gkf = GroupKFold(n_splits=n_splits)
+            split_generator = gkf.split(df, groups=df['patient'])
+        else:
+            # Use KFold for sample-based splitting
+            kf = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+            split_generator = kf.split(df)
+
+        for fold, (train_idx, test_idx) in enumerate(split_generator):
+            train_data = df.iloc[train_idx]
+            test_data = df.iloc[test_idx]
+            
+            train_data.to_csv(f'{input_dir}/splits/train_{fold}.csv', index=False)
+            test_data.to_csv(f'{input_dir}/splits/test_{fold}.csv', index=False)
 
 
 if __name__ == "__main__":

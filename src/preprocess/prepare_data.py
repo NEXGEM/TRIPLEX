@@ -161,6 +161,7 @@ if __name__ == "__main__":
             ids = glob(f"{input_dir}/{prefix}*")
         else:
             ids = pd.read_csv(f"{output_dir}/ids.csv")['sample_id'].tolist()
+            pd.DataFrame(ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
         
         sample_ids = []
         for input_path in tqdm(ids):
@@ -174,9 +175,6 @@ if __name__ == "__main__":
             if st is not None:
                 sample_ids.append(name)
                 preprocess_st(name, st.adata, output_dir, normalize=False)
-        
-        if not os.path.exists(f"{output_dir}/ids.csv"):
-            pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
             
     elif mode == 'hest':
             
@@ -215,6 +213,7 @@ if __name__ == "__main__":
                 
         else:
             ids = glob(f"{output_dir}/patches/*.h5")
+            pd.DataFrame(ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
             
         input_dir = input_dir if hest_dir is None else hest_dir
         for input_path in tqdm(ids):
@@ -243,6 +242,7 @@ if __name__ == "__main__":
         os.makedirs(output_dir, exist_ok=True)
         
         ids = glob(f"{patch_dir}/*.h5")
+        pd.DataFrame(ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
         
         for input_path in tqdm(ids):
             name = os.path.splitext(os.path.basename(input_path))[0]
