@@ -1,4 +1,4 @@
-
+import os
 from glob import glob
 import argparse
 import json
@@ -92,5 +92,8 @@ if __name__ == "__main__":
     
     for prefix in ['var', 'mean']:
         n_top = n_top_hvg if prefix == 'var' else n_top_heg
+        if os.path.exists(f"{args.output_dir}/{prefix}_{n_top}genes.json"):
+            print(f"Geneset already exists in {args.output_dir}/{prefix}_{n_top}genes.json. Exiting.")
+            continue
         with open(f"{args.output_dir}/{prefix}_{n_top}genes.json", "w") as f:
             json.dump({"genes": geneset[prefix]}, f)
