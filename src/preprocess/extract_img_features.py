@@ -25,7 +25,8 @@ from hestcore.segmentation import get_path_relative
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dataset import H5TileDataset
-
+from utils.preprocess_utils import add_augmentation_to_transform, save_hdf5
+# from preprocess.utils import get_transforms
 
 # Generic training settings
 parser = argparse.ArgumentParser(description='Configurations for linear probing')

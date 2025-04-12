@@ -17,6 +17,8 @@ from torchmetrics.regression import ( PearsonCorrCoef,
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import BasePredictionWriter
 
+from utils.metrics import RVDMetric
+
 
 class  ModelInterface(pl.LightningModule):
 

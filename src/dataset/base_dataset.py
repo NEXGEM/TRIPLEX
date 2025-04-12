@@ -10,7 +10,7 @@ import scanpy as sc
 import torch
 import torchvision.transforms as transforms
 
-from utils import normalize_adata
+from utils.train_utils import normalize_adata
 
 
 class STDataset(torch.utils.data.Dataset):

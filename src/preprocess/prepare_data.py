@@ -23,7 +23,63 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import load_st, pxl_to_array, normalize_adata, save_hdf5
 
 
-def preprocess_st(name, adata, output_dir, normalize=False):
+def find_matches(array_i, array_j):
+    """
+    For each point in array_i, find an exact match in array_j if it exists,
+    otherwise find the nearest point in array_j.
+    
+    Args:
+        array_i: First array of points, shape (n, d)
+        array_j: Second array of points, shape (m, d)
+        
+    Returns:
+        matches: Array of indices in array_j that match or are closest to points in array_i
+    """
+    n_points = len(array_i)
+    matches = np.zeros(n_points, dtype=int)
+    
+    # Calculate pairwise distances between all points
+    distances = cdist(array_i, array_j)
+    
+    # For each point in array_i
+    for i in range(n_points):
+        # First check for exact matches (distance = 0)
+        exact_matches = np.where(distances[i] == 0)[0]
+        
+        if len(exact_matches) > 0:
+            # If exact matches exist, use the first one
+            matches[i] = exact_matches[0]
+        else:
+            # Otherwise, find the nearest point
+            matches[i] = np.argmin(distances[i])
+    
+    return matches
+
+def match_to_target(coords_target, coords_neighbor, dst_pixel_size, src_pixel_size, num_n):
+    
+    patch_size_target = 224 * (dst_pixel_size / src_pixel_size)
+    patch_size_neighbor = 224 * num_n * (dst_pixel_size / src_pixel_size)
+    coords_target = coords_target + int(patch_size_target // 2)
+    coords_neighbor = coords_neighbor + int(patch_size_neighbor // 2)
+    
+    matches = find_matches(coords_target, coords_neighbor)
+    
+    # Extract the indices from the matches
+    # indices_target = np.array([match[0] for match in matches])
+    # indices_neighbor = np.array([match for match in matches])
+    
+    return matches
+
+
+def preprocess_st(name, adata, output_dir):
+    os.makedirs(f"{output_dir}/adata", exist_ok=True)
+    save_dir = f"{output_dir}/adata/{name}.h5ad"
+    
+    if os.path.exists(save_dir):
+        print(f"ST data already exists for {name}. Skipping...")
+        return None
+    print(f"Saving ST data for {name}...")
+    
     print("Dumping matched ST data...")
     with h5py.File(f"{output_dir}/patches/{name}.h5", "r") as f:
         barcode = f['barcode'][:].astype('str').squeeze()
@@ -32,11 +88,11 @@ def preprocess_st(name, adata, output_dir, normalize=False):
     barcode_merged = pd.merge(adata.obs, barcode, left_index=True, right_index=True).index
     adata = adata[barcode_merged]
     
-    if normalize:
-        print("Normalizing ST data...")
-        adata = normalize_adata(adata, cpm=True, smooth=True)
-    os.makedirs(f"{output_dir}/adata", exist_ok=True)
-    adata.write(f"{output_dir}/adata/{name}.h5ad")
+    # if normalize:
+    #     print("Normalizing ST data...")
+    #     adata = normalize_adata(adata, cpm=True, smooth=True)
+    
+    adata.write(save_dir)
     
     return adata
 
@@ -175,7 +231,7 @@ if __name__ == "__main__":
             
             if st is not None:
                 sample_ids.append(name)
-                preprocess_st(name, st.adata, output_dir, normalize=False)
+                preprocess_st(name, st.adata, output_dir)
             
     elif mode == 'hest':
             
@@ -232,7 +288,7 @@ if __name__ == "__main__":
             
             st_path = f"{input_dir}/st/{name}.h5ad"
             adata = sc.read_h5ad(st_path)
-            preprocess_st(name, adata, output_dir, normalize=False)
+            preprocess_st(name, adata, output_dir)
             
     elif mode == 'inference':
         slide_level = args.slide_level

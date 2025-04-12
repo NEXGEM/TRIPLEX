@@ -85,15 +85,28 @@ if __name__ == "__main__":
     n_top_hvg = args.n_top_hvg
     n_top_heg = args.n_top_heg
     
-    data_list = load_data(st_dir)
-    geneset = find_geneset(data_list, method='ALL', n_top_hvg=n_top_hvg, n_top_heg=n_top_heg)
-    # geneset_exp = find_geneset(data_list, method='HEG', n_top=n_top_heg)
-    # geneset = {'hvg': geneset_var.tolist(), 'heg': geneset_exp.tolist()}
+    method = 'ALL'
+    exist = 0 
+    if os.path.exists(f"{args.output_dir}/var_{n_top_hvg}genes.json"):
+        print(f"Geneset already exists in {args.output_dir}/var_{n_top_hvg}genes.json. Exiting.")
+        method = 'HEG'
+        exist += 1
+        
+    if os.path.exists(f"{args.output_dir}/mean_{n_top_heg}genes.json"):
+        print(f"Geneset already exists in {args.output_dir}/mean_{n_top_heg}genes.json. Exiting.")
+        exist += 1
+        if exist == 2:
+            print("Both genesets exist. Exiting.")
+            exit()
+        if exist == 1:
+            method = 'HVG'
     
-    for prefix in ['var', 'mean']:
+    data_list = load_data(st_dir)
+    geneset = find_geneset(data_list, method=method, n_top_hvg=n_top_hvg, n_top_heg=n_top_heg)
+    
+    for prefix, genes in geneset.items():
+    # for prefix in ['var', 'mean']:
         n_top = n_top_hvg if prefix == 'var' else n_top_heg
-        if os.path.exists(f"{args.output_dir}/{prefix}_{n_top}genes.json"):
-            print(f"Geneset already exists in {args.output_dir}/{prefix}_{n_top}genes.json. Exiting.")
-            continue
+        
         with open(f"{args.output_dir}/{prefix}_{n_top}genes.json", "w") as f:
-            json.dump({"genes": geneset[prefix]}, f)
+            json.dump({"genes": genes}, f)

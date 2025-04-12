@@ -13,7 +13,7 @@ from pytorch_lightning import loggers as pl_loggers
 
 from model import ModelInterface, CustomWriter
 from dataset import DataInterface
-from utils import ( load_callbacks, 
+from utils.train_utils import ( load_callbacks, 
                     load_config, 
                     load_loggers, 
                     fix_seed )
@@ -24,7 +24,7 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-    parser.add_argument('--config_name', type=str, default='ST/andersson/TRIPLEX', help='Path to the configuration file for the experiment.')
+    parser.add_argument('--config_name', type=str, default='hest/bench_data/LYMPH_IDC/TRIPLEX', help='Path to the configuration file for the experiment.')
     parser.add_argument('--mode', type=str, default='cv', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
     # Acceleration 
     parser.add_argument('--gpu', type=int, default=1, help='Number of gpus to use')
@@ -33,7 +33,7 @@ def get_parse():
     # Others
     parser.add_argument('--fold', type=int, default=0, help='Fold number for cross-validation')
     parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=25-val_target=0.5430.ckpt', help='Path to the checkpoint file for model weights')
-    parser.add_argument('--log_name', type=str, default='2025-02-20-18-07', help='Directory name for the loggers')
+    parser.add_argument('--log_name', type=str, default=None, help='Directory name for the loggers')
 
     args = parser.parse_args()
     
@@ -83,7 +83,10 @@ def main(cfg):
         log_path = cfg.GENERAL.log_path
         
         # ckpt_dir = glob(f'{log_path}/{cfg.config}/*')[-1]
-        ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.log_name}'
+        if cfg.GENERAL.log_name is not None:
+            ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.log_name}'
+        else:
+            ckpt_dir = glob(f'{log_path}/{cfg.config}/*')[-1]
         ckpt_path = glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt")[0]
         
         log_name = str(Path(cfg.config).parent)
