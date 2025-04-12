@@ -15,6 +15,7 @@ from pytorch_lightning import loggers as pl_loggers
 from model import ModelInterface, CustomWriter
 from dataset import DataInterface
 from utils.train_utils import ( load_callbacks, 
+from utils.train_utils import ( load_callbacks, 
                     load_config, 
                     load_loggers, 
                     fix_seed )
@@ -25,6 +26,7 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
+    parser.add_argument('--config_name', type=str, default='hest/bench_data/LYMPH_IDC/TRIPLEX', help='Path to the configuration file for the experiment.')
     parser.add_argument('--config_name', type=str, default='hest/bench_data/LYMPH_IDC/TRIPLEX', help='Path to the configuration file for the experiment.')
     parser.add_argument('--mode', type=str, default='cv', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
     # Acceleration 

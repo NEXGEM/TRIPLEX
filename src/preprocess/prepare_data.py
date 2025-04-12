@@ -20,7 +20,7 @@ from hest import iter_hest
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import load_st, pxl_to_array, normalize_adata, save_hdf5
+from utils.preprocess_utils import load_st, pxl_to_array, save_hdf5
 
 
 def find_matches(array_i, array_j):
