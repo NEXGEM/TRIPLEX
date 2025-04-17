@@ -83,14 +83,8 @@ def main(cfg):
         
     elif mode == 'eval':
         log_path = cfg.GENERAL.log_path
-        
-        # ckpt_dir = glob(f'{log_path}/{cfg.config}/*')[-1]
-        ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.timestamp}'
-        # if cfg.GENERAL.timestamp is not None:
-        #     ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.timestamp}'
-        # else:
-        #     ckpt_dir = sorted(glob(f'{log_path}/{cfg.config}/*'))[-1]
-        
+    
+        ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.timestamp}'    
         ckpt_path = glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt")[0]
         
         log_name = str(Path(cfg.config).parent)

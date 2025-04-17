@@ -142,7 +142,7 @@ Replace `<config_path>` with the path to your configuration file.
 To evaluate the model, run the following command:
 
 ```bash
-python src/main.py --config_name=<config_path> --mode=eval --gpu=1
+python src/main.py --config_name=<config_path> --mode=eval --gpu=1 --timestamp=<timestamp_of_log_dir>
 ```
 
 The most recent folder inside the log directory will be used for evaluation. The file `pcc_rank.npy` will be saved in the output directory.
@@ -158,7 +158,7 @@ The file `idx_top.npy` will be saved in the output directory.
 To evaluate the model including HPGs, run the evaluation command again:
 
 ```bash
-python src/main.py --config_name=<config_path> --mode=eval --gpu=1
+python src/main.py --config_name=<config_path> --mode=eval --gpu=1 --timestamp=<timestamp_of_log_dir>
 ```
 
 
