@@ -257,11 +257,31 @@ class BLEEP(nn.Module):
         self.max_batch_size = max_batch_size
         
     def forward(self, img, label, **kwargs):
-            
-        if 'dataset' in kwargs:
-            return self._process_inference_batch(img, kwargs['dataset'])
-        else:    
+        phase = kwargs.get('phase', 'train')
+        
+        if phase == 'train':
             return self._process_training_batch(img, label)
+        
+        elif phase == 'val':
+            batch_size = img.shape[0]
+            if batch_size > self.max_batch_size:
+                imgs = img.split(self.max_batch_size, dim=0)
+                labels = label.split(self.max_batch_size, dim=0)
+                
+                loss = 0.
+                for img, label in zip(imgs, labels):
+                    loss_ = self._process_training_batch(img, label)
+                    loss += loss_['loss']
+                    
+                loss /= len(imgs)
+                return {'loss': loss}
+            else:
+                return self._process_training_batch(img, label)
+        
+        elif phase == 'test':
+            if 'dataset' not in kwargs:
+                raise ValueError("Inference mode requires a dataset to be passed in.")
+            return self._process_inference_batch(img, kwargs['dataset'])
         
     def _process_training_batch(self, img, spot_features):
         image_features = self.image_encoder(img)
