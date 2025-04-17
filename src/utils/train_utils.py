@@ -67,7 +67,7 @@ def normalize_adata(adata: sc.AnnData, cpm=False, smooth=False) -> sc.AnnData:
     return normed_adata
 
 # Load config
-def load_config(config_name: str):
+def load_config(config_path: str):
     """load config file in Dict
 
     Args:
@@ -76,7 +76,7 @@ def load_config(config_name: str):
     Returns:
         Dict: Dict instance containing configuration.
     """
-    config_path = os.path.join('./config', f'{config_name}.yaml')
+    # config_path = os.path.join(config_dir, f'{config_name}.yaml')
 
     with open(config_path, 'r') as f:
         config = yaml.load(f, Loader = yaml.FullLoader)
@@ -94,31 +94,27 @@ def load_loggers(cfg: Dict):
         List: _description_
     """
     
-    log_path = cfg.GENERAL.log_path
+    log_root_dir = cfg.GENERAL.log_path
     current_time = cfg.GENERAL.timestamp
-    
-    
-    Path(log_path).mkdir(exist_ok=True, parents=True)
     log_name = str(Path(cfg.config).parent)
     version_name = Path(cfg.config).name
-    # now = datetime.now()
-    # current_time = now.strftime("%D-%H-%M").replace("/", "-")
-    cfg.log_path = f"{log_path}/{log_name}/{version_name}/{current_time}/fold{cfg.DATA.fold}"
-    print(f'---->Log dir: {cfg.log_path}')
+    
+    cfg.log_dir_fold = f"{cfg.log_dir}/fold{cfg.DATA.fold}"
+    print(f'---->Log dir: {cfg.log_dir}')
     
 
     # #---->Wandb
     # log_path = os.path.abspath(cfg.log_path)
-    os.environ["WANDB_DIR"] = cfg.log_path
+    os.environ["WANDB_DIR"] = cfg.log_dir_fold
     # os.environ["WANDB_DISABLE_SERVICE"] = "True"
     # os.environ["WANDB_DIR"] = os.path.expanduser("~/.wandb")
-    os.makedirs(f'{cfg.log_path}/wandb', exist_ok=True)
-    wandb_logger = pl_loggers.WandbLogger(save_dir=cfg.log_path,
+    os.makedirs(f'{cfg.log_dir_fold}/wandb', exist_ok=True)
+    wandb_logger = pl_loggers.WandbLogger(save_dir=cfg.log_dir_fold,
                                         name=f'{log_name}-{version_name}-{current_time}-fold{cfg.DATA.fold}', 
                                         project='ST_prediction')
     
     #---->CSV
-    csv_logger = pl_loggers.CSVLogger(f"{log_path}/{log_name}",
+    csv_logger = pl_loggers.CSVLogger(f"{log_root_dir}/{log_name}",
                                     name = f"{version_name}/{current_time}", version = f'fold{cfg.DATA.fold}', )
     
     loggers = [wandb_logger, csv_logger]
@@ -152,7 +148,7 @@ def load_callbacks(cfg: Dict):
     Mycallbacks.append(early_stop_callback)
     log_name = '{epoch:02d}-{val_target:.4f}'
     checkpoint_callback = ModelCheckpoint(monitor = target,
-                                    dirpath = cfg.log_path,
+                                    dirpath = cfg.log_dir_fold,
                                     filename = log_name,
                                     verbose = True,
                                     save_last = False,
