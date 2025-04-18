@@ -15,14 +15,14 @@ def main(args):
             if args.model in dataset:
                 dataset_name = args.dataset
                 # path = glob(f"{args.log_dir}/{args.dataset}/{args.model}/*")[-1]
-                path = f"{args.log_dir}/{args.dataset}/{args.model}/{args.log_name}"
+                path = f"{args.log_dir}/{args.dataset}/{args.model}/{args.timestamp}"
             else:
                 continue
         
         else:
             dataset_name = dataset.split('/')[-1]
             # path = glob(f"{dataset}/{args.model}/*")[-1]
-            path = f"{dataset}/{args.model}/{args.log_name}"
+            path = f"{dataset}/{args.model}/{args.timestamp}"
             
         
         for fold_path in glob(f"{path}/*"):
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--model', type=str, default='TRIPLEX')
     argparser.add_argument('--log_dir', type=str, default='./logs')
-    argparser.add_argument('--log_name', type=str, default='2025-02-24-14-35')
+    argparser.add_argument('--timestamp', type=str, default='2025-02-24-14-35')
     argparser.add_argument('--dataset', type=str, default='GSE240429')
     argparser.add_argument('--output_dir', type=str, default='./output/res')
     args = argparser.parse_args()
