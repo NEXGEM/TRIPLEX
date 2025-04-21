@@ -222,10 +222,12 @@ def pearson_R(x, y):
 class EGN(nn.Module):
     def __init__(self, bhead=16, bdim=128, bfre=2, mdim=1024, player=2, linear_projection=True,
                 image_size = 224, patch_size = 32, num_outputs = 300, dim = 1024, 
-                depth = 16, heads = 16, mlp_dim = 2048, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+                depth = 16, heads = 16, mlp_dim = 2048, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.,
+                max_batch_size = 1024):
         super().__init__()
         
         self.dim = dim
+        self.max_batch_size = max_batch_size
 
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -251,9 +253,36 @@ class EGN(nn.Module):
                 nn.Linear(dim * 2, num_outputs)
             )
             
-    def forward(self, img, ei, ej, yj, **kwargs):
+    def forward(self, img, ei, ej, yj, label=None, **kwargs):
+        phase = kwargs.get('phase', 'train')
+        
+        if phase == 'train':
+            output = self._forward_single(img, ei, ej, yj)
+            
+        else:
+            if img.shape[0] > self.max_batch_size:
+                imgs = img.split(self.max_batch_size, dim=0)
+                ei = ei.split(self.max_batch_size, dim=0)
+                ej = ej.split(self.max_batch_size, dim=0)
+                yj = yj.split(self.max_batch_size, dim=0)
+                output = [self._forward_single(imgs[i], ei[i], ej[i], yj[i]) for i in range(len(imgs))]
+                output = torch.cat(output, dim=0)
+            else:
+                output = self._forward_single(img, ei, ej, yj)
+                
+        if label is not None:
+            loss = F.mse_loss(output, label)
+            corrloss = self.correlationMetric(output, label)
+            loss = loss + corrloss * 0.5
+            
+            result_dict = {'loss': loss, 'logits': output}
+        else:
+            result_dict = {'logits': output}
+        
+        return result_dict
+    
+    def _forward_single(self, img, ei, ej, yj):
         data = {'img': img, 'p_feature':ei,'op_feature':ej, 'op_count':yj}
-
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
         pos = self.pos_embedding[:, :n]
@@ -262,15 +291,7 @@ class EGN(nn.Module):
         x = self.to_latent(x)
         output = self.mlp_head(x)
         
-        label = kwargs['label']
-        if len(label.shape) == 3:
-            label = label.squeeze(0)
-            
-        loss = F.mse_loss(output, label)
-        corrloss = self.correlationMetric(output, label)
-        loss = loss + corrloss * 0.5
-        
-        return {'loss': loss, 'logits': output}
+        return output
     
     def correlationMetric(self,x, y):
         corr = 0
