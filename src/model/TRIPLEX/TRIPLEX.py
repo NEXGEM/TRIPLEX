@@ -115,8 +115,6 @@ class TRIPLEX(nn.Module):
         # self.fc_target = nn.Sequential(nn.Linear(emb_dim, num_outputs),
         #                         nn.ReLU())
         self.target_linear = nn.Linear(512, emb_dim)
-        
-        self.softplus = nn.Softplus()
 
         # Neighbor Encoder
         self.neighbor_encoder = NeighborEncoder(emb_dim, 
@@ -184,12 +182,12 @@ class TRIPLEX(nn.Module):
             
             pred = [self.fc(self._encode_all(img, mask, neighbor_emb, position, global_emb, sid=sid)[0]) \
                 for img, neighbor_emb, mask, sid in zip(imgs, neighbor_embs, masks, sids)]
-            pred = self.softplus(torch.cat(pred, dim=0)) 
+            pred = torch.clamp(torch.cat(pred, dim=0), 0) 
             
             return {'logits': pred}    
         else:
             fusion_token, _, _, _ = self._encode_all(img, mask, neighbor_emb, position, global_emb, sid=sid)
-            pred = self.softplus(self.fc(fusion_token))
+            pred = torch.clamp(self.fc(fusion_token), 0)
         return {'logits': pred}
     
     def _encode_all(self, img, mask, neighbor_emb, position, global_emb, pid=None, sid=None):
@@ -228,10 +226,10 @@ class TRIPLEX(nn.Module):
         return global_token
         
     def _get_outputs(self, fusion_token, target_token, neighbor_token, global_token, label):
-        output = self.softplus(self.fc(fusion_token)) # B x num_genes
-        out_target = self.softplus(self.fc_target(target_token.mean(1))) # B x num_genes
-        out_neighbor = self.softplus(self.fc_neighbor(neighbor_token.mean(1))) # B x num_genes
-        out_global = self.softplus(self.fc_global(global_token)) # B x num_genes
+        output = torch.clamp(self.fc(fusion_token), 0) # B x num_genes
+        out_target = torch.clamp(self.fc_target(target_token.mean(1)), 0) # B x num_genes
+        out_neighbor = torch.clamp(self.fc_neighbor(neighbor_token.mean(1)), 0) # B x num_genes
+        out_global = torch.clamp(self.fc_global(global_token), 0) # B x num_genes
         
         preds = (output, out_target, out_neighbor, out_global)
         
