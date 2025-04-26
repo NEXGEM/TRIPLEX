@@ -30,7 +30,9 @@ class StNet(nn.Module):
                 output = torch.cat(output, dim=0)
             else:
                 output = self.model(img)
-            
+        
+        output = torch.clamp(output, 0) 
+        
         if label is not None:
             loss = F.mse_loss(output, label)
             return {'loss': loss, 'logits': output}

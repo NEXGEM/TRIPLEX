@@ -269,7 +269,9 @@ class EGN(nn.Module):
                 output = torch.cat(output, dim=0)
             else:
                 output = self._forward_single(img, ei, ej, yj)
-                
+        
+        output = torch.clamp(output, 0) 
+            
         if label is not None:
             loss = F.mse_loss(output, label)
             corrloss = self.correlationMetric(output, label)
