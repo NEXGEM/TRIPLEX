@@ -48,6 +48,7 @@ def main(cfg):
     mode = cfg.DATA.mode
     gpus = cfg.GENERAL.gpu
     use_amp = cfg.GENERAL.get('use_amp', True)
+    exp_id = cfg.GENERAL.exp_id
     
     # Define Data 
     if mode != 'inference':
@@ -62,8 +63,9 @@ def main(cfg):
     # Train or test model
     if mode == 'cv':
         # Load loggers and callbacks for Trainer
-        loggers = load_loggers(cfg)
-        callbacks = load_callbacks(cfg)
+        if exp_id == 1:
+            loggers = load_loggers(cfg)
+            callbacks = load_callbacks(cfg)
         
         model = ModelInterface(**ModelInterface_dict)
         
@@ -71,11 +73,12 @@ def main(cfg):
         trainer = pl.Trainer(
             accelerator="gpu", 
             strategy = DDPStrategy(find_unused_parameters=False),
+            strategy = DDPStrategy(find_unused_parameters=False),
             devices = gpus,
             max_epochs = cfg.TRAINING.num_epochs,
-            logger = loggers,
             check_val_every_n_epoch = 1,
-            callbacks = callbacks,
+            logger = loggers if exp_id == 1 else None,
+            callbacks = callbacks if exp_id == 1 else None,
             precision = '16-mixed' if use_amp else '32'
         )
         
@@ -157,11 +160,12 @@ if __name__ == '__main__':
     if args.mode == 'cv':
         timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
         cfg.GENERAL.timestamp = timestamp    
-        cfg.log_dir = f"{log_path}/{log_name}/{version_name}/{timestamp}"
-        os.makedirs(cfg.log_dir, exist_ok=True)
+        if args.exp_id == 1:
+            cfg.log_dir = f"{log_path}/{log_name}/{version_name}/{timestamp}"
+            os.makedirs(cfg.log_dir, exist_ok=True)
         
-        # Copy config file to log path
-        copyfile(config_path, f"{cfg.log_dir}/config.yaml")
+            # Copy config file to log path
+            copyfile(config_path, f"{cfg.log_dir}/config.yaml")
         
     ## eval setup
     else:
@@ -171,6 +175,7 @@ if __name__ == '__main__':
         
         config_path = f"{log_path}/{log_name}/{version_name}/{timestamp}/config.yaml"
         cfg = load_config(config_path)
+        
         
     cfg.GENERAL.timestamp = timestamp
     cfg.config = args.config_name
