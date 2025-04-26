@@ -16,6 +16,7 @@ from model import ModelInterface, CustomWriter
 from dataset import DataInterface
 from utils.train_utils import ( load_callbacks, 
                     load_config, 
+                    load_config_with_base,
                     load_loggers, 
                     fix_seed )
 
@@ -25,7 +26,7 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-    parser.add_argument('--config_name', type=str, default='hest/bench_data/LYMPH_IDC/TRIPLEX', help='Path to the configuration file for the experiment.')
+    parser.add_argument('--config_name', type=str, default='hest/bench_data/CCRCC/BLEEP', help='Path to the configuration file for the experiment.')
     parser.add_argument('--mode', type=str, default='cv', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
     # Acceleration 
     parser.add_argument('--gpu', type=int, default=1, help='Number of gpus to use')
@@ -150,7 +151,8 @@ if __name__ == '__main__':
     args = get_parse()   
     
     config_path = os.path.join('./config', f'{args.config_name}.yaml')
-    cfg = load_config(config_path)
+    cfg = load_config_with_base(config_path)
+    
     log_path = cfg.GENERAL.log_path
     Path(log_path).mkdir(exist_ok=True, parents=True)
     log_name = str(Path(args.config_name).parent)
@@ -174,8 +176,7 @@ if __name__ == '__main__':
             timestamp = sorted(os.listdir(f"{log_path}/{log_name}/{version_name}"))[-1]
         
         config_path = f"{log_path}/{log_name}/{version_name}/{timestamp}/config.yaml"
-        cfg = load_config(config_path)
-        
+        cfg = load_config(config_path)        
         
     cfg.GENERAL.timestamp = timestamp
     cfg.config = args.config_name
