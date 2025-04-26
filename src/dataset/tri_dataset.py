@@ -40,14 +40,23 @@ class TriDataset(STDataset):
         self.emb_dir = f"{data_dir}/emb"
         
         if phase == 'train':
-            self.pos_dict = {_id: torch.LongTensor(adata.obs[['array_row', 'array_col']].to_numpy()) \
-                for _id, adata in self.adata_dict.items()}
-            self.global_embs = {_id: self.load_emb(_id, emb_name='global', model_name=model_name) \
+            # self.pos_dict = {_id: torch.LongTensor(adata.obs[['array_row', 'array_col']].to_numpy()) \
+            #     for _id, adata in self.adata_dict.items()}
+            self.global_data = {_id: self.load_emb(_id, emb_name='global', model_name=model_name, return_crds=True) \
                 for _id in self.ids}
+            
+            self.pos_dict = {_id: data[1] \
+                for _id, data in self.global_data.items()}
+            
+            self.global_embs = {_id: data[0] \
+                for _id, data in self.global_data.items()}
+            
+            # self.global_embs = {_id: self.load_emb(_id, emb_name='global', model_name=model_name) \
+            #     for _id in self.ids}
         
         if mode == 'inference':
-            self.global_emb = self.load_emb(self.name, emb_name='global')
-            self.position = torch.LongTensor(np.load(f"{self.data_dir}/pos/{self.name}.npy")) 
+            self.global_emb, self.position = self.load_emb(self.name, emb_name='global', return_crds=True)
+            # self.position = torch.LongTensor(np.load(f"{self.data_dir}/pos/{self.name}.npy")) 
         
     def __getitem__(self, index):
         data = {}
@@ -92,21 +101,21 @@ class TriDataset(STDataset):
                 img = torch.stack([self.transforms(im) for im in img], dim=0)
                 
                 neighbor_emb, mask = self.load_emb(name, emb_name='neighbor')
-                global_emb = self.load_emb(name, emb_name='global')
+                global_emb, pos = self.load_emb(name, emb_name='global', return_crds=True)
             
                 if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
                     adata = self.load_st(name, self.genes, **self.norm_param)
-                    pos = adata.obs[['array_row', 'array_col']].to_numpy()
+                    # pos = adata.obs[['array_row', 'array_col']].to_numpy()
                     
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     data['label'] = torch.FloatTensor(expression) 
                     # if self.mode != 'inference':
                     #     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     #     data['label'] = torch.FloatTensor(expression) 
-                else:
-                    pos = np.load(f"{self.data_dir}/pos/{name}.npy")
+                # else:
+                #     pos = np.load(f"{self.data_dir}/pos/{name}.npy")
                     
-                data['position'] = torch.LongTensor(pos)
+                data['position'] = pos
                 data['global_emb'] = global_emb
                     
             
@@ -116,7 +125,7 @@ class TriDataset(STDataset):
             
         return data
         
-    def load_emb(self, name: str, emb_name: str = 'global', idx: int = None, model_name: str = 'uni_v1'):
+    def load_emb(self, name: str, emb_name: str = 'global', idx: int = None, model_name: str = 'uni_v1', return_crds=False):
         if emb_name not in ['global', 'neighbor']:
             raise ValueError(f"emb_name must be 'global' or 'neighbor', but got {emb_name}")
         
@@ -133,7 +142,18 @@ class TriDataset(STDataset):
             if emb_name == 'neighbor':
                 mask = f['mask_tb'][idx] if idx is not None else f['mask_tb'][:]
                 mask = torch.LongTensor(mask)
-                return emb, mask
-            
-        return emb
-    
+                # return emb, mask
+                if return_crds:
+                    coords = f['coords'][idx] if idx is not None else f['coords'][:]
+                    coords = torch.Tensor(coords)
+                    return emb, mask, coords
+                else:
+                    return emb, mask
+            else:
+                if return_crds:
+                    coords = f['coords'][idx] if idx is not None else f['coords'][:]
+                    coords = torch.Tensor(coords)
+                    return emb, coords
+                else:
+                    return emb
+                

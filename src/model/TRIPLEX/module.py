@@ -7,6 +7,11 @@ from torch import nn
 from einops import rearrange
 
 from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
+try:
+    import MinkowskiEngine as ME
+    HAS_MINKOWSKI = True
+except ImportError:
+    HAS_MINKOWSKI = False
 
 
 class PreNorm(nn.Module):
@@ -236,32 +241,151 @@ class CrossEncoder(nn.Module):
         
         
 class PEGH(nn.Module):
-    def __init__(self, dim=512, kernel_size=3):
+    def __init__(self, dim=512, kernel_size=3, grid_size=None, use_sparse=False, sparse_resolution=128):
         super(PEGH, self).__init__()
-        self.proj1 = nn.Conv2d(dim, dim, kernel_size, padding=kernel_size//2, bias=True, groups=dim)
+        self.use_sparse = use_sparse
+        self.grid_size = grid_size  # (H, W) or None
+        self.sparse_resolution = sparse_resolution
+
+        if self.use_sparse:
+            if not HAS_MINKOWSKI:
+                raise ImportError("MinkowskiEngine is not installed. Install it via 'pip install MinkowskiEngine'.")
+            self.proj = ME.MinkowskiConvolution(
+                in_channels=dim,
+                out_channels=dim,
+                kernel_size=kernel_size,
+                stride=1,
+                dimension=2,
+                bias=True
+            )
+        else:
+            self.proj = nn.Conv2d(
+                dim, dim,
+                kernel_size=kernel_size,
+                padding=kernel_size // 2,
+                bias=True,
+                groups=dim  # depthwise
+            )
+
+    def infer_grid_size(self, pos, rounding_factor=None):
+        """
+        pos: (N, 2) tensor
+        """
+        if rounding_factor is None:
+            rounding_factor = self.dynamic_rounding_factor(pos)
         
-    def forward(self, x, pos):
-        pos = pos - pos.min(0)[0]
-        
-        sorted_indices = torch.argsort(pos[:, 0])
-        sorted_pos = pos[sorted_indices]
-        sorted_x = x.squeeze()[sorted_indices]
-        
-        x_sparse = torch.sparse_coo_tensor(sorted_pos.T, sorted_x)
-        x_dense = x_sparse.to_dense().permute(2,1,0).unsqueeze(dim=0)
-        
-        x_pos = self.proj1(x_dense)
-            
-        mask = (x_dense.sum(dim=1) != 0.)
-        x_pos = x_pos.masked_fill(~mask, 0.) + x_dense
-        x_pos_sparse = x_pos.squeeze().permute(2,1,0).to_sparse(2)
-        x_out_sorted = x_pos_sparse.values().unsqueeze(dim=0)
-        
-        original_order_indices = torch.argsort(sorted_indices)
-        x_out = x_out_sorted[:, original_order_indices]
-        
-        return x_out
+        pos_rounded = (pos / rounding_factor).round() * rounding_factor
+        unique_x = torch.unique(pos_rounded[:, 0])
+        unique_y = torch.unique(pos_rounded[:, 1])
+        W = unique_x.numel()
+        H = unique_y.numel()
+        return (W, H)
     
+    @staticmethod
+    def dynamic_rounding_factor(pos, base=1, scale_ref=1000.0):
+        """
+        Args:
+            pos: (N, 2) tensor
+            base: base rounding factor (based on scale_ref)
+            scale_ref: base pos range (range: 1000 -> 1 )
+        Returns:
+            rounding_factor: float
+        """
+        pos_range = (pos.max(0)[0] - pos.min(0)[0]).max().item()  # x, y 중 큰 축
+        scale_ratio = pos_range / scale_ref
+        rounding_factor = base * scale_ratio
+        return rounding_factor
+    
+    def forward(self, x, pos):
+        """
+        Args:
+            x: (1, N, dim)
+            pos: (N, 2)
+        Returns:
+            x_out: (1, N, dim)
+        """
+        B, N, C = x.shape
+        device = x.device
+
+        if self.use_sparse:
+            # --- Sparse Version ---
+            pos_min = pos.min(dim=0, keepdim=True)[0]
+            pos_max = pos.max(dim=0, keepdim=True)[0]
+            pos_norm = (pos - pos_min) / (pos_max - pos_min + 1e-5)
+
+            discrete_coords = (pos_norm * (self.sparse_resolution - 1)).round().int()
+
+            batch_indices = torch.zeros((N, 1), dtype=torch.int, device=device)
+            coords = torch.cat([batch_indices, discrete_coords], dim=1)  # (N, 1+2)
+
+            sparse_input = ME.SparseTensor(
+                features=x.squeeze(0),
+                coordinates=coords,
+            )
+
+            sparse_output = self.proj(sparse_input)
+
+            # Matching input coords and output coords
+            out_features = sparse_output.features
+            out_coords = sparse_output.coordinates[:, 1:]
+
+            match_idx = []
+            for i in range(N):
+                match = ((out_coords == discrete_coords[i]).all(dim=1)).nonzero(as_tuple=True)[0]
+                match_idx.append(match.item())
+
+            match_idx = torch.tensor(match_idx, device=device, dtype=torch.long)
+            matched_features = out_features[match_idx]
+
+            x_out = matched_features.unsqueeze(0)
+            return x_out
+
+        else:
+            # --- Dense Version ---
+            if self.grid_size is None:
+                self.grid_size = self.infer_grid_size(pos)  # (W, H) inferred
+
+            W, H = self.grid_size
+
+            pos_min = pos.min(dim=0, keepdim=True)[0]
+            pos_max = pos.max(dim=0, keepdim=True)[0]
+            pos_norm = (pos - pos_min) / (pos_max - pos_min + 1e-5)
+            grid_pos = pos_norm * torch.tensor([W - 1, H - 1], device=device)
+            grid_pos = grid_pos.round().long()
+
+            gx, gy = grid_pos[:, 0], grid_pos[:, 1]  # (N,), (N,)
+
+            # Flatten 2D grid into 1D index for scatter
+            idx_1d = gy * W + gx  # (N,)
+
+            dense_x = torch.zeros((B, C, H * W), device=device)
+            dense_mask = torch.zeros((B, 1, H * W), device=device)
+
+            # Scatter add (optimized)
+            for b in range(B):
+                dense_x[b] = dense_x[b].scatter_add(1, idx_1d.unsqueeze(0).expand(C, -1), x[b].transpose(0,1))
+                dense_mask[b] = dense_mask[b].scatter_add(1, idx_1d.unsqueeze(0), torch.ones(1, N, device=device))
+
+            dense_x = dense_x.view(B, C, H, W)
+            dense_mask = dense_mask.view(B, 1, H, W)
+
+            dense_mask = dense_mask.clamp(min=1.0)
+            dense_x = dense_x / dense_mask
+
+            x_pos = self.proj(dense_x)
+
+            mask = (dense_mask > 0)
+            x_pos = x_pos * mask + dense_x * (~mask)
+
+            # Sampling
+            x_out = []
+            for b in range(B):
+                sampled_feat = x_pos[b, :, grid_pos[:, 1], grid_pos[:, 0]].transpose(0,1)  # (N, C)
+                x_out.append(sampled_feat)
+
+            x_out = torch.stack(x_out, dim=0)  # (B, N, C)
+            return x_out
+        
     
 class GlobalEncoder(nn.Module):
     def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., kernel_size=3):
@@ -278,7 +402,7 @@ class GlobalEncoder(nn.Module):
         x = self.layer1(x) #[B, N, 384]
 
         # PEGH
-        x = self.pos_layer(x, pos) #[B, N, 384]
+        x = self.pos_layer(x, pos) #[B, N, 384]        
         
         # Translayer x (depth-1)
         x = self.layer2(x) #[B, N, 384]        
