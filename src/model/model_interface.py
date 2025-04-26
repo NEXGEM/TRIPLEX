@@ -114,18 +114,18 @@ class  ModelInterface(pl.LightningModule):
         #---->Forward
         results_dict = self.model(**batch)
         
+        label = batch['label']
         #---->Loss
         if 'logits' in results_dict:
             logits = results_dict['logits']
-            label = batch['label']
             
             val_metric = self.valid_metrics(logits, label)
             val_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in val_metric.items()}
-            self.log_dict(val_metric, on_epoch = True, logger = True, sync_dist=True)
+            self.log_dict(val_metric, on_epoch = True, logger = True, sync_dist=True, batch_size = label.shape[0])
             outputs = {'logits': logits, 'label': label}
         else:
             loss = results_dict['loss']
-            self.log_dict({'val_target': loss}, on_epoch = True, logger = True, sync_dist=True)
+            self.log_dict({'val_target': loss}, on_epoch = True, logger = True, sync_dist=True, batch_size = label.shape[0])
             outputs = {'loss': loss}
         
         return outputs
@@ -155,7 +155,7 @@ class  ModelInterface(pl.LightningModule):
             self.avg_pcc += test_metric['test_PearsonCorrCoef'].cpu()
             
         test_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
-        self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True)
+        self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True, batch_size = label.shape[0])
         
         outputs = {'logits': logits, 'label': label}
         
