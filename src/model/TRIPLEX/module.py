@@ -240,9 +240,9 @@ class CrossEncoder(nn.Module):
             return x_q
         
         
-class PEGH(nn.Module):
+class APEG(nn.Module):
     def __init__(self, dim=512, kernel_size=3, grid_size=None, use_sparse=False, sparse_resolution=128):
-        super(PEGH, self).__init__()
+        super(APEG, self).__init__()
         self.use_sparse = use_sparse
         self.grid_size = grid_size  # (H, W) or None
         self.sparse_resolution = sparse_resolution
@@ -391,7 +391,7 @@ class GlobalEncoder(nn.Module):
     def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., kernel_size=3):
         super().__init__()      
         
-        self.pos_layer = PEGH(dim=emb_dim, kernel_size=kernel_size) 
+        self.pos_layer = APEG(dim=emb_dim, kernel_size=kernel_size) 
         
         self.layer1 = TransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout, flash_attn=True)
         self.layer2 = TransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout, flash_attn=True)

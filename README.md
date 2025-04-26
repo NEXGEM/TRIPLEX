@@ -13,7 +13,7 @@ It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) and [CLAM](
 ## 🔄 Recent Updates
 - **April 2025**: 
   - Added clamping to outputs to ensure non-negative gene expression values
-  - Modified PEGH to align with its original implementation intent 
+  - Modified APEG to align with its original implementation intent 
   - Improved stability of training and inference
 
 ## Table of Contents
