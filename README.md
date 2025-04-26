@@ -10,6 +10,12 @@ Youngmin Chung, Ji Hun Ha, Kyeong Chan Im, Joo Sang Lee<sup>*
 
 It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) and [CLAM](https://github.com/mahmoodlab/CLAM) for data preparation.
 
+## 🔄 Recent Updates
+- **April 2025**: 
+  - Added clamping to outputs to ensure non-negative gene expression values
+  - Modified PEGH to align with its original implementation intent (Use image coordinates for position encoding)
+  - Improved stability of training and inference
+
 ## Table of Contents
 - [Requirements](#requirements)
 - [Installation](#installation)
