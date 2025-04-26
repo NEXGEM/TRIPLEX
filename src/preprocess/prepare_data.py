@@ -145,26 +145,6 @@ def save_patches(name, input_dir, output_dir, platform='visium', save_targets=Tr
     
     return st
         
-def get_pos(name, input_dir, output_dir, step_size=160):
-    
-    with h5py.File(f"{input_dir}/{name}.h5", 'r') as f:
-        crds = f['coords'][:]
-        
-    array_crds = pxl_to_array(crds, step_size)
-    
-    df_crds = pd.DataFrame(array_crds) 
-    check_dup = df_crds.apply(tuple, axis=1).duplicated().sum()
-    
-    while check_dup > 0:
-        print(f"Adjusting step_size for {name}...")
-        print(f"Stepsize change from {step_size} to {step_size-10}")
-        step_size -= 10
-        array_crds = pxl_to_array(crds, step_size)
-        df_crds = pd.DataFrame(array_crds) 
-        check_dup = df_crds.apply(tuple, axis=1).duplicated().sum()
-    
-    np.save(f"{output_dir}/{name}", array_crds)
-        
 def save_image(slide_path, patch_path, slide_level=0, patch_size=256):
     # Open and read all coordinates
     with h5py.File(patch_path, 'r') as f:
@@ -305,11 +285,6 @@ if __name__ == "__main__":
         
         for input_path in tqdm(ids):
             name = os.path.splitext(os.path.basename(input_path))[0]
-            
-            if os.path.exists(f"{output_dir}/{name}.npy"):
-                print("Position already exists. Skipping...")
-            else:
-                get_pos(name, patch_dir, output_dir, step_size)
             
             with h5py.File(input_path, 'r') as f:
                 keys = f.keys()
