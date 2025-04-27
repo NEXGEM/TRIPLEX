@@ -5,7 +5,7 @@ from datetime import datetime
 from glob import glob 
 from tqdm import tqdm
 from pathlib import Path
-from shutil import copyfile
+import yaml
 
 import torch
 import pytorch_lightning as pl
@@ -26,7 +26,7 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-    parser.add_argument('--config_name', type=str, default='hest/bench_data/CCRCC/BLEEP', help='Path to the configuration file for the experiment.')
+    parser.add_argument('--config_name', type=str, default='hest/bench_data/PRAD/TRIPLEX', help='Path to the configuration file for the experiment.')
     parser.add_argument('--mode', type=str, default='cv', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
     # Acceleration 
     parser.add_argument('--gpu', type=int, default=1, help='Number of gpus to use')
@@ -78,7 +78,7 @@ def main(cfg):
             devices = gpus,
             max_epochs = cfg.TRAINING.num_epochs,
             check_val_every_n_epoch = 1,
-            logger = loggers if exp_id == 1 else None,
+            logger = loggers if exp_id == 1 else False,
             callbacks = callbacks if exp_id == 1 else None,
             precision = '16-mixed' if use_amp else '32'
         )
@@ -166,19 +166,19 @@ if __name__ == '__main__':
             cfg.log_dir = f"{log_path}/{log_name}/{version_name}/{timestamp}"
             os.makedirs(cfg.log_dir, exist_ok=True)
         
-            # Copy config file to log path
-            copyfile(config_path, f"{cfg.log_dir}/config.yaml")
+            with open(f"{cfg.log_dir}/config.yaml", 'w') as f:
+                yaml.dump(cfg, f, default_flow_style=False)
         
     ## eval setup
     else:
         timestamp = args.timestamp
         if timestamp is None:
             timestamp = sorted(os.listdir(f"{log_path}/{log_name}/{version_name}"))[-1]
+        cfg.GENERAL.timestamp = timestamp
         
         config_path = f"{log_path}/{log_name}/{version_name}/{timestamp}/config.yaml"
         cfg = load_config(config_path)        
         
-    cfg.GENERAL.timestamp = timestamp
     cfg.config = args.config_name
     cfg.GENERAL.exp_id = args.exp_id
     cfg.GENERAL.gpu = args.gpu
