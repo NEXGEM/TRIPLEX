@@ -26,15 +26,15 @@ def get_parse():
     parser = argparse.ArgumentParser()
     
     # Main configuration
-    parser.add_argument('--config_name', type=str, default='hest/bench_data/PRAD/TRIPLEX', help='Path to the configuration file for the experiment.')
+    parser.add_argument('--config_name', type=str, default='ST/andersson/TRIPLEX', help='Path to the configuration file for the experiment.')
     parser.add_argument('--mode', type=str, default='cv', help='Mode of operation: "cv" for cross-validation, "eval" for evaluation, "inference" for inference')
     # Acceleration 
     parser.add_argument('--gpu', type=int, default=1, help='Number of gpus to use')
     # Experiments
-    parser.add_argument('--exp_id', type=int, default=0, help='Experiment ID for tracking different runs')
+    parser.add_argument('--exp_id', type=int, default=1, help='Experiment ID for tracking different runs')
     # Others
     parser.add_argument('--fold', type=int, default=0, help='Fold number for cross-validation')
-    parser.add_argument('--ckpt_path', type=str, default='weights/TRIPLEX/epoch=25-val_target=0.5430.ckpt', help='Path to the checkpoint file for model weights')
+    parser.add_argument('--ckpt_path', type=str, help='Path to the checkpoint file for model weights')
     parser.add_argument('--timestamp', type=str, default=None, help='timestamp name for the loggers')
 
     args = parser.parse_args()
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     
     config_path = os.path.join('./config', f'{args.config_name}.yaml')
     cfg = load_config_with_base(config_path)
-    
+        
     log_path = cfg.GENERAL.log_path
     Path(log_path).mkdir(exist_ok=True, parents=True)
     log_name = str(Path(args.config_name).parent)
@@ -167,17 +167,17 @@ if __name__ == '__main__':
             os.makedirs(cfg.log_dir, exist_ok=True)
         
             with open(f"{cfg.log_dir}/config.yaml", 'w') as f:
-                yaml.dump(cfg, f, default_flow_style=False)
+                yaml.dump(cfg.to_dict(), f, allow_unicode=True, sort_keys=False, default_flow_style=False)
         
     ## eval setup
     else:
         timestamp = args.timestamp
         if timestamp is None:
             timestamp = sorted(os.listdir(f"{log_path}/{log_name}/{version_name}"))[-1]
-        cfg.GENERAL.timestamp = timestamp
         
         config_path = f"{log_path}/{log_name}/{version_name}/{timestamp}/config.yaml"
         cfg = load_config(config_path)        
+        cfg.GENERAL.timestamp = timestamp
         
     cfg.config = args.config_name
     cfg.GENERAL.exp_id = args.exp_id
