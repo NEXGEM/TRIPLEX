@@ -343,7 +343,7 @@ class APEG(nn.Module):
         else:
             # --- Dense Version ---
             if self.grid_size is None:
-                self.grid_size = self.infer_grid_size(pos)  # (W, H) inferred
+                self.grid_size = self.infer_grid_size(pos, rounding_factor=20)  # (W, H) inferred
 
             W, H = self.grid_size
 
