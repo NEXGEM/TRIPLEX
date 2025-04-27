@@ -160,26 +160,26 @@ def load_callbacks(cfg: Dict):
     return Mycallbacks
 
 
-def load_config_with_default(config_path, base_config_path=None):
-    """Load config with base config support."""
+def load_config_with_default(config_path, default_config_path=None):
+    """Load config with default config support."""
     
-    if base_config_path is None:
-        base_config_path = base_config_path = '/'.join(config_path.split('/')[:-1])
-        base_config_path = f"{base_config_path}/default.yaml"
+    if default_config_path is None:
+        default_config_path = default_config_path = '/'.join(config_path.split('/')[:-1])
+        default_config_path = f"{default_config_path}/default.yaml"
     
-    if base_config_path and os.path.exists(base_config_path):
-        base_cfg = load_config(base_config_path)
+    if default_config_path and os.path.exists(default_config_path):
+        default_cfg = load_config(default_config_path)
         cfg = load_config(config_path)
         
-        # Recursively update base config with specific config
-        def update_dict(base_dict, new_dict):
+        # Recursively update default config with specific config
+        def update_dict(default_dict, new_dict):
             for key, value in new_dict.items():
-                if key in base_dict and isinstance(base_dict[key], dict) and isinstance(value, dict):
-                    update_dict(base_dict[key], value)
+                if key in default_dict and isinstance(default_dict[key], dict) and isinstance(value, dict):
+                    update_dict(default_dict[key], value)
                 else:
-                    base_dict[key] = value
+                    default_dict[key] = value
         
-        update_dict(base_cfg, cfg)
-        return base_cfg
+        update_dict(default_cfg, cfg)
+        return default_cfg
     else:
         return load_config(config_path)
