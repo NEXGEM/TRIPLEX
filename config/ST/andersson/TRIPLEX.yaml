@@ -16,6 +16,7 @@ MODEL:
   dropout2: 0.1
   dropout3: 0.3
   kernel_size: 3
+  pos_layer: 'APEG' # 'MLP' or 'None'
 
 DATA:
   dataset_name: TriDataset

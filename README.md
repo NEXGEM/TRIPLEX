@@ -15,6 +15,13 @@ It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) and [CLAM](
   - Added clamping to outputs to ensure non-negative gene expression values
   - Modified APEG to align with its original implementation intent 
   - Improved stability of training and inference
+  - Restructured configuration system with default and model-specific config files
+    - Added `default.yaml` with common settings
+    - Created modular configs that inherit and override default settings
+  - Added flexible position encoding options
+    - APEG
+    - Optional MLP-based positional encoding
+    - Ability to disable positional encoding
 
 ## Table of Contents
 - [Requirements](#requirements)
@@ -182,7 +189,11 @@ Replace `<model_checkpoint_path>` with the path to your trained model checkpoint
 
 ## Configuration
 
-Configurations are managed using YAML files located in the `config/` directory. Each configuration file specifies parameters for the dataset, model, training, and evaluation. Example configuration parameters include:
+TRIPLEX now uses a hierarchical configuration system with YAML files located in the `config/` directory:
+
+### Default Configuration
+
+The `config/default.yaml` file contains common settings shared across all experiments:
 
 ```yaml
 GENERAL:
@@ -200,34 +211,16 @@ TRAINING:
   lr_scheduler:
     patience: 10
     factor: 0.1
-  
-MODEL:
-  model_name: TRIPLEX 
-  num_genes: 250
-  emb_dim: 1024
-  depth1: 1
-  depth2: 5
-  depth3: 4
-  num_heads1: 4
-  num_heads2: 8
-  num_heads3: 4
-  mlp_ratio1: 4
-  mlp_ratio2: 4
-  mlp_ratio3: 4
-  dropout1: 0.4
-  dropout2: 0.3
-  dropout3: 0.3
-  kernel_size: 3
 
 DATA:
   data_dir: input/ST/andersson
   output_dir: output/pred/ST/andersson
-  dataset_name: TriDataset
   gene_type: 'mean'
   num_genes: 1000
   num_outputs: 250
   cpm: True
   smooth: True
+  model_name: 'cigar'
   
   train_dataloader:
         batch_size: 128
@@ -240,6 +233,33 @@ DATA:
       num_workers: 4
       pin_memory: False
       shuffle: False
+```
+
+### Model-Specific Configuration
+
+Model-specific configurations inherit from the default and only need to specify differences:
+
+```yaml
+MODEL:
+  model_name: TRIPLEX 
+  num_genes: 250
+  emb_dim: 512
+  depth1: 1
+  depth2: 3
+  depth3: 3
+  num_heads1: 4
+  num_heads2: 16
+  num_heads3: 16
+  mlp_ratio1: 4
+  mlp_ratio2: 4
+  mlp_ratio3: 1
+  dropout1: 0.2
+  dropout2: 0.1
+  dropout3: 0.3
+  kernel_size: 3
+
+DATA:
+  dataset_name: TriDataset
 ```
 
 Modify these files as needed for your experiments.
