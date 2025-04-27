@@ -78,6 +78,7 @@ class TRIPLEX(nn.Module):
                 dropout3=0.1,
                 kernel_size=3,
                 res_neighbor=(5,5),
+                pos_layer='APEG',
                 max_batch_size=1024):
         """TRIPLEX model 
 
@@ -133,7 +134,8 @@ class TRIPLEX(nn.Module):
                                             num_heads2, 
                                             int(emb_dim*mlp_ratio2), 
                                             dropout2, 
-                                            kernel_size)
+                                            kernel_size,
+                                            pos_layer)
         self.fc_global = nn.Linear(emb_dim, num_outputs)
         # self.fc_global = nn.Sequential(nn.Linear(emb_dim, num_outputs),
                                 # nn.ReLU())

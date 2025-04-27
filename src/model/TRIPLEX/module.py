@@ -187,6 +187,76 @@ class MultiHeadCrossAttention(nn.Module):
         return self.to_out(out)
 
 
+class PosMLP(nn.Module):
+    def __init__(self, input_dim=2, embed_dim=1024, hidden_dim=512, grid_size=None):
+        """
+        Positional MLP encoder for flexible 2D Cartesian coordinates.
+
+        This module projects 2D (x, y) positions into a feature space
+        using a small MLP, and either adds or concatenates the resulting
+        positional embeddings to the input token features.
+
+        Args:
+            input_dim (int): Dimension of the input positions. Default is 2 for (x, y).
+            embed_dim (int): Output embedding dimension, usually same as token feature dimension.
+            hidden_dim (int): Hidden layer dimension inside the MLP.
+
+        """
+        super(PosMLP, self).__init__()
+        self.grid_size = grid_size  # (H, W) or None
+        
+        self.mlp = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_dim, embed_dim)
+        )
+
+    def forward(self, x, pos):
+        """
+        Args:
+            x: (B, N, C) input token features
+            pos: (N, 2) token positions
+        Returns:
+            out: (B, N, C)'
+        """
+        B = x.shape[0]
+        device = x.device
+        
+        if self.grid_size is None:
+            self.grid_size = self.infer_grid_size(pos, rounding_factor=20)  # (W, H) inferred
+
+        W, H = self.grid_size
+
+        pos_min = pos.min(dim=0, keepdim=True)[0]
+        pos_max = pos.max(dim=0, keepdim=True)[0]
+        pos_norm = (pos - pos_min) / (pos_max - pos_min + 1e-5)
+        grid_pos = pos_norm * torch.tensor([W - 1, H - 1], device=device)
+        grid_pos = grid_pos.round()
+            
+        pos_emb = self.mlp(grid_pos)  # (N, embed_dim)
+        pos_emb = pos_emb.unsqueeze(0).expand(B, -1, -1)  # (B, N, embed_dim)
+
+        out = x + pos_emb
+
+        return out
+    
+    def infer_grid_size(self, pos, rounding_factor=None):
+        """
+        pos: (N, 2) tensor
+        """
+        if rounding_factor is None:
+            rounding_factor = self.dynamic_rounding_factor(pos)
+        
+        pos_rounded = (pos / rounding_factor).round() * rounding_factor
+        unique_x = torch.unique(pos_rounded[:, 0])
+        unique_y = torch.unique(pos_rounded[:, 1])
+        W = unique_x.numel()
+        H = unique_y.numel()
+        return (W, H)
+    
+
+    
+
 class TransformerEncoder(nn.Module):
     def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., attn_bias=False, resolution=(5,5), flash_attn=False):
         super().__init__()
@@ -388,30 +458,54 @@ class APEG(nn.Module):
         
     
 class GlobalEncoder(nn.Module):
-    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., kernel_size=3):
+    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., kernel_size=3, pos_method='APEG'):
         super().__init__()      
         
-        self.pos_layer = APEG(dim=emb_dim, kernel_size=kernel_size) 
+        self.pos_method = pos_method
+        if pos_method == 'MLP':
+            self.pos_layer = PosMLP(input_dim=2, embed_dim=emb_dim, hidden_dim=emb_dim//2)
+        elif pos_method == 'APEG':
+            self.pos_layer = APEG(dim=emb_dim, kernel_size=kernel_size) 
+        elif pos_method == 'None':
+            self.pos_layer = None
+        else:
+            raise ValueError(f"Unknown pos_layer: {pos_method}. Choose 'MLP' or 'APEG' or 'None'.")
         
-        self.layer1 = TransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout, flash_attn=True)
-        self.layer2 = TransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout, flash_attn=True)
+        if pos_method == 'APEG':
+            assert depth > 1, "APEG requires depth > 1."
+            
+            # APEG requires a grid size for the convolutional layer    
+            self.layer1 = TransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout, flash_attn=True)
+            self.layer2 = TransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout, flash_attn=True)
+            
+        else:
+            self.layer = TransformerEncoder(emb_dim, depth, heads, mlp_dim, dropout, flash_attn=True)
+            
         self.norm = nn.LayerNorm(emb_dim)
         
-    def foward_features(self, x, pos):
-        # Translayer x1
-        x = self.layer1(x) #[B, N, 384]
-
-        # PEGH
-        x = self.pos_layer(x, pos) #[B, N, 384]        
+    def foward_features(self, x, pos=None):
         
-        # Translayer x (depth-1)
-        x = self.layer2(x) #[B, N, 384]        
+        if self.pos_method == 'APEG':
+            # Translayer x1
+            x = self.layer1(x) #[B, N, emb_dmg]
+            
+            x = self.pos_layer(x, pos) #[B, N, emb_dmg]
+            
+            # Translayer x (depth-1)
+            x = self.layer2(x) #[B, N, emb_dmg]        
+            
+        else:
+            if self.pos_method == 'MLP':
+                x = self.pos_layer(x, pos) #[B, N, emb_dmg]        
+                
+            x = self.layer(x) #[B, N, emb_dmg]        
+        
         x = self.norm(x) 
         
         return x
         
     def forward(self, x, position):    
-        x = self.foward_features(x, position) # 1 x N x 384
+        x = self.foward_features(x, position) # 1 x N x emb_dmg
     
         return x
     
