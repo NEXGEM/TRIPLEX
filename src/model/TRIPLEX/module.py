@@ -361,7 +361,7 @@ class APEG(nn.Module):
         Returns:
             rounding_factor: float
         """
-        pos_range = (pos.max(0)[0] - pos.min(0)[0]).max().item()  # x, y 중 큰 축
+        pos_range = (pos.max(0)[0] - pos.min(0)[0]).max().item()
         scale_ratio = pos_range / scale_ref
         rounding_factor = base * scale_ratio
         return rounding_factor
@@ -378,7 +378,6 @@ class APEG(nn.Module):
         device = x.device
 
         if self.use_sparse:
-            # --- Sparse Version ---
             pos_min = pos.min(dim=0, keepdim=True)[0]
             pos_max = pos.max(dim=0, keepdim=True)[0]
             pos_norm = (pos - pos_min) / (pos_max - pos_min + 1e-5)
@@ -411,7 +410,6 @@ class APEG(nn.Module):
             return x_out
 
         else:
-            # --- Dense Version ---
             if self.grid_size is None:
                 self.grid_size = self.infer_grid_size(pos, rounding_factor=20)  # (W, H) inferred
 
@@ -487,25 +485,25 @@ class GlobalEncoder(nn.Module):
         
         if self.pos_method == 'APEG':
             # Translayer x1
-            x = self.layer1(x) #[B, N, emb_dmg]
+            x = self.layer1(x) #[B, N, emb_dim]
             
-            x = self.pos_layer(x, pos) #[B, N, emb_dmg]
+            x = self.pos_layer(x, pos) #[B, N, emb_dim]
             
             # Translayer x (depth-1)
-            x = self.layer2(x) #[B, N, emb_dmg]        
+            x = self.layer2(x) #[B, N, emb_dim]        
             
         else:
             if self.pos_method == 'MLP':
-                x = self.pos_layer(x, pos) #[B, N, emb_dmg]        
+                x = self.pos_layer(x, pos) #[B, N, emb_dim]        
                 
-            x = self.layer(x) #[B, N, emb_dmg]        
+            x = self.layer(x) #[B, N, emb_dim]        
         
         x = self.norm(x) 
         
         return x
         
     def forward(self, x, position):    
-        x = self.foward_features(x, position) # 1 x N x emb_dmg
+        x = self.foward_features(x, position) # 1 x N x emb_dim
     
         return x
     
