@@ -160,12 +160,12 @@ def load_callbacks(cfg: Dict):
     return Mycallbacks
 
 
-def load_config_with_base(config_path, base_config_path=None):
+def load_config_with_default(config_path, base_config_path=None):
     """Load config with base config support."""
     
     if base_config_path is None:
         base_config_path = base_config_path = '/'.join(config_path.split('/')[:-1])
-        base_config_path = f"{base_config_path}/base.yaml"
+        base_config_path = f"{base_config_path}/default.yaml"
     
     if base_config_path and os.path.exists(base_config_path):
         base_cfg = load_config(base_config_path)

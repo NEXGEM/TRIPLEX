@@ -1,20 +1,3 @@
-
-
-GENERAL:
-  seed: 2021
-  log_path: ./logs
-  
-TRAINING:
-  num_k: 8
-  learning_rate: 1.0e-4
-  num_epochs: 200
-  monitor: PearsonCorrCoef
-  mode: max
-  early_stopping:
-    patience: 20
-  lr_scheduler:
-    patience: 10
-    factor: 0.1
   
 MODEL:
   model_name: TRIPLEX 
@@ -35,24 +18,4 @@ MODEL:
   kernel_size: 3
 
 DATA:
-  data_dir: input/ST/andersson
-  output_dir: output/pred/ST/andersson
   dataset_name: TriDataset
-  gene_type: 'mean'
-  num_genes: 1000
-  num_outputs: 250
-  cpm: True
-  smooth: True
-  model_name: 'cigar'
-  
-  train_dataloader:
-        batch_size: 128
-        num_workers: 4
-        pin_memory: False
-        shuffle: True
-
-  test_dataloader:
-      batch_size: 1
-      num_workers: 4
-      pin_memory: False
-      shuffle: False

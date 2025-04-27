@@ -5,33 +5,26 @@ GENERAL:
   log_path: ./logs
   
 TRAINING:
-  num_k: 2
+  num_k: 4
   learning_rate: 1.0e-4
   num_epochs: 200
   monitor: PearsonCorrCoef
-  mode: min
+  mode: max
   early_stopping:
-    patience: 10
+    patience: 20
   lr_scheduler:
-    patience: 5
+    patience: 10
     factor: 0.1
-  
-MODEL:
-  model_name: BLEEP
-  temperature: 1.0
-  image_embedding: 512
-  spot_embedding: 50
-  projection_dim: 512
-  trainable: True
-  dropout: 0.1
 
 DATA:
-  data_dir: input/hest/bench_data/LUNG
-  output_dir: output/pred/hest/bench_data/LUNG
-  dataset_name: BleepDataset
-  gene_type: 'var'
-  num_genes: 50
-  num_outputs: 50
+  data_dir: input/ST/andrew
+  output_dir: output/pred/ST/andrew
+  gene_type: 'mean'
+  num_genes: 1000
+  num_outputs: 250
+  cpm: True
+  smooth: True
+  model_name: 'cigar'
   
   train_dataloader:
         batch_size: 128

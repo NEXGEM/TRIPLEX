@@ -1,19 +1,4 @@
-GENERAL:
-  seed: 2021
-  log_path: ./logs
-  
-TRAINING:
-  num_k: 4
-  learning_rate: 1.0e-4
-  num_epochs: 200
-  monitor: PearsonCorrCoef
-  mode: max
-  early_stopping:
-    patience: 10
-  lr_scheduler:
-    patience: 5
-    factor: 0.1
-  
+
 MODEL:
   model_name: TRIPLEX 
   num_outputs: 300
@@ -33,23 +18,4 @@ MODEL:
   kernel_size: 3
 
 DATA:
-  data_dir: input/GSE240429
-  output_dir: output/pred/GSE240429
   dataset_name: TriDataset
-  gene_type: 'mean'
-  num_genes: 1000
-  num_outputs: 300
-  cpm: False
-  smooth: False
-  
-  train_dataloader:
-        batch_size: 128
-        num_workers: 4
-        pin_memory: True
-        shuffle: True
-
-  test_dataloader:
-      batch_size: 1
-      num_workers: 4
-      pin_memory: True
-      shuffle: False

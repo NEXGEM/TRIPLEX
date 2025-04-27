@@ -16,7 +16,7 @@ from model import ModelInterface, CustomWriter
 from dataset import DataInterface
 from utils.train_utils import ( load_callbacks, 
                     load_config, 
-                    load_config_with_base,
+                    load_config_with_default,
                     load_loggers, 
                     fix_seed )
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     args = get_parse()   
     
     config_path = os.path.join('./config', f'{args.config_name}.yaml')
-    cfg = load_config_with_base(config_path)
+    cfg = load_config_with_default(config_path)
         
     log_path = cfg.GENERAL.log_path
     Path(log_path).mkdir(exist_ok=True, parents=True)
