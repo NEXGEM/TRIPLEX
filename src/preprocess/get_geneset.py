@@ -38,6 +38,10 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, min_spot_percentage=0.
     expressed_genes = np.array(common_genes)[spot_counts/total_spot_number >= min_spot_percentage]
     
     output = {}
+    
+    if method not in ['HVG', 'HEG', 'ALL']:
+        raise ValueError("method must be either 'HVG' or 'HEG' or 'ALL'")
+    
     if method in ['HVG', 'ALL']:
         data_combined = []
         for adata in data_list:
@@ -66,9 +70,6 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, min_spot_percentage=0.
         output['mean'] = top_genes_mean.tolist()
         print(f"Selected highly expressed genes: {output['mean']}")
         # top_genes = expressed_genes[total_counts.nlargest(n_top).index]
-    
-    else:
-        raise ValueError("method must be either 'HVG' or 'HEG' or 'ALL")
     
     return output
 
@@ -100,7 +101,8 @@ if __name__ == "__main__":
             exit()
         if exist == 1:
             method = 'HVG'
-    
+            
+   
     data_list = load_data(st_dir)
     geneset = find_geneset(data_list, method=method, n_top_hvg=n_top_hvg, n_top_heg=n_top_heg)
     
