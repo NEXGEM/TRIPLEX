@@ -6,6 +6,7 @@ from glob import glob
 from tqdm import tqdm
 from pathlib import Path
 import yaml
+import re
 
 import torch
 import pytorch_lightning as pl
@@ -87,9 +88,9 @@ def main(cfg):
     elif mode == 'eval':
         log_path = cfg.GENERAL.log_path
     
-        ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.timestamp}'    
-        ckpt_path = glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt")[0]
-        
+        ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.timestamp}'
+        ckpt_paths = sorted(glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt"))
+
         log_name = str(Path(cfg.config).parent)
         model_name = Path(cfg.config).name
         current_time = Path(ckpt_dir).name
@@ -97,19 +98,32 @@ def main(cfg):
         output_path = f"{cfg.DATA.output_dir}/{model_name}"
         os.makedirs(f"{output_path}/fold{cfg.DATA.fold}", exist_ok=True)
         cfg.DATA.output_path = output_path
-    
-        csv_logger = pl_loggers.CSVLogger(f"{log_path}/{log_name}",
-                                    name = f"{model_name}/{current_time}", version = f'fold{cfg.DATA.fold}/eval', )
         
-        trainer = pl.Trainer(accelerator="gpu", 
-                            devices=gpus,
-                            precision = '16-mixed' if use_amp else '32',
-                            logger=[csv_logger])
+        csv_logger = pl_loggers.CSVLogger(
+            save_dir=f"{log_path}/{log_name}",
+            name=f"{model_name}/{current_time}",
+            version=f'fold{cfg.DATA.fold}/eval'
+        )
+
+        trainer = pl.Trainer(
+            accelerator="gpu",
+            devices=gpus,
+            precision='16-mixed' if use_amp else '32',
+            logger=csv_logger
+        )
         
-        # checkpoint = cfg.GENERAL.ckpt_path
-        model = ModelInterface.load_from_checkpoint(ckpt_path, **ModelInterface_dict)
-        
-        trainer.test(model, datamodule = dm)
+        for i, ckpt_path in enumerate(ckpt_paths):
+            model = ModelInterface.load_from_checkpoint(ckpt_path, **ModelInterface_dict)
+            test_result = trainer.test(model, datamodule=dm, verbose=False)[0]  # dict
+            
+            ckpt_name = os.path.basename(ckpt_path)
+            match = re.search(r"epoch=(\d+)", ckpt_name)
+            step_epoch = int(match.group(1)) if match else 0  # fallback to 0 if not found
+            
+            csv_logger.experiment.log_metrics(
+                {**test_result, "ckpt_name": ckpt_name},
+                step=step_epoch
+            )
         
     elif mode == 'inference':
         model_name = Path(cfg.config).name
