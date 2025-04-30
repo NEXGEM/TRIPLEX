@@ -137,25 +137,40 @@ def load_callbacks(cfg: Dict):
     target = 'val_target'
     patience = cfg.TRAINING.early_stopping.patience
     mode = cfg.TRAINING.mode
-    
-    early_stop_callback = EarlyStopping(
-        monitor=target,
-        min_delta=0.00,
-        patience=patience,
-        verbose=True,
-        mode=mode
-    )
-    Mycallbacks.append(early_stop_callback)
     log_name = '{epoch:02d}-{val_target:.4f}'
-    checkpoint_callback = ModelCheckpoint(monitor = target,
-                                    dirpath = cfg.log_dir_fold,
-                                    filename = log_name,
-                                    verbose = True,
-                                    save_last = False,
-                                    save_top_k = 1,
-                                    mode = mode,
-                                    save_weights_only = True)
+    
+    if mode == 'max':
+        early_stop_callback = EarlyStopping(
+            monitor=target,
+            min_delta=0.00,
+            patience=patience,
+            verbose=True,
+            mode=mode
+        )
+        Mycallbacks.append(early_stop_callback)
+        
+        checkpoint_callback = ModelCheckpoint(monitor = target,
+                                        dirpath = cfg.log_dir_fold,
+                                        filename = log_name,
+                                        verbose = True,
+                                        save_last = False,
+                                        save_top_k = 1,
+                                        mode = mode,
+                                        save_weights_only = True)
+        
+    else:
+        checkpoint_callback = ModelCheckpoint(monitor = target,
+                                        dirpath = cfg.log_dir_fold,
+                                        filename = log_name,
+                                        verbose = True,
+                                        save_last = True,
+                                        save_top_k = 0,
+                                        every_n_epochs = 5,
+                                        mode = mode,
+                                        save_weights_only = True)
+        
     Mycallbacks.append(checkpoint_callback)
+    
         
     return Mycallbacks
 
@@ -183,3 +198,6 @@ def load_config_with_default(config_path, default_config_path=None):
         return default_cfg
     else:
         return load_config(config_path)
+    
+def collate_fn(batch):
+    return Batch.from_data_list(batch)
