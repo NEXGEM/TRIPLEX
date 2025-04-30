@@ -164,8 +164,8 @@ def load_callbacks(cfg: Dict):
                                         filename = log_name,
                                         verbose = True,
                                         save_last = True,
-                                        save_top_k = 0,
-                                        every_n_epochs = 5,
+                                        save_top_k = -1,
+                                        every_n_epochs = 10,
                                         mode = mode,
                                         save_weights_only = True)
         
