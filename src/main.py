@@ -117,18 +117,15 @@ def main(cfg):
             logger=csv_logger
         )
         
-        for i, ckpt_path in enumerate(ckpt_paths):
-            model = ModelInterface.load_from_checkpoint(ckpt_path, **ModelInterface_dict)
-            test_result = trainer.test(model, datamodule=dm, verbose=False)[0]  # dict
-            
+        for ckpt_path in ckpt_paths:
             ckpt_name = os.path.basename(ckpt_path)
             match = re.search(r"epoch=(\d+)", ckpt_name)
             step_epoch = int(match.group(1)) if match else 0  # fallback to 0 if not found
             
-            csv_logger.experiment.log_metrics(
-                {**test_result, "ckpt_name": ckpt_name},
-                step=step_epoch
-            )
+            model = ModelInterface.load_from_checkpoint(ckpt_path, **ModelInterface_dict)
+            model.step_epoch = step_epoch
+            
+            trainer.test(model, datamodule=dm, verbose=False)[0]  # dict
         
     elif mode == 'inference':
         model_name = Path(cfg.config).name
