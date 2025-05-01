@@ -89,7 +89,12 @@ def main(cfg):
         log_path = cfg.GENERAL.log_path
     
         ckpt_dir = f'{log_path}/{cfg.config}/{cfg.GENERAL.timestamp}'
-        ckpt_paths = sorted(glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt"))
+        ckpt_paths = glob(f"{ckpt_dir}/fold{cfg.DATA.fold}/*.ckpt")
+        ckpt_paths = [ckpt for ckpt in ckpt_paths if 'last' not in ckpt]
+        ckpt_paths = sorted(ckpt_paths, key=lambda x: int(re.search(r"epoch=(\d+)", x).group(1)))
+        
+        last_ckpt = f"{ckpt_dir}/fold{cfg.DATA.fold}/last.ckpt"
+        ckpt_paths = ckpt_paths + [last_ckpt] if os.path.exists(last_ckpt) else ckpt_paths
 
         log_name = str(Path(cfg.config).parent)
         model_name = Path(cfg.config).name
