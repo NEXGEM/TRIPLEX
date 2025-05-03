@@ -150,23 +150,22 @@ class  ModelInterface(pl.LightningModule):
             idx_top = torch.tensor(idx_top).to(logits.device)
             test_metric_hpg = self.test_metrics_hpg(logits[:, idx_top], label[:, idx_top])
             test_metric_hpg = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric_hpg.items()}
-            self.log_dict(test_metric_hpg, on_epoch = True, logger = True, sync_dist=True)
+            self.log_dict(test_metric_hpg, 
+                          on_epoch = True, 
+                          logger=True,
+                          sync_dist=True, 
+                          batch_size = label.shape[0])
         else:
             self.avg_pcc += test_metric['test_PearsonCorrCoef'].cpu()
             
         test_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
-        self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True, batch_size = label.shape[0])
-        
-        int2id = self._trainer.test_dataloaders.dataset.int2id
-        name = int2id[batch_idx]
-
-        # ✅ .pt 저장
-        print(self.config.DATA.fold)
-        fold_dir = os.path.join(self.config.DATA.output_path, f"fold{self.config.DATA.fold}")
-        os.makedirs(fold_dir, exist_ok=True)
-        pred_path = os.path.join(fold_dir, f"{name}.pt")
-        torch.save(logits.detach().cpu(), pred_path)
-        
+        test_metric['epoch'] = self.step_epoch
+        self.log_dict(test_metric, 
+                      on_epoch = True, 
+                      logger = True, 
+                      sync_dist=True, 
+                      batch_size = label.shape[0])
+    
         outputs = {'logits': logits, 'label': label}
         
         return outputs
