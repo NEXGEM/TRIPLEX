@@ -126,6 +126,22 @@ def main(cfg):
             model.step_epoch = step_epoch
             
             trainer.test(model, datamodule=dm, verbose=False)[0]  # dict
+            
+        # ✅ Convert all .pt to .h5ad here
+        with open(f"{cfg.DATA.data_dir}/{cfg.DATA.gene_type}_{cfg.DATA.num_genes}genes.json") as f:
+            gene_list = json.load(f)["genes"][:cfg.DATA.num_outputs]
+
+        fold_dir = os.path.join(cfg.DATA.output_path, f"fold{cfg.DATA.fold}")
+        ids = dm.test_dataloader().dataset.int2id.values()
+        
+        for _id in ids:
+            pt_file = os.path.join(fold_dir, f"{_id}.pt")
+            adata_file = os.path.join(cfg.DATA.data_dir, "adata", f"{_id}.h5ad")
+            save_file = os.path.join(fold_dir, f"{_id}_pred.h5ad")
+
+            if os.path.isfile(pt_file) and os.path.isfile(adata_file):
+                convert_pt_to_anndata(pt_file, adata_file, save_file, gene_list)
+                 
         
     elif mode == 'inference':
         model_name = Path(cfg.config).name
@@ -140,22 +156,32 @@ def main(cfg):
                             precision = '16-mixed' if use_amp else '32',
                             logger=False)
 
-        model = ModelInterface.load_from_checkpoint(cfg.MODEL.ckpt_path, **ModelInterface_dict)
-        
-        ids = os.listdir(f"{cfg.DATA.data_dir}/patches")
-        ids = [_id.split('.')[0] for _id in ids if _id.endswith('.h5')]
-        for _id in tqdm(ids):
-            if os.path.isfile(f"{pred_path}/{_id}.pt"):
-                print("Already predicted", _id)
-                continue
-            
-            print("Predicting", _id)
-            cfg.DATA.data_id = _id
-            DataInterface_dict = {'dataset_name': cfg.DATA.dataset_name,
-                            'data_config': cfg.DATA}
-            dm = DataInterface(**DataInterface_dict)
-        
-            trainer.predict(model, datamodule = dm, return_predictions=False)
+            model = ModelInterface.load_from_checkpoint(ckpt_path, **ModelInterface_dict)
+
+            ids = os.listdir(f"{cfg.DATA.data_dir}/patches")
+            ids = [_id.split('.')[0] for _id in ids if _id.endswith('.h5')]
+            for _id in tqdm(ids):
+                # if os.path.isfile(f"{pred_path}/{_id}.pt"):
+                #     print("Already predicted", _id)
+                #     continue
+                
+                cfg.DATA.data_id = _id
+                DataInterface_dict = {'dataset_name': cfg.DATA.dataset_name,
+                                'data_config': cfg.DATA}
+                dm = DataInterface(**DataInterface_dict)
+
+                trainer.predict(model, datamodule = dm, return_predictions=False)
+
+                pt_file = f"{pred_path}/{_id}.pt"
+                adata_file = f"{cfg.DATA.data_dir}/adata/{_id}.h5ad"
+                save_file = f"{pred_path}/{_id}_pred.h5ad"
+                
+                with open(f"{cfg.DATA.data_dir}/{cfg.DATA.gene_type}_{cfg.DATA.num_genes}genes.json") as f:
+                    gene_list = json.load(f)["genes"][:cfg.DATA.num_outputs]
+
+
+                if os.path.isfile(pt_file) and os.path.isfile(adata_file):
+                    convert_pt_to_anndata(pt_file, adata_file, save_file, gene_list)
         
     else:
         raise Exception("Invalid mode")

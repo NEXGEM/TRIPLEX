@@ -143,7 +143,7 @@ class  ModelInterface(pl.LightningModule):
         #---->Loss
         logits = results_dict['logits']
         label = batch['label']
-        
+
         test_metric = self.test_metrics(logits, label)
         if os.path.exists(f"{self.config.DATA.output_path}/idx_top.npy"):
             idx_top = np.load(f"{self.config.DATA.output_path}/idx_top.npy")
@@ -157,19 +157,30 @@ class  ModelInterface(pl.LightningModule):
         test_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
         self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True, batch_size = label.shape[0])
         
+        int2id = self._trainer.test_dataloaders.dataset.int2id
+        name = int2id[batch_idx]
+
+        # ✅ .pt 저장
+        print(self.config.DATA.fold)
+        fold_dir = os.path.join(self.config.DATA.output_path, f"fold{self.config.DATA.fold}")
+        os.makedirs(fold_dir, exist_ok=True)
+        pred_path = os.path.join(fold_dir, f"{name}.pt")
+        torch.save(logits.detach().cpu(), pred_path)
+        
         outputs = {'logits': logits, 'label': label}
         
         return outputs
     
     def on_test_epoch_end(self):
         if not os.path.exists(f"{self.config.DATA.output_path}/idx_top.npy"):
+            print("on_test_epoch_end")
             pcc_rank = torch.argsort(torch.argsort(self.avg_pcc, dim=-1), dim=-1) + 1
             np.save(f"{self.config.DATA.output_path}/fold{self.config.DATA.fold}/pcc_rank.npy", pcc_rank.numpy())
     
     def predict_step(self, batch, batch_idx):
         dataset = self._trainer.predict_dataloaders.dataset
         # _id = dataset.int2id[batch_idx]
-        _id = dataset.name
+        _id = self.config.DATA.data_id
         
         batch = self._preprocess_inputs(batch)
         if self.model_name == 'TRIPLEX':
