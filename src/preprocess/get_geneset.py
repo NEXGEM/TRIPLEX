@@ -16,7 +16,7 @@ def load_data(st_dir):
         
     return data_list
 
-def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, min_spot_percentage=0.1, method='ALL'):
+def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, n_top_hmhvg=200, min_spot_percentage=0.1, method='ALL'):
     """
     Get genes based on variability or total counts.
     Parameters:
@@ -39,8 +39,84 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, min_spot_percentage=0.
     
     output = {}
     
-    if method not in ['HVG', 'HEG', 'ALL']:
+    if method not in ['HMHVG', 'HVG', 'HEG', 'ALL']:
         raise ValueError("method must be either 'HVG' or 'HEG' or 'ALL'")
+    
+    if method in ['HMHVG', 'ALL']:
+        data_lst = []
+        first = True
+        for adata in data_list:
+            data = adata.copy()
+            data_lst.append(data)
+            if first:
+                common_genes = data.var_names 
+                first = False
+                print(data.shape)
+                continue
+            common_genes = set(common_genes).intersection(set(data.var_names))
+            print(data.shape, end="\t")
+
+        # keep common genes
+        print("Length of common genes: ", len(common_genes))
+        common_genes = sorted(list(common_genes))
+        for i in range(len(data_list)):
+            data = data_lst[i].copy()
+            data_lst[i] = data[:, common_genes].copy()
+            print(data_lst[i].shape)
+    
+ 
+        union_hvg = set()
+
+        for fn_idx in range(len(data_list)):
+            adata = data_lst[fn_idx].copy()
+
+            sc.pp.filter_cells(adata, min_genes=1)
+            sc.pp.filter_genes(adata, min_cells=1)
+            sc.pp.normalize_total(adata, inplace=True)
+            sc.pp.log1p(adata)
+            sc.pp.highly_variable_genes(adata, n_top_genes=2000)
+
+            union_hvg = union_hvg.union(set(adata.var_names[adata.var["highly_variable"]]))
+            print(len(union_hvg))
+
+        union_hvg = sorted([gene for gene in union_hvg if not gene.startswith(("MT", "mt", "RPS", "RPL"))]) # [optional] remove mitochondrial genes and ribosomal genes
+        print(len(union_hvg))
+
+        # select union_hvg and concat all slides
+        all_count_df = pd.DataFrame(
+            data_lst[0][:, union_hvg].X.toarray(),
+            columns=union_hvg,
+            index=[f"sample0_{i}" for i in range(data_lst[0].shape[0])]
+        ).T
+
+        for idx, adata in enumerate(data_lst[1:], start=1):
+            df = pd.DataFrame(
+                adata[:, union_hvg].X.toarray(),
+                columns=union_hvg,
+                index=[f"sample{idx}_{i}" for i in range(adata.shape[0])]
+            )
+            all_count_df = pd.concat([all_count_df, df.T], axis=1)
+
+
+        all_count_df.fillna(0, inplace=True)
+        all_count_df = all_count_df.T
+
+        # 1. 유전자 평균 및 표준편차 계산
+        gene_means = all_count_df.mean(axis=0)
+        gene_stds  = all_count_df.std(axis=0)
+
+        # 2. 각각 순위 매기기 (작을수록 상위)
+        mean_ranks = gene_means.rank(ascending=False, method='min')  # 1이 가장 큼
+        std_ranks  = gene_stds.rank(ascending=False, method='min')
+
+        # 3. 점수 합산 (작을수록 mean & std 모두 상위)
+        combined_score = mean_ranks + std_ranks
+
+        # top-k 선택 및 저장
+        top_genes_hmhvg = combined_score.sort_values().head(n_top_hmhvg).index
+        top_genes_hmhvg = sorted(top_genes_hmhvg)
+        output['hmhvg'] = top_genes_hmhvg
+        print(f"Selected HMHVG genes: {output['hmhvg']}")
     
     if method in ['HVG', 'ALL']:
         data_combined = []
@@ -79,36 +155,49 @@ if __name__ == "__main__":
     argparser.add_argument("--st_dir", type=str, default='input/ST/bryan/adata', help="Path to the directory containing ST data")
     argparser.add_argument("--n_top_hvg", type=int, default=50, help="Number of top HVGs to select")
     argparser.add_argument("--n_top_heg", type=int, default=1000, help="Number of top HEGs to select")
+    argparser.add_argument("--n_top_hmhvg", type=int, default=200, help="Number of top HMHVGs to select")
     argparser.add_argument("--output_dir", type=str, default='input/ST/bryan')
     
     args = argparser.parse_args()
     st_dir = args.st_dir
     n_top_hvg = args.n_top_hvg
     n_top_heg = args.n_top_heg
+    n_top_hmhvg = args.n_top_hmhvg
     
     method = 'ALL'
-    exist = 0 
-    if os.path.exists(f"{args.output_dir}/var_{n_top_hvg}genes.json"):
-        print(f"Geneset already exists in {args.output_dir}/var_{n_top_hvg}genes.json. Exiting.")
-        method = 'HEG'
-        exist += 1
-        
-    if os.path.exists(f"{args.output_dir}/mean_{n_top_heg}genes.json"):
-        print(f"Geneset already exists in {args.output_dir}/mean_{n_top_heg}genes.json. Exiting.")
-        exist += 1
-        if exist == 2:
-            print("Both genesets exist. Exiting.")
-            exit()
-        if exist == 1:
-            method = 'HVG'
+    # exist = 0 
+    
+    # if os.path.exists(f"{args.output_dir}/var_{n_top_hmhvg}genes.json"):
+    #     method = 'HMHVG'
+    
+    # else:
+    #     if os.path.exists(f"{args.output_dir}/var_{n_top_hvg}genes.json"):
+    #         print(f"Geneset already exists in {args.output_dir}/var_{n_top_hvg}genes.json. Exiting.")
+    #         method = 'HEG'
+    #         exist += 1
+
+    #     if os.path.exists(f"{args.output_dir}/mean_{n_top_heg}genes.json"):
+    #         print(f"Geneset already exists in {args.output_dir}/mean_{n_top_heg}genes.json. Exiting.")
+    #         exist += 1
+    #         if exist == 2:
+    #             print("Both genesets exist. Exiting.")
+    #             exit()
+    #         if exist == 1:
+    #             method = 'HVG'
             
    
     data_list = load_data(st_dir)
-    geneset = find_geneset(data_list, method=method, n_top_hvg=n_top_hvg, n_top_heg=n_top_heg)
+    geneset = find_geneset(data_list, method=method, n_top_hvg=n_top_hvg, n_top_heg=n_top_heg, n_top_hmhvg=n_top_hmhvg)
     
     for prefix, genes in geneset.items():
-    # for prefix in ['var', 'mean']:
-        n_top = n_top_hvg if prefix == 'var' else n_top_heg
+        if prefix == 'var':
+            n_top = n_top_hvg
+        elif prefix == 'mean':
+            n_top = n_top_heg
+        elif prefix == 'hmhvg':
+            n_top = n_top_hmhvg
+        else:
+            raise ValueError(f"Unknown gene selection method: {prefix}")
         
         with open(f"{args.output_dir}/{prefix}_{n_top}genes.json", "w") as f:
             json.dump({"genes": genes}, f)

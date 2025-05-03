@@ -128,7 +128,8 @@ class TriplexPipeline:
             "--st_dir", f"{self.output_dir}/adata",
             "--output_dir", self.output_dir,
             "--n_top_hvg", str(self.config['n_top_hvg']),
-            "--n_top_heg", str(self.config['n_top_heg'])
+            "--n_top_heg", str(self.config['n_top_heg']),
+            "--n_top_hmhvg", str(self.config['n_top_hmhvg'])
         ]
         subprocess.run(cmd)
     
