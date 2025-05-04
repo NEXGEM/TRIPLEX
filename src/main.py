@@ -7,19 +7,20 @@ from tqdm import tqdm
 from pathlib import Path
 import yaml
 import re
+import json
 
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning import loggers as pl_loggers
 
-from model import ModelInterface, CustomWriter
+from model import ModelInterface
 from dataset import DataInterface
 from utils.train_utils import ( load_callbacks, 
                     load_config, 
                     load_config_with_default,
                     load_loggers, 
-                    fix_seed )
+                    fix_seed)
 
 torch.set_float32_matmul_precision('high')
 
@@ -100,9 +101,9 @@ def main(cfg):
         model_name = Path(cfg.config).name
         current_time = Path(ckpt_dir).name
         
-        output_path = f"{cfg.DATA.output_dir}/{model_name}"
-        os.makedirs(f"{output_path}/fold{cfg.DATA.fold}", exist_ok=True)
-        cfg.DATA.output_path = output_path
+        output_dir = f"{cfg.DATA.output_dir}/{model_name}"
+        os.makedirs(f"{output_dir}/fold{cfg.DATA.fold}", exist_ok=True)
+        cfg.DATA.output_path = f"{output_dir}/fold{cfg.DATA.fold}"
         
         csv_logger = pl_loggers.CSVLogger(
             save_dir=f"{log_path}/{log_name}",
@@ -127,61 +128,33 @@ def main(cfg):
             
             trainer.test(model, datamodule=dm, verbose=False)[0]  # dict
             
-        # ✅ Convert all .pt to .h5ad here
-        with open(f"{cfg.DATA.data_dir}/{cfg.DATA.gene_type}_{cfg.DATA.num_genes}genes.json") as f:
-            gene_list = json.load(f)["genes"][:cfg.DATA.num_outputs]
-
-        fold_dir = os.path.join(cfg.DATA.output_path, f"fold{cfg.DATA.fold}")
-        ids = dm.test_dataloader().dataset.int2id.values()
-        
-        for _id in ids:
-            pt_file = os.path.join(fold_dir, f"{_id}.pt")
-            adata_file = os.path.join(cfg.DATA.data_dir, "adata", f"{_id}.h5ad")
-            save_file = os.path.join(fold_dir, f"{_id}_pred.h5ad")
-
-            if os.path.isfile(pt_file) and os.path.isfile(adata_file):
-                convert_pt_to_anndata(pt_file, adata_file, save_file, gene_list)
-                 
-        
     elif mode == 'inference':
         model_name = Path(cfg.config).name
         
         pred_path = f"{cfg.DATA.output_dir}/{model_name}/fold{cfg.DATA.fold}"
         os.makedirs(pred_path, exist_ok=True)
         
-        pred_writer = CustomWriter(pred_dir=pred_path, write_interval="epoch")
         trainer = pl.Trainer(accelerator="gpu", 
                             devices=gpus, 
-                            callbacks=[pred_writer],
                             precision = '16-mixed' if use_amp else '32',
                             logger=False)
 
-            model = ModelInterface.load_from_checkpoint(ckpt_path, **ModelInterface_dict)
+        model = ModelInterface.load_from_checkpoint(cfg.MODEL.ckpt_path, **ModelInterface_dict)
 
-            ids = os.listdir(f"{cfg.DATA.data_dir}/patches")
-            ids = [_id.split('.')[0] for _id in ids if _id.endswith('.h5')]
-            for _id in tqdm(ids):
-                # if os.path.isfile(f"{pred_path}/{_id}.pt"):
-                #     print("Already predicted", _id)
-                #     continue
-                
-                cfg.DATA.data_id = _id
-                DataInterface_dict = {'dataset_name': cfg.DATA.dataset_name,
-                                'data_config': cfg.DATA}
-                dm = DataInterface(**DataInterface_dict)
+        ids = os.listdir(f"{cfg.DATA.data_dir}/patches")
+        ids = [_id.split('.')[0] for _id in ids if _id.endswith('.h5')]
+        for _id in tqdm(ids):
+            if os.path.isfile(f"{pred_path}/{_id}.h5ad"):
+                print(f"{_id} is already predicted")
+                continue
+            
+            cfg.DATA.data_id = _id
+            cfg.DATA.output_path = f"{pred_path}/{_id}.h5ad"
+            DataInterface_dict = {'dataset_name': cfg.DATA.dataset_name,
+                            'data_config': cfg.DATA}
+            dm = DataInterface(**DataInterface_dict)
 
-                trainer.predict(model, datamodule = dm, return_predictions=False)
-
-                pt_file = f"{pred_path}/{_id}.pt"
-                adata_file = f"{cfg.DATA.data_dir}/adata/{_id}.h5ad"
-                save_file = f"{pred_path}/{_id}_pred.h5ad"
-                
-                with open(f"{cfg.DATA.data_dir}/{cfg.DATA.gene_type}_{cfg.DATA.num_genes}genes.json") as f:
-                    gene_list = json.load(f)["genes"][:cfg.DATA.num_outputs]
-
-
-                if os.path.isfile(pt_file) and os.path.isfile(adata_file):
-                    convert_pt_to_anndata(pt_file, adata_file, save_file, gene_list)
+            trainer.predict(model, datamodule = dm, return_predictions=False)
         
     else:
         raise Exception("Invalid mode")

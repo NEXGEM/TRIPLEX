@@ -5,6 +5,8 @@ import importlib
 
 #---->
 import numpy as np
+import pandas as pd
+import scanpy as sc
 import torch
 import torchmetrics
 from torchmetrics.regression import ( PearsonCorrCoef, 
@@ -35,6 +37,9 @@ class  ModelInterface(pl.LightningModule):
         
         if self.config.DATA.mode == 'cv':
             self.save_hyperparameters()
+            
+        if self.config.DATA.mode == 'inference':
+            self.predictions = []
         
         self.load_model()
 
@@ -150,6 +155,7 @@ class  ModelInterface(pl.LightningModule):
             idx_top = torch.tensor(idx_top).to(logits.device)
             test_metric_hpg = self.test_metrics_hpg(logits[:, idx_top], label[:, idx_top])
             test_metric_hpg = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric_hpg.items()}
+            test_metric_hpg['epoch'] = self.step_epoch
             self.log_dict(test_metric_hpg, 
                           on_epoch = True, 
                           logger=True,
@@ -160,21 +166,21 @@ class  ModelInterface(pl.LightningModule):
             
         test_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in test_metric.items()}
         test_metric['epoch'] = self.step_epoch
-        self.log_dict(test_metric, 
-                      on_epoch = True, 
-                      logger = True, 
-                      sync_dist=True, 
-                      batch_size = label.shape[0])
-    
+        self.log_dict(test_metric, on_epoch = True, logger = True, sync_dist=True, batch_size = label.shape[0])
+        
+        if self.config.GENERAL.save_predictions:
+            self.save_predictions(logits, batch_idx)
+        
         outputs = {'logits': logits, 'label': label}
         
         return outputs
-    
+
     def on_test_epoch_end(self):
-        if not os.path.exists(f"{self.config.DATA.output_path}/idx_top.npy"):
+        parent_dir = "/".join(self.config.DATA.output_path.split('/')[:-1])
+        if not os.path.exists(f"{parent_dir}/idx_top.npy"):
             print("on_test_epoch_end")
             pcc_rank = torch.argsort(torch.argsort(self.avg_pcc, dim=-1), dim=-1) + 1
-            np.save(f"{self.config.DATA.output_path}/fold{self.config.DATA.fold}/pcc_rank.npy", pcc_rank.numpy())
+            np.save(f"{self.config.DATA.output_path}/pcc_rank.npy", pcc_rank.numpy())
     
     def predict_step(self, batch, batch_idx):
         dataset = self._trainer.predict_dataloaders.dataset
@@ -192,7 +198,15 @@ class  ModelInterface(pl.LightningModule):
         #---->Loss
         pred = results_dict['logits']
         
+        self.predictions.append(pred)
+        
         return pred, _id
+    
+    def on_predict_epoch_end(self):
+        preds = torch.cat(self.predictions, 0)
+        self.save_predictions(preds)
+        
+        self.predictions = []
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.config.TRAINING.learning_rate)
@@ -209,6 +223,24 @@ class  ModelInterface(pl.LightningModule):
                 "monitor": 'val_target'
             }
         }
+        
+    def save_predictions(self, preds, batch_idx=None):
+        if self.config.DATA.mode == 'inference':
+            name = self._trainer.predict_dataloaders.dataset.name
+            output_path = self.config.DATA.output_path
+        else:
+            int2id = self._trainer.test_dataloaders.dataset.int2id
+            name = int2id[batch_idx]
+            genes = self._trainer.test_dataloaders.dataset.genes
+            output_path = f"{self.config.DATA.output_path}/{name}.h5ad"
+        
+        preds = preds.detach().cpu().numpy().astype(np.float32)
+        
+        adata_pred = sc.AnnData(
+            X=preds,
+            var=pd.DataFrame(index=genes) if self.config.DATA.mode != 'inference' else None
+        )
+        adata_pred.write(output_path)
     
     def load_model(self):
         # Change the `trans_unet.py` file name to `TransUnet` class name.
@@ -239,21 +271,3 @@ class  ModelInterface(pl.LightningModule):
         args1.update(other_args)
         return Model(**args1)
     
-    
-class CustomWriter(BasePredictionWriter):
-    def __init__(self, pred_dir, write_interval):
-        super().__init__(write_interval)
-        self.pred_dir = pred_dir
-        
-    def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
-        
-        preds = []
-        for i, _ in enumerate(batch_indices[0]):
-            pred = predictions[i][0]
-            preds.append(pred)
-            name = predictions[i][1]
-        
-        preds = torch.cat(preds, 0)
-        torch.save(preds, os.path.join(self.pred_dir, f"{name}.pt"))
-
-
