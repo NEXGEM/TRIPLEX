@@ -7,7 +7,7 @@ GENERAL:
 TRAINING:
   num_k: 8
   learning_rate: 1.0e-4
-  num_epochs: 200
+  num_epochs: 1000
   monitor: PearsonCorrCoef
   mode: max
   early_stopping:

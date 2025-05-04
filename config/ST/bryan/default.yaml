@@ -3,13 +3,15 @@
 GENERAL:
   seed: 2021
   log_path: ./logs
+  save_predictions: True
   
 TRAINING:
   num_k: 8
   learning_rate: 1.0e-4
-  num_epochs: 200
+  num_epochs: 1000
   monitor: PearsonCorrCoef
   mode: max
+  save_best_only: True
   early_stopping:
     patience: 20
   lr_scheduler:
