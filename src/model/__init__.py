@@ -1,1 +1,1 @@
-from .model_interface import ModelInterface, CustomWriter
+from .model_interface import ModelInterface
