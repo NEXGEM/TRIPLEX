@@ -128,9 +128,6 @@ class STDataset(torch.utils.data.Dataset):
                     
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     data['label'] = torch.FloatTensor(expression)
-                    # if self.mode != 'inference':
-                    #     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
-                    #     data['label'] = torch.FloatTensor(expression)
             
             data['img'] = img
             
