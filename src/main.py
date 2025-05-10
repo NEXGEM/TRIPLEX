@@ -74,7 +74,6 @@ def main(cfg):
         trainer = pl.Trainer(
             accelerator="gpu", 
             strategy = DDPStrategy(find_unused_parameters=False),
-            strategy = DDPStrategy(find_unused_parameters=False),
             devices = gpus,
             max_epochs = cfg.TRAINING.num_epochs,
             check_val_every_n_epoch = 1,
