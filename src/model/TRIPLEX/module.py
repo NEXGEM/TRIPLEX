@@ -1,5 +1,5 @@
 
-
+import math
 import itertools
 
 import torch
@@ -456,7 +456,7 @@ class APEG(nn.Module):
         
     
 class GlobalEncoder(nn.Module):
-    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., kernel_size=3, pos_method='APEG'):
+    def __init__(self, emb_dim, depth, heads, mlp_dim, dropout = 0., kernel_size=3, pos_method='APEG', flash_attn=True):
         super().__init__()      
         
         self.pos_method = pos_method
@@ -466,6 +466,10 @@ class GlobalEncoder(nn.Module):
             self.pos_layer = APEG(dim=emb_dim, kernel_size=kernel_size) 
         elif pos_method == 'None':
             self.pos_layer = None
+        elif pos_method == 'spatialformer':
+            # self.pos_layer = FourierPositionalEncoding(coord_dim=2, embed_dim=emb_dim)
+            # self.spatial_token = nn.Parameter(torch.randn(1, 1, emb_dim))
+            self.pos_layer = FourierPositionalEncoding(coord_dim=2, embed_dim=emb_dim)
         else:
             raise ValueError(f"Unknown pos_layer: {pos_method}. Choose 'MLP' or 'APEG' or 'None'.")
         
@@ -473,11 +477,15 @@ class GlobalEncoder(nn.Module):
             assert depth > 1, "APEG requires depth > 1."
             
             # APEG requires a grid size for the convolutional layer    
-            self.layer1 = TransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout, flash_attn=True)
-            self.layer2 = TransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout, flash_attn=True)
+            self.layer1 = TransformerEncoder(emb_dim, 1, heads, mlp_dim, dropout, flash_attn=flash_attn)
+            self.layer2 = TransformerEncoder(emb_dim, depth-1, heads, mlp_dim, dropout, flash_attn=flash_attn)
+
+        elif pos_method == 'spatialformer':
+            self.layers = nn.ModuleList([SpatialFormerBlock(emb_dim, heads, mlp_dim//emb_dim, dropout, 
+                               flash_attn=flash_attn) for _ in range(depth)])
             
         else:
-            self.layer = TransformerEncoder(emb_dim, depth, heads, mlp_dim, dropout, flash_attn=True)
+            self.layer = TransformerEncoder(emb_dim, depth, heads, mlp_dim, dropout, flash_attn=flash_attn)
             
         self.norm = nn.LayerNorm(emb_dim)
         
@@ -490,7 +498,15 @@ class GlobalEncoder(nn.Module):
             x = self.pos_layer(x, pos) #[B, N, emb_dim]
             
             # Translayer x (depth-1)
-            x = self.layer2(x) #[B, N, emb_dim]        
+            x = self.layer2(x) #[B, N, emb_dmg]   
+
+        elif self.pos_method == 'spatialformer':
+            # spatial_pos = self.pos_layer(pos)  # [B, N, H]
+            # spatial_tokens = spatial_pos + self.spatial_token  # [B, N, H]
+            spatial_tokens = self.pos_layer(pos)  # [B, N, H]
+
+            for layer in self.layers:
+                x, spatial_tokens = layer(x, spatial_tokens)
             
         else:
             if self.pos_method == 'MLP':
@@ -549,3 +565,63 @@ class FusionEncoder(nn.Module):
         fusion = self.norm(fusion)
         
         return fusion
+
+
+class FourierPositionalEncoding(nn.Module):
+    def __init__(self, coord_dim=2, embed_dim=128, scale=10.0):
+        super().__init__()
+        self.coord_dim = coord_dim
+        self.embed_dim = embed_dim
+        self.scale = scale
+
+        assert embed_dim % (2 * coord_dim) == 0
+        self.freqs = nn.Parameter(torch.randn(embed_dim // 2, coord_dim) * scale)
+
+    def forward(self, coord):
+        # coord: [B, N, coord_dim] assumed to be normalized to [-1, 1]
+        coord = coord.unsqueeze(-2)  # [B, N, 1, coord_dim]
+        freqs = self.freqs.view(1, 1, -1, self.coord_dim)  # [1, 1, embed_dim//2, coord_dim]
+        x_proj = 2 * math.pi * torch.sum(coord * freqs, dim=-1)  # [B, N, embed_dim//2]
+        pe = torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)  # [B, N, embed_dim]
+        return pe
+
+class SpatialFormerBlock(nn.Module):
+    def __init__(self, dim, n_heads=8, mlp_ratio=4, dropout=0.1, flash_attn=True):
+        super().__init__()
+        self.cross_attn_s2i = MultiHeadCrossAttention(emb_dim=dim, heads=n_heads, dropout=dropout, flash_attn=flash_attn)
+        self.cross_attn_i2s = MultiHeadCrossAttention(emb_dim=dim, heads=n_heads, dropout=dropout, flash_attn=flash_attn)
+        self.self_attn_s = MultiHeadAttention(emb_dim=dim, heads=n_heads, dropout=dropout, flash_attn=flash_attn)
+
+        self.norm_s1 = nn.LayerNorm(dim)
+        self.norm_s2 = nn.LayerNorm(dim)
+        self.norm_s3 = nn.LayerNorm(dim)
+        self.norm_i = nn.LayerNorm(dim)
+
+        self.ffn_s = nn.Sequential(nn.Linear(dim, dim * mlp_ratio), nn.ReLU(), nn.Linear(dim * mlp_ratio, dim))
+        self.ffn_i = nn.Sequential(nn.Linear(dim, dim * mlp_ratio), nn.ReLU(), nn.Linear(dim * mlp_ratio, dim))
+
+    def forward(self, image_tokens, spatial_tokens):
+        # Spatial ← Image
+        s_q = spatial_tokens
+        s_kv = image_tokens
+        # s_attn, _ = self.cross_attn_s2i(s_q, s_kv, s_kv)
+        s_attn = self.cross_attn_s2i(s_q, s_kv)
+        spatial_tokens = spatial_tokens + s_attn
+        spatial_tokens = self.norm_s1(spatial_tokens)
+
+        # Spatial self-attention
+        # sa, _ = self.self_attn_s(spatial_tokens, spatial_tokens, spatial_tokens)
+        sa = self.self_attn_s(spatial_tokens)
+        spatial_tokens = spatial_tokens + sa
+        spatial_tokens = self.norm_s2(spatial_tokens)
+        spatial_tokens = spatial_tokens + self.ffn_s(self.norm_s3(spatial_tokens))
+
+        # Image ← Spatial
+        i_q = image_tokens
+        i_kv = spatial_tokens
+        # i_attn, _ = self.cross_attn_i2s(i_q, i_kv, i_kv)
+        i_attn = self.cross_attn_i2s(i_q, i_kv)
+        image_tokens = image_tokens + i_attn
+        image_tokens = image_tokens + self.ffn_i(self.norm_i(image_tokens))
+
+        return image_tokens, spatial_tokens

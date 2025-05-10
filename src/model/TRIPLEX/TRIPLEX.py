@@ -62,7 +62,7 @@ class TRIPLEX(nn.Module):
     """Model class for TRIPLEX
     """
     def __init__(self, 
-                num_outputs=250,
+                num_genes=250,
                 emb_dim=512,
                 depth1=2,
                 depth2=2,
@@ -112,9 +112,8 @@ class TRIPLEX(nn.Module):
         resnet18 = load_model_weights("tenpercent_resnet18.ckpt")
         module=list(resnet18.children())[:-2]
         self.target_encoder = nn.Sequential(*module)
-        self.fc_target = nn.Linear(emb_dim, num_outputs)
-        # self.fc_target = nn.Sequential(nn.Linear(emb_dim, num_outputs),
-        #                         nn.ReLU())
+        self.fc_target = nn.Linear(emb_dim, num_genes)
+        
         self.target_linear = nn.Linear(512, emb_dim)
 
         # Neighbor Encoder
@@ -124,9 +123,7 @@ class TRIPLEX(nn.Module):
                                                 int(emb_dim*mlp_ratio3), 
                                                 dropout = dropout3, 
                                                 resolution=res_neighbor)
-        self.fc_neighbor = nn.Linear(emb_dim, num_outputs)
-        # self.fc_neighbor = nn.Sequential(nn.Linear(emb_dim, num_outputs),
-                                # nn.ReLU())
+        self.fc_neighbor = nn.Linear(emb_dim, num_genes)
 
         # Global Encoder        
         self.global_encoder = GlobalEncoder(emb_dim, 
@@ -136,19 +133,16 @@ class TRIPLEX(nn.Module):
                                             dropout2, 
                                             kernel_size,
                                             pos_layer)
-        self.fc_global = nn.Linear(emb_dim, num_outputs)
-        # self.fc_global = nn.Sequential(nn.Linear(emb_dim, num_outputs),
-                                # nn.ReLU())
-    
+        self.fc_global = nn.Linear(emb_dim, num_genes)
+        
         # Fusion Layer
         self.fusion_encoder = FusionEncoder(emb_dim, 
                                             depth1, 
                                             num_heads1, 
                                             int(emb_dim*mlp_ratio1), 
                                             dropout1)    
-        # self.fc = nn.Sequential(nn.Linear(emb_dim, num_outputs),
-        #                         nn.ReLU())
-        self.fc = nn.Linear(emb_dim, num_outputs)
+        
+        self.fc = nn.Linear(emb_dim, num_genes)
         
     def forward(self,
                 img, 
