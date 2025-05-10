@@ -4,7 +4,7 @@ from torchmetrics import Metric
 
 
 class RVDMetric(Metric):
-    def __init__(self, num_outputs: int, eps: float = 1e-8, **kwargs):
+    def __init__(self, num_outputs: int, eps: float = 1e-2, **kwargs):
         """
         Args:
             num_outputs (int): The number of ouputs (i.e., number of features per sample).
