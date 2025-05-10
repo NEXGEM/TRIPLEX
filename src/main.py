@@ -81,7 +81,8 @@ def main(cfg):
             check_val_every_n_epoch = 1,
             logger = loggers if exp_id == 1 else False,
             callbacks = callbacks if exp_id == 1 else None,
-            precision = '16-mixed' if use_amp else '32'
+            precision = '16-mixed' if use_amp else '32',
+            num_sanity_val_steps=2
         )
         
         trainer.fit(model, datamodule = dm)
@@ -159,8 +160,7 @@ def main(cfg):
     else:
         raise Exception("Invalid mode")
     
-    return model
-
+    
 if __name__ == '__main__':
     args = get_parse()   
     
@@ -197,6 +197,10 @@ if __name__ == '__main__':
     cfg.GENERAL.exp_id = args.exp_id
     cfg.GENERAL.gpu = args.gpu
     cfg.DATA.mode = args.mode
+    
+    cfg.MODEL.num_genes = cfg.DATA.num_outputs
+    cfg.MODEL.gene_path = f"{cfg.DATA.data_dir}/{cfg.DATA.gene_type}_{cfg.DATA.num_genes}genes.json"
+    cfg.DATA.pred_path = f"{cfg.DATA.output_dir}/{cfg.DATA.pred_model}"
         
     if args.mode != 'inference':
         num_k = cfg.TRAINING.num_k     

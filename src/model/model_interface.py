@@ -17,7 +17,6 @@ from torchmetrics.regression import ( PearsonCorrCoef,
 
 #---->
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import BasePredictionWriter
 
 from utils.metrics import RVDMetric
 
@@ -95,6 +94,13 @@ class  ModelInterface(pl.LightningModule):
             inputs['ej'] = inputs['ej'].squeeze(0)
         if 'yj' in inputs and len(inputs['yj'].shape) == 4:
             inputs['yj'] = inputs['yj'].squeeze(0)
+        if 'img_emb' in inputs and len(inputs['img_emb'].shape) == 3:
+            inputs['img_emb'] = inputs['img_emb'].squeeze(0)
+        if 'coord' in inputs and len(inputs['coord'].shape) == 3:
+            inputs['coord'] = inputs['coord'].squeeze(0)
+        if 'pred' in inputs and len(inputs['pred'].shape) == 3:
+            inputs['pred'] = inputs['pred'].squeeze(0)
+        
         return inputs
 
     def training_step(self, batch, batch_idx):
@@ -112,6 +118,21 @@ class  ModelInterface(pl.LightningModule):
         self.log("train_loss", loss)
         
         return {'loss': loss} 
+    
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        # for name, param in self.named_parameters():
+        #     if param.grad is None:
+        #         print(f"Parameter {name} is unused (no grad)")
+        return super().on_train_batch_end(outputs, batch, batch_idx)
+    
+    def optimizer_step(self, *args, **kwargs):
+        super().optimizer_step(*args, **kwargs)
+        
+        if self.model_name == 'Stem':
+            self.model.update_ema()
+            
+        if getattr(self.model, 'ema', None) is not None:
+            self.model.ema.update()
 
     def validation_step(self, batch, batch_idx):
         batch = self._preprocess_inputs(batch)
@@ -126,6 +147,7 @@ class  ModelInterface(pl.LightningModule):
             
             val_metric = self.valid_metrics(logits, label)
             val_metric = {k: v.nanmean() if len(v.shape) > 0 else v for k, v in val_metric.items()}
+            
             self.log_dict(val_metric, on_epoch = True, logger = True, sync_dist=True, batch_size = label.shape[0])
             outputs = {'logits': logits, 'label': label}
         else:
