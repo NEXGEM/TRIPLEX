@@ -17,6 +17,7 @@ TRAINING:
   lr_scheduler:
     patience: 10
     factor: 0.1
+  save_best_only: True
 
 DATA:
   data_dir: input/ST/bryan

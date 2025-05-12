@@ -3,6 +3,7 @@
 GENERAL:
   seed: 2021
   log_path: ./logs
+  save_predictions: True
   
 TRAINING:
   num_k: 4
@@ -15,6 +16,7 @@ TRAINING:
   lr_scheduler:
     patience: 10
     factor: 0.1
+  save_best_only: True
 
 DATA:
   data_dir: input/ST/andrew
