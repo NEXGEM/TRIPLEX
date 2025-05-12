@@ -66,10 +66,6 @@ def match_to_target(coords_target, coords_neighbor, dst_pixel_size, src_pixel_si
     
     matches = find_matches(coords_target, coords_neighbor)
     
-    # Extract the indices from the matches
-    # indices_target = np.array([match[0] for match in matches])
-    # indices_neighbor = np.array([match for match in matches])
-    
     return matches
 
 
@@ -90,6 +86,11 @@ def preprocess_st(name, adata, output_dir):
     barcode_merged = pd.merge(adata.obs, barcode, left_index=True, right_index=True).index
     adata = adata[barcode_merged]
     
+    # if normalize:
+    #     print("Normalizing ST data...")
+    #     adata = normalize_adata(adata, cpm=True, smooth=True)
+    
+    adata.write(save_dir)
     # if normalize:
     #     print("Normalizing ST data...")
     #     adata = normalize_adata(adata, cpm=True, smooth=True)
@@ -147,7 +148,39 @@ def save_patches(name, input_dir, output_dir, platform='visium', save_targets=Tr
                 threshold=int(0.15 // num_n),
                 dump_visualization=False
             )
-    
+        
+            print("Matching neighbor patches to target patches...")
+            target_path = f"{output_dir}/patches/{name}.h5"
+            neighbor_path = f"{output_dir}/patches/neighbor/{name}.h5"
+            
+            with h5py.File(target_path, 'r') as f:
+                crd_target = f['coords'][:]
+                    
+            with h5py.File(neighbor_path, 'r') as f:
+                neighbor_img = f['img'][:]
+                crd_neighbor = f['coords'][:]
+                
+            src_pixel_size = st.pixel_size
+            
+            idx_matched = match_to_target(crd_target, 
+                                        crd_neighbor, 
+                                        dst_pixel_size, 
+                                        src_pixel_size, 
+                                        num_n)
+            
+            with h5py.File(neighbor_path, 'r+') as f:
+                # Replace coordinates with matched coordinates
+                del f['coords']
+                f.create_dataset('coords', data=crd_neighbor[idx_matched])
+                
+                # Replace images with matched images if they exist
+                # neighbor_img = f['img'][:]
+                del f['img']
+                f.create_dataset('img', data=neighbor_img[idx_matched])
+                
+                # Store the matching parameters as attributes
+                f.attrs['matched_to_target'] = True
+        
     return st
         
 def save_image(slide_path, patch_path, slide_level=0, patch_size=256):
@@ -201,6 +234,8 @@ if __name__ == "__main__":
         
         if not os.path.exists(f"{output_dir}/ids.csv"):
             ids = glob(f"{input_dir}/{prefix}*")
+            sample_ids = [os.path.basename(id) for id in ids]
+            pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
             sample_ids = [os.path.basename(id) for id in ids]
             pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
         else:
@@ -258,6 +293,8 @@ if __name__ == "__main__":
             ids = glob(f"{output_dir}/patches/*.h5")
             sample_ids = [os.path.splitext(os.path.basename(id))[0] for id in ids]
             pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
+            sample_ids = [os.path.splitext(os.path.basename(id))[0] for id in ids]
+            pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
             
         input_dir = input_dir if hest_dir is None else hest_dir
         for input_path in tqdm(ids):
@@ -287,6 +324,8 @@ if __name__ == "__main__":
         os.makedirs(output_dir, exist_ok=True)
         
         ids = glob(f"{patch_dir}/*.h5")
+        sample_ids = [os.path.splitext(os.path.basename(id))[0] for id in ids]
+        pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
         sample_ids = [os.path.splitext(os.path.basename(id))[0] for id in ids]
         pd.DataFrame(sample_ids, columns=['sample_id']).to_csv(f"{output_dir}/ids.csv", index=False)
         

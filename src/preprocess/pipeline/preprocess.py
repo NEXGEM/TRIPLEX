@@ -80,6 +80,7 @@ def extract_features_single(
     batch_size: int = 1024,
     num_workers: int = 4,
     overwrite: bool = False,
+    transform_type: str = 'eval',
     id_path: Optional[str] = None
 ) -> None:
     """
@@ -107,7 +108,8 @@ def extract_features_single(
         "--model_name", model_name,
         "--num_n", str(num_n),
         "--batch_size", str(batch_size),
-        "--num_workers", str(num_workers)
+        "--num_workers", str(num_workers),
+        "--transform_type", transform_type
     ]
     
     if overwrite:
@@ -136,6 +138,7 @@ def extract_features_parallel(
     num_workers: int = 4,
     overwrite: bool = False,
     gpus: List[int] = [0,1],
+    transform_type: str = 'eval',
     sample_ids: List[str] = []
 ) -> None:
     """
@@ -184,7 +187,7 @@ def extract_features_parallel(
             "--num_n", str(num_n),
             "--batch_size", str(batch_size),
             "--num_workers", str(num_workers),
-            "--total_gpus", str(total_gpus)
+            "--transform_type", transform_type
         ]
         
         if overwrite:

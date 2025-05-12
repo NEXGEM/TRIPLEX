@@ -19,11 +19,11 @@ save_neighbors: false
 n_splits: 4
 n_top_hvg: 50
 n_top_heg: 1000
+n_top_hmhvg: 200
 
 # Feature extraction settings
 model_name: cigar
 num_n: 5
 batch_size: 1024
 num_workers: 4
-total_gpus: 1
 overwrite: false

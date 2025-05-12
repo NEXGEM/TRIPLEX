@@ -167,7 +167,8 @@ class TriplexPipeline:
                 num_n=1,
                 batch_size=self.config['batch_size'],
                 num_workers=self.config['num_workers'],
-                overwrite=self.config['overwrite']
+                overwrite=self.config['overwrite'],
+                transform_type=transform_type
             )
         
         # Extract neighbor features
@@ -182,7 +183,8 @@ class TriplexPipeline:
                 num_n=self.config['num_n'],
                 batch_size=self.config['batch_size'],
                 num_workers=self.config['num_workers'],
-                overwrite=self.config['overwrite']
+                overwrite=self.config['overwrite'],
+                transform_type=transform_type
             )
     
     def run_parallel_extraction(self, transform_type: str = 'eval'):
@@ -214,6 +216,7 @@ class TriplexPipeline:
                 num_workers=self.config['num_workers'],
                 overwrite=self.config['overwrite'],
                 gpus=gpus,
+                transform_type=transform_type,
                 sample_ids=sample_ids
             )
         
@@ -231,6 +234,7 @@ class TriplexPipeline:
                 num_workers=self.config['num_workers'],
                 overwrite=self.config['overwrite'],
                 gpus=gpus,
+                transform_type=transform_type,
                 sample_ids=sample_ids
             )
         

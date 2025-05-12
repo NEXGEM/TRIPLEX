@@ -147,6 +147,9 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, n_top_hmhvg=200, min_s
         print(f"Selected highly expressed genes: {output['mean']}")
         # top_genes = expressed_genes[total_counts.nlargest(n_top).index]
     
+    else:
+        raise ValueError("method must be either 'HVG' or 'HEG' or 'ALL")
+    
     return output
 
 
@@ -165,27 +168,7 @@ if __name__ == "__main__":
     n_top_hmhvg = args.n_top_hmhvg
     
     method = 'ALL'
-    # exist = 0 
     
-    # if os.path.exists(f"{args.output_dir}/var_{n_top_hmhvg}genes.json"):
-    #     method = 'HMHVG'
-    
-    # else:
-    #     if os.path.exists(f"{args.output_dir}/var_{n_top_hvg}genes.json"):
-    #         print(f"Geneset already exists in {args.output_dir}/var_{n_top_hvg}genes.json. Exiting.")
-    #         method = 'HEG'
-    #         exist += 1
-
-    #     if os.path.exists(f"{args.output_dir}/mean_{n_top_heg}genes.json"):
-    #         print(f"Geneset already exists in {args.output_dir}/mean_{n_top_heg}genes.json. Exiting.")
-    #         exist += 1
-    #         if exist == 2:
-    #             print("Both genesets exist. Exiting.")
-    #             exit()
-    #         if exist == 1:
-    #             method = 'HVG'
-            
-   
     data_list = load_data(st_dir)
     geneset = find_geneset(data_list, method=method, n_top_hvg=n_top_hvg, n_top_heg=n_top_heg, n_top_hmhvg=n_top_hmhvg)
     
