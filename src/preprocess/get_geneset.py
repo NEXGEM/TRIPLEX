@@ -51,10 +51,8 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, n_top_hmhvg=200, min_s
             if first:
                 common_genes = data.var_names 
                 first = False
-                print(data.shape)
                 continue
             common_genes = set(common_genes).intersection(set(data.var_names))
-            print(data.shape, end="\t")
 
         # keep common genes
         print("Length of common genes: ", len(common_genes))
@@ -62,9 +60,7 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, n_top_hmhvg=200, min_s
         for i in range(len(data_list)):
             data = data_lst[i].copy()
             data_lst[i] = data[:, common_genes].copy()
-            print(data_lst[i].shape)
     
- 
         union_hvg = set()
 
         for fn_idx in range(len(data_list)):
@@ -76,11 +72,9 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, n_top_hmhvg=200, min_s
             sc.pp.log1p(adata)
             sc.pp.highly_variable_genes(adata, n_top_genes=2000)
 
-            union_hvg = union_hvg.union(set(adata.var_names[adata.var["highly_variable"]]))
-            print(len(union_hvg))
+            union_hvg = union_hvg.union(set(adata.var_names[adata.var["highly_variable"]])
 
         union_hvg = sorted([gene for gene in union_hvg if not gene.startswith(("MT", "mt", "RPS", "RPL"))]) # [optional] remove mitochondrial genes and ribosomal genes
-        print(len(union_hvg))
 
         # select union_hvg and concat all slides
         all_count_df = pd.DataFrame(
