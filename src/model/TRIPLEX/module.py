@@ -467,9 +467,8 @@ class GlobalEncoder(nn.Module):
         elif pos_method == 'None':
             self.pos_layer = None
         elif pos_method == 'spatialformer':
-            # self.pos_layer = FourierPositionalEncoding(coord_dim=2, embed_dim=emb_dim)
-            # self.spatial_token = nn.Parameter(torch.randn(1, 1, emb_dim))
             self.pos_layer = FourierPositionalEncoding(coord_dim=2, embed_dim=emb_dim)
+            self.spatial_token = nn.Parameter(torch.randn(1, 1, emb_dim))
         else:
             raise ValueError(f"Unknown pos_layer: {pos_method}. Choose 'MLP' or 'APEG' or 'None'.")
         
@@ -501,9 +500,8 @@ class GlobalEncoder(nn.Module):
             x = self.layer2(x) #[B, N, emb_dmg]   
 
         elif self.pos_method == 'spatialformer':
-            # spatial_pos = self.pos_layer(pos)  # [B, N, H]
-            # spatial_tokens = spatial_pos + self.spatial_token  # [B, N, H]
-            spatial_tokens = self.pos_layer(pos)  # [B, N, H]
+            spatial_pos = self.pos_layer(pos)  # [B, N, H]
+            spatial_tokens = spatial_pos + self.spatial_token  # [B, N, H]
 
             for layer in self.layers:
                 x, spatial_tokens = layer(x, spatial_tokens)
