@@ -40,23 +40,17 @@ class TriDataset(STDataset):
         self.emb_dir = f"{data_dir}/emb"
         
         if phase == 'train':
-            # self.pos_dict = {_id: torch.LongTensor(adata.obs[['array_row', 'array_col']].to_numpy()) \
-            #     for _id, adata in self.adata_dict.items()}
+            
             self.global_data = {_id: self.load_emb(_id, emb_name='global', model_name=model_name, return_crds=True) \
                 for _id in self.ids}
-            
             self.pos_dict = {_id: data[1] \
                 for _id, data in self.global_data.items()}
-            
             self.global_embs = {_id: data[0] \
                 for _id, data in self.global_data.items()}
-            
-            # self.global_embs = {_id: self.load_emb(_id, emb_name='global', model_name=model_name) \
-            #     for _id in self.ids}
         
         if mode == 'inference':
             self.global_emb, self.position = self.load_emb(self.name, emb_name='global', return_crds=True)
-            # self.position = torch.LongTensor(np.load(f"{self.data_dir}/pos/{self.name}.npy")) 
+            
         
     def __getitem__(self, index):
         data = {}
@@ -105,15 +99,9 @@ class TriDataset(STDataset):
             
                 if os.path.isfile(f"{self.st_dir}/{name}.h5ad"):
                     adata = self.load_st(name, self.genes, **self.norm_param)
-                    # pos = adata.obs[['array_row', 'array_col']].to_numpy()
                     
                     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
                     data['label'] = torch.FloatTensor(expression) 
-                    # if self.mode != 'inference':
-                    #     expression = adata.X.toarray() if sparse.issparse(adata.X) else adata.X
-                    #     data['label'] = torch.FloatTensor(expression) 
-                # else:
-                #     pos = np.load(f"{self.data_dir}/pos/{name}.npy")
                     
                 data['position'] = pos
                 data['global_emb'] = global_emb
