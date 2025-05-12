@@ -57,16 +57,40 @@ def find_matches(array_i, array_j):
     
     return matches
 
-def match_to_target(coords_target, coords_neighbor, dst_pixel_size, src_pixel_size, num_n):
+# def match_to_target(coords_target, coords_neighbor, dst_pixel_size, src_pixel_size, num_n):
     
-    patch_size_target = 224 * (dst_pixel_size / src_pixel_size)
-    patch_size_neighbor = 224 * num_n * (dst_pixel_size / src_pixel_size)
-    coords_target = coords_target + int(patch_size_target // 2)
-    coords_neighbor = coords_neighbor + int(patch_size_neighbor // 2)
+#     patch_size_target = 224 * (dst_pixel_size / src_pixel_size)
+#     patch_size_neighbor = 224 * num_n * (dst_pixel_size / src_pixel_size)
+#     coords_target = coords_target + int(patch_size_target // 2)
+#     coords_neighbor = coords_neighbor + int(patch_size_neighbor // 2)
     
-    matches = find_matches(coords_target, coords_neighbor)
+#     matches = find_matches(coords_target, coords_neighbor)
     
-    return matches
+#     return matches
+
+def match_to_target(target_path, neighbor_path):
+    with h5py.File(target_path, 'r') as f:
+        barcode_target = f['barcode'][:].astype('str').squeeze()
+            
+    with h5py.File(neighbor_path, 'r+') as f:
+        neighbor_img = f['img'][:]
+        crd_neighbor = f['coords'][:]
+        barcode_neighbor = f['barcode'][:]
+        
+        if len(barcode_target) != len(barcode_neighbor):
+            print("Mismatch between target and neighbor barcodes")
+            
+            idx_matched = np.intersect1d(barcode_target, 
+                                        barcode_neighbor.astype('str').squeeze(), 
+                                        return_indices=True)[2]
+
+            del f['coords']
+            f.create_dataset('coords', data=crd_neighbor[idx_matched])
+            del f['img']
+            f.create_dataset('img', data=neighbor_img[idx_matched])
+            del f['barcode']
+            f.create_dataset('barcode', data=barcode_neighbor[idx_matched])
+            f.attrs['matched_to_target'] = True
 
 
 def preprocess_st(name, adata, output_dir):
@@ -85,15 +109,6 @@ def preprocess_st(name, adata, output_dir):
     barcode = pd.DataFrame(index=barcode)
     barcode_merged = pd.merge(adata.obs, barcode, left_index=True, right_index=True).index
     adata = adata[barcode_merged]
-    
-    # if normalize:
-    #     print("Normalizing ST data...")
-    #     adata = normalize_adata(adata, cpm=True, smooth=True)
-    
-    adata.write(save_dir)
-    # if normalize:
-    #     print("Normalizing ST data...")
-    #     adata = normalize_adata(adata, cpm=True, smooth=True)
     
     adata.write(save_dir)
     
@@ -152,35 +167,9 @@ def save_patches(name, input_dir, output_dir, platform='visium', save_targets=Tr
             print("Matching neighbor patches to target patches...")
             target_path = f"{output_dir}/patches/{name}.h5"
             neighbor_path = f"{output_dir}/patches/neighbor/{name}.h5"
-            
-            with h5py.File(target_path, 'r') as f:
-                crd_target = f['coords'][:]
-                    
-            with h5py.File(neighbor_path, 'r') as f:
-                neighbor_img = f['img'][:]
-                crd_neighbor = f['coords'][:]
-                
-            src_pixel_size = st.pixel_size
-            
-            idx_matched = match_to_target(crd_target, 
-                                        crd_neighbor, 
-                                        dst_pixel_size, 
-                                        src_pixel_size, 
-                                        num_n)
-            
-            with h5py.File(neighbor_path, 'r+') as f:
-                # Replace coordinates with matched coordinates
-                del f['coords']
-                f.create_dataset('coords', data=crd_neighbor[idx_matched])
-                
-                # Replace images with matched images if they exist
-                # neighbor_img = f['img'][:]
-                del f['img']
-                f.create_dataset('img', data=neighbor_img[idx_matched])
-                
-                # Store the matching parameters as attributes
-                f.attrs['matched_to_target'] = True
-        
+                        
+            match_to_target(target_path, neighbor_path)
+
     return st
         
 def save_image(slide_path, patch_path, slide_level=0, patch_size=256):
