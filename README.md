@@ -23,6 +23,10 @@ It is now integrated with [HEST](https://github.com/mahmoodlab/HEST) and [CLAM](
     - Optional MLP-based positional encoding
     - Ability to disable positional encoding
 
+- **May 2025**: 
+  - Additional position encoding options
+    - SpatialFormer (Xiao, Han, et al. "SpatialFormer: Towards Generalizable Vision Transformers with Explicit Spatial Understanding." European Conference on Computer Vision. Cham: Springer Nature Switzerland, 2024.)
+
 ## Table of Contents
 - [Requirements](#requirements)
 - [Installation](#installation)
