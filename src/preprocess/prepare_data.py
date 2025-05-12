@@ -77,20 +77,20 @@ def match_to_target(target_path, neighbor_path):
         crd_neighbor = f['coords'][:]
         barcode_neighbor = f['barcode'][:]
         
-        if len(barcode_target) != len(barcode_neighbor):
-            print("Mismatch between target and neighbor barcodes")
-            
-            idx_matched = np.intersect1d(barcode_target, 
-                                        barcode_neighbor.astype('str').squeeze(), 
-                                        return_indices=True)[2]
+        # if len(barcode_target) != len(barcode_neighbor):
+            # print("Mismatch between target and neighbor barcodes")
+        idx_matched = np.intersect1d(barcode_target, 
+                                    barcode_neighbor.astype('str').squeeze(), 
+                                    return_indices=True)[2]
 
-            del f['coords']
-            f.create_dataset('coords', data=crd_neighbor[idx_matched])
-            del f['img']
-            f.create_dataset('img', data=neighbor_img[idx_matched])
-            del f['barcode']
-            f.create_dataset('barcode', data=barcode_neighbor[idx_matched])
-            f.attrs['matched_to_target'] = True
+        del f['coords']
+        f.create_dataset('coords', data=crd_neighbor[idx_matched])
+        del f['img']
+        f.create_dataset('img', data=neighbor_img[idx_matched])
+        del f['barcode']
+        f.create_dataset('barcode', data=barcode_neighbor[idx_matched])
+        f.attrs['matched_to_target'] = True
+        
 
 
 def preprocess_st(name, adata, output_dir):
