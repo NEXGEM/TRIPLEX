@@ -221,7 +221,7 @@ def pearson_R(x, y):
 
 class EGN(nn.Module):
     def __init__(self, bhead=16, bdim=128, bfre=2, mdim=1024, player=2, linear_projection=True,
-                image_size = 224, patch_size = 32, num_outputs = 300, dim = 1024, 
+                image_size = 224, patch_size = 32, num_genes = 300, dim = 1024, 
                 depth = 16, heads = 16, mlp_dim = 2048, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.,
                 max_batch_size = 1024):
         super().__init__()
@@ -245,12 +245,12 @@ class EGN(nn.Module):
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
-        self.transformer = Transformer(mdim,dim, player, depth,linear_projection, heads, dim_head, mlp_dim, dropout,bhead,bdim,bfre, num_outputs)
+        self.transformer = Transformer(mdim,dim, player, depth,linear_projection, heads, dim_head, mlp_dim, dropout,bhead,bdim,bfre, num_genes)
         self.to_latent = nn.Identity()
 
         self.mlp_head = nn.Sequential(
                 nn.LayerNorm(dim * 2),
-                nn.Linear(dim * 2, num_outputs)
+                nn.Linear(dim * 2, num_genes)
             )
             
     def forward(self, img, ei, ej, yj, label=None, **kwargs):
