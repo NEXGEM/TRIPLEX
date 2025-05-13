@@ -9,13 +9,13 @@ import torchvision
 
 class StNet(nn.Module):
     
-    def __init__(self, num_outputs=1788, max_batch_size=1024):
+    def __init__(self, num_genes=1788, max_batch_size=1024):
         super(StNet, self).__init__()
         
         self.max_batch_size = max_batch_size
         self.model = torchvision.models.__dict__['densenet121'](pretrained=True)
         in_features = self.model.classifier.in_features
-        self.model.classifier = nn.Linear(in_features, num_outputs)
+        self.model.classifier = nn.Linear(in_features, num_genes)
 
     def forward(self, img, label=None, **kwargs):
         phase = kwargs.get('phase', 'train')
