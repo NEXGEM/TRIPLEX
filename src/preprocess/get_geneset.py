@@ -95,18 +95,14 @@ def find_geneset(data_list, n_top_hvg=50, n_top_heg=1000, n_top_hmhvg=200, min_s
         all_count_df.fillna(0, inplace=True)
         all_count_df = all_count_df.T
 
-        # 1. 유전자 평균 및 표준편차 계산
         gene_means = all_count_df.mean(axis=0)
         gene_stds  = all_count_df.std(axis=0)
 
-        # 2. 각각 순위 매기기 (작을수록 상위)
-        mean_ranks = gene_means.rank(ascending=False, method='min')  # 1이 가장 큼
+        mean_ranks = gene_means.rank(ascending=False, method='min')  
         std_ranks  = gene_stds.rank(ascending=False, method='min')
 
-        # 3. 점수 합산 (작을수록 mean & std 모두 상위)
         combined_score = mean_ranks + std_ranks
 
-        # top-k 선택 및 저장
         top_genes_hmhvg = combined_score.sort_values().head(n_top_hmhvg).index
         top_genes_hmhvg = sorted(top_genes_hmhvg)
         output['hmhvg'] = top_genes_hmhvg
