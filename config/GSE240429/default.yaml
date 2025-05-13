@@ -24,6 +24,7 @@ DATA:
   num_outputs: 300
   cpm: False
   smooth: False
+  model_name: 'uni_v1'
   
   train_dataloader:
         batch_size: 128
