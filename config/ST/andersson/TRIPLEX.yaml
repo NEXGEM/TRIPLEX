@@ -1,7 +1,6 @@
   
 MODEL:
   model_name: TRIPLEX 
-  num_genes: 250
   emb_dim: 512
   depth1: 1
   depth2: 3
@@ -16,7 +15,7 @@ MODEL:
   dropout2: 0.1
   dropout3: 0.3
   kernel_size: 3
-  pos_layer: 'APEG' # 'MLP' or 'None'
+  pos_layer: 'APEG' # 'MLP' or 'None' or "spatialformer"
 
 DATA:
   dataset_name: TriDataset

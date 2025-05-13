@@ -1,7 +1,6 @@
 
 MODEL:
   model_name: EGN 
-  num_outputs: 250
 
 DATA:
   dataset_name: EGNDataset
