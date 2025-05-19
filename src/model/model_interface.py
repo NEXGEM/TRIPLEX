@@ -111,7 +111,7 @@ class  ModelInterface(pl.LightningModule):
             dataset = self._trainer.train_dataloader.dataset
             batch['dataset'] = dataset
                 
-        results_dict = self.model(**batch)
+        results_dict = self.model(**batch, phase='train')
         
         #---->Loss
         loss = results_dict['loss']        
@@ -138,7 +138,7 @@ class  ModelInterface(pl.LightningModule):
         batch = self._preprocess_inputs(batch)
         
         #---->Forward
-        results_dict = self.model(**batch)
+        results_dict = self.model(**batch, phase='val')
         
         label = batch['label']
         #---->Loss
@@ -165,7 +165,7 @@ class  ModelInterface(pl.LightningModule):
             dataset = self._trainer.test_dataloaders.dataset
             batch['dataset'] = dataset
             
-        results_dict = self.model(**batch)
+        results_dict = self.model(**batch, phase='test')
         
         #---->Loss
         logits = results_dict['logits']
