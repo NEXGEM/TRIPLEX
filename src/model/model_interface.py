@@ -215,7 +215,7 @@ class  ModelInterface(pl.LightningModule):
             batch['global_emb'] = dataset.global_emb.clone().to(batch['img'].device).unsqueeze(0)
         
         #---->Forward
-        results_dict = self.model(**batch)
+        results_dict = self.model(**batch, phase='test')
         
         #---->Loss
         pred = results_dict['logits']
